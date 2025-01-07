@@ -205,6 +205,7 @@ in extra-versions, it will be ignored. If BRANCH-TO-HASH is non-nil, branches
 are converted to hashes before they are returned."
   ;; We don't complete on heads here because they are not valid versions
   ;; (hashes or tags are).
+  (setq extra-versions (-filter #'identity extra-versions))
   (let (version
         (tags (stp-git-remote-tags-sorted remote)))
     (while (or (not version) (not (stp-git-valid-remote-ref-p remote version t)))
