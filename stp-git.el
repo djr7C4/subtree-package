@@ -123,6 +123,8 @@ kept. By default all refs are returned."
         (rem-call-process-shell-command (format "git ls-remote %s 2> /dev/null" remote)))
     (setq string (s-trim string))
     (and (= exit-code 0)
+         ;; Handle empty repositories that do not have any tags.
+         (not (string= string ""))
          (mapcar (lambda (list)
                    (db (hash ref)
                        list
