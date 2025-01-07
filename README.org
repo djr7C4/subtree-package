@@ -1,0 +1,7 @@
+* Subtree Package
+Subtree package is a package manager for Emacs that stores packages as Git
+subtrees in a Git repository. The intention is for packages to be stored in the
+Git repository for a user's Emacs configuration along with other settings. This
+allows the entire configuration to be easily reproduced simply by cloning its
+repository even if some of the repositories for packages it depends on no longer
+exist.
