@@ -1,7 +1,67 @@
-* Subtree Package
-Subtree package is a package manager for Emacs that stores packages as Git
-subtrees in a Git repository. The intention is for packages to be stored in the
-Git repository for a user's Emacs configuration along with other settings. This
-allows the entire configuration to be easily reproduced simply by cloning its
-repository even if some of the repositories for packages it depends on no longer
-exist.
+* Subtree package
+Subtree package (STP) is a package manager for Emacs that stores packages as Git
+subtrees in the Git repository for a user's Emacs configuration. This ensures
+maximum reproducibility simply by cloning its repository even if some of the
+repositories for packages it depends on no longer exist.
+* Features
+** Manage all installed packages
+The main entry point to STP is =M-x stp-list= which shows all installed packages
+using =stp-list-mode= and has convenience bindings for installing (=i=),
+upgrading (=u=), building (=b=), building info (=m=), uninstalling (=x=),
+repairing (=r=) and toggling between stable and unstable (=t=). The package list
+can also be refreshed using =g= and a package can be reloaded from the
+filesystem with =G=. Use =l= to add the current package to the load path.
+** Mark packages as stable or unstable
+Stable releases are automatically detected from tags in Git repositories or ELPA
+releases. Stable packages are only upgraded to other stable releases by default.
+
+Packages can also be marked as unstable which allows them to installed
+and upgraded to any hash, branch or tag.
+** Automatically build packages
+Use =M-x stp-build= Packages can be built automatically by detecting Makefiles or other build
+systems as well as compiling the elisp files directly. Info manuals are also
+automatically detected and added to Emacs' info search path.
+** Automatically repair packages
+Use =M-x stp-repair-all= and =M-x stp-repair= to repair information in the
+package database that may have become out of sync with installed packages. This
+can be useful when the package database is not updated because a user updated a
+package using Git commands manually or there is a bug.
+* Supported package types
+Currently, three different types of packages can be installed.
+- Git repositories
+- GNU ELPA packages
+- URL packages (when the source is a single file that can be accessed via a URL)
+* Installation
+Subtree package can manage itself as a package. It is recommended to place the
+bootstraping code in =early-init.el=.
+#+begin_src emacs-lisp
+  (require 'stp-bootstrap (expand-file-name "path/to/package-source/subtree-package/stp-bootstrap.el"))
+
+  (setq stp-source-directory "path/to/package-source/"
+        stp-info-file (expand-file-name "pkg-info.eld" djr-emacs-user-code-directory))
+
+  ;; Set up dependencies for STP itself.
+  (stp-bootstrap)
+  ;; Add installed packages to the load path.
+  (stp-update-load-paths)
+#+end_src
+
+In your =~/.emacs= or =~/.emacs.d/init.el=
+
+#+begin_src emacs-lisp
+  (require 'stp)
+
+  (keymap-global-set "C-c P" #'stp-list)
+#+end_src
+
+You will also need to manually install the =dash=, =f=, =s= and =rem= libraries
+as STP depends on them internally. To install a package manually, open a command
+line and go to the top-level directory of the Git repository that contains
+=stp-source-directory=. Then use
+
+#+begin_src bash
+  git subtree add --prefix "path/to/package-source/pkg-name" <repo-url> <package-ref>
+#+end_src
+
+to install the packages. After they are installed, restart Emacs and run =M-x
+stp-repair-all= to fix the package information database.
