@@ -788,7 +788,6 @@ that many packages."
               "R" #'stp-repair-all
               "t" #'stp-toggle-update
               "u" #'stp-upgrade
-              "x" #'stp-uninstall
               "RET" #'stp-list-goto-package)
 
 (cl-defun stp-list-refresh (&optional refresh-pkg-name quiet)
