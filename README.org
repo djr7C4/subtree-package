@@ -20,9 +20,8 @@ using =stp-list-mode= and has convenience bindings for
 - uninstalling (=x=),
 - repairing (=r=) and
 - toggling between stable and unstable (=t=),
-- reloading (=G=),
-- adding to the load path (=l=) and
-- reloaded from the filesystem with (=G=)
+- reloading (=G=) and
+- adding to the load path (=l=).
 ** Automatically detect stable versions
 Stable versions of packages are automatically inferred from tags in the git
 repository. =stp-version-extractor-alist= can be modified in order to support
