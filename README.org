@@ -1,34 +1,55 @@
 * Subtree package
-Subtree package (STP) is a package manager for Emacs that stores packages as Git
-subtrees in the Git repository for a user's Emacs configuration. This ensures
-maximum reproducibility simply by cloning its repository even if some of the
-repositories for packages it depends on no longer exist.
+Subtree package (STP) is a package manager for Emacs that stores packages as git
+subtrees in the git repository for your Emacs configuration.
+* Motivation
+- Reproducing your configuration is trivially achieve by cloning the git
+  repository
+- This works even if some of the repositories for packages it depends on no
+  longer exist (which does happen occasionally)
+- There is no need to initialize submodules since git subtree is used
+- It is easy to migrate existing configurations that use git subtrees to manage
+  packages
 * Features
 ** Manage all installed packages
 The main entry point to STP is =M-x stp-list= which shows all installed packages
-using =stp-list-mode= and has convenience bindings for installing (=i=),
-upgrading (=u=), building (=b=), building info (=m=), uninstalling (=x=),
-repairing (=r=) and toggling between stable and unstable (=t=). The package list
-can also be refreshed using =g= and a package can be reloaded from the
-filesystem with =G=. Use =l= to add the current package to the load path.
+using =stp-list-mode= and has convenience bindings for
+- installing (=i=),
+- upgrading (=u=)
+- building source (=b=)
+- building info (=m=)
+- uninstalling (=x=),
+- repairing (=r=) and
+- toggling between stable and unstable (=t=),
+- reloading (=G=),
+- adding to the load path (=l=) and
+- reloaded from the filesystem with (=G=)
+** Automatically detect stable versions
+Stable versions of packages are automatically inferred from tags in the git
+repository. =stp-version-extractor-alist= can be modified in order to support
+unusual version strings if a package uses a scheme that is not supported by the
+defaults. Contributions of missing version extractors are very welcome!
+** Install any commit by branch or hash
+Packages are automatically fetched before they are installed or upgraded when
+=stp-subtree-fetch= is non-nil. This allows a hash to be specified instead of a
+tag or branch.
 ** Mark packages as stable or unstable
-Stable releases are automatically detected from tags in Git repositories or ELPA
+Stable releases are automatically detected from tags in git repositories or ELPA
 releases. Stable packages are only upgraded to other stable releases by default.
 
 Packages can also be marked as unstable which allows them to installed
 and upgraded to any hash, branch or tag.
 ** Automatically build packages
-Use =M-x stp-build= Packages can be built automatically by detecting Makefiles or other build
-systems as well as compiling the elisp files directly. Info manuals are also
-automatically detected and added to Emacs' info search path.
+Use =M-x stp-build= Packages can be built automatically by detecting Makefiles
+or other build systems as well as compiling the elisp files directly. Info
+manuals are also automatically detected and added to Emacs' info search path.
 ** Automatically repair packages
 Use =M-x stp-repair-all= and =M-x stp-repair= to repair information in the
 package database that may have become out of sync with installed packages. This
 can be useful when the package database is not updated because a user updated a
-package using Git commands manually or there is a bug.
-* Supported package types
+package using git commands manually or there is a bug.
+** Supported package types
 Currently, three different types of packages can be installed.
-- Git repositories
+- git repositories
 - GNU ELPA packages
 - URL packages (when the source is a single file that can be accessed via a URL)
 * Installation
@@ -56,7 +77,7 @@ In your =~/.emacs= or =~/.emacs.d/init.el=
 
 You will also need to manually install the =dash=, =f=, =s= and =rem= libraries
 as STP depends on them internally. To install a package manually, open a command
-line and go to the top-level directory of the Git repository that contains
+line and go to the top-level directory of the git repository that contains
 =stp-source-directory=. Then use
 
 #+begin_src bash
