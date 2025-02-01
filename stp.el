@@ -310,8 +310,8 @@ If do-actions is non-nil, `stp-post-actions' will be called after
 the package has been installed.
 
 Interactively, do-commit and do-push are set according to
-`stp-commit-push-prefix-args'. With a no prefix argument or a
-non-negative prefix argument, post actions are performed if
+`stp-commit-push-prefix-args'. Without a prefix argument or with
+a non-negative prefix argument, post actions are performed if
 `stp-auto-post-actions' is non-nil. With a negative prefix
 argument, post actions are performed if `stp-auto-post-actions'
 is nil. Note that universal prefix arguments can be combined with
