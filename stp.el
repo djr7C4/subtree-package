@@ -212,35 +212,17 @@ which actions should be performed after a package is installed or
 upgraded. The value t indicates that all post actions should be
 performed.")
 
-(defvar stp-commit-push-prefix-args '((((-4) (4)) . (:do-commit t :do-push nil))
-                                      ((-16) (16) . (:do-commit nil :do-push nil)))
-  "These are used to determine the DO-COMMIT and DO-PUSH keyword
-arguments to STP commands when there are passed prefix arguments.
-The cdr of the first cell in the alist serves as the default when
-a prefix argument is given but it does not match any of the
-entries.")
-
 (defun stp-commit-push-args ()
-  (or (dolist (cell stp-commit-push-prefix-args)
-        (db (pargs . kargs)
-            cell
-          (when (member current-prefix-arg pargs)
-            (cl-return kargs))))
-      ;; Default to the keyword arguments in the first entry when there is a
-      ;; prefix argument but it does not match any entry.
-      (and current-prefix-arg (cdar stp-commit-push-prefix-args))
-      ;; Fallback on `stp-auto-commit' and `stp-auto-push' if nothing matches.
-      (list :do-commit stp-auto-commit :do-push stp-auto-push)))
+  (if current-prefix-arg
+      (list :do-commit (not stp-auto-commit)
+            :do-push (and (not stp-auto-commit) (not stp-auto-push)))
+    (list :do-commit stp-auto-commit :do-push stp-auto-push)))
 
 (defun stp-commit-push-action-args ()
   (append (stp-commit-push-args)
-          (list :do-actions
-                (let ((n (prefix-numeric-value current-prefix-arg)))
-                  (cond
-                   ((null current-prefix-arg) )
-                   ((>= n 0) stp-auto-post-actions)
-                   ((< n 0) (not stp-auto-post-actions))
-                   (t (error "Unexpected prefix argument")))))))
+          (list :do-actions (if current-prefix-arg
+                                (not stp-auto-post-actions)
+                                stp-auto-post-actions))))
 
 (defun stp-list-package-on-line (&optional offset)
   (when (derived-mode-p 'stp-list-mode)
@@ -309,14 +291,10 @@ do-push are non-nil then push to the remote repository as well.
 If do-actions is non-nil, `stp-post-actions' will be called after
 the package has been installed.
 
-Interactively, do-commit and do-push are set according to
-`stp-commit-push-prefix-args'. Without a prefix argument or with
-a non-negative prefix argument, post actions are performed if
-`stp-auto-post-actions' is non-nil. With a negative prefix
-argument, post actions are performed if `stp-auto-post-actions'
-is nil. Note that universal prefix arguments can be combined with
-negative prefix arguments (e.g. \\[negative-argument]
-\\[universal-argument])."
+Interactively, do-commit, do-push and do-actions are set
+according to `stp-auto-commit', `stp-auto-push', and
+`stp-auto-post-actions'. With a prefix argument, each of these is
+negated relative to the default."
   (interactive (stp-command-args :actions t :read-pkg-alist t :line-pkg nil))
   ;; pkg-name may be nil in interactive calls when the user answers no when the
   ;; repository is dirty and `stp-git-clean-or-ask-p' is called.
