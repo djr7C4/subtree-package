@@ -165,7 +165,7 @@ corresponding to pkg-name."
       (setq pkg-info (cons `(,pkg-name . ((,attr . ,val))) pkg-info))))
   pkg-info)
 
-(defun stp-remove-attribute (pkg-info pkg-name attr)
+(defun stp-delete-attribute (pkg-info pkg-name attr)
   "Remove attr from the alist with the key corresponding to
 pkg-name."
   (let ((alist (stp-get-alist pkg-info pkg-name)))

@@ -78,21 +78,24 @@ be selected.")
 
 (defvar stp-remote-history nil)
 
+(defun stp-comp-read-remotes (prompt remote known-remotes &optional multiple)
+  (rem-comp-read prompt
+                 (completion-table-in-turn known-remotes
+                                           #'completion-file-name-table)
+                 :predicate (lambda (candidate)
+                              (or (member candidate known-remotes)
+                                  (f-dir-p candidate)))
+                 :default remote
+                 :history 'stp-remote-history
+                 :sort-fun #'identity
+                 :multiple multiple))
+
 (defun stp-choose-remote (prompt remote &optional other-remotes)
   (if stp-use-other-remotes
       ;; A match is not required. This way, a new remote can be added
       ;; interactively by the user. Type ./ to complete in the current
       ;; directory.
-      (let ((known-remotes (cons remote other-remotes)))
-        (rem-comp-read prompt
-                       (completion-table-in-turn known-remotes
-                                                 #'completion-file-name-table)
-                       :predicate (lambda (candidate)
-                                    (or (member candidate known-remotes)
-                                        (f-dir-p candidate)))
-                       :default remote
-                       :history 'stp-remote-history
-                       :sort-fun #'identity))
+      (comp-read-remotes prompt remote (cons remote other-remotes))
     remote))
 
 (defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
@@ -126,10 +129,16 @@ be selected.")
       ;; each package is repaired. This is helpful in case there is an error.
       (pkg-info-updated (stp-write-info pkg-info)))))
 
-(defun stp-valid-remote-p (remote)
-  (or (stp-git-valid-remote-p remote)
-      (stp-elpa-valid-remote-p remote)
-      (stp-url-valid-remote-p remote)))
+(defun stp-valid-remote-p (remote &optional method)
+  "Check if REMOTE is a valid remote for some method. If METHOD is
+specified, ensure that REMOTE is valid for that specific METHOD."
+  (cl-ecase method
+    (git (stp-git-valid-remote-p remote))
+    (elpa (stp-elpa-valid-remote-p remote))
+    (url (stp-url-valid-remote-p remote))
+    ((nil) (or (stp-git-valid-remote-p remote)
+               (stp-elpa-valid-remote-p remote)
+               (stp-url-valid-remote-p remote)))))
 
 (cl-defun stp-repair-info (pkg-info &key (quiet t) (pkg-names (stp-filesystem-names)) (callback #'stp-repair-default-callback))
   "Update package info that does not match the versions in the
@@ -442,6 +451,34 @@ arguments are as in `stp-install'."
           (when refresh
             (stp-list-refresh refresh-pkg-name t)))))))
 
+(cl-defun stp-edit-remotes (pkg-name &key do-commit do-push (refresh t))
+  "Edit the remote and other-remotes attributes of PKG-NAME using
+`completing-read-multiple'."
+  (interactive (stp-command-args))
+  (when pkg-name
+    (let ((pkg-info (stp-read-info)))
+      (let-alist (stp-get-alist pkg-info pkg-name)
+        (let* ((new-remotes (stp-comp-read-remotes "Remotes (remote, other-remotes...): " .remote .other-remotes t))
+               (new-remote (car new-remotes))
+               (new-other-remotes (cdr new-remotes))
+               (invalid-remotes (lambda (remote)
+                                  (not (stp-valid-remote-p remote .method)))))
+          (unless new-remotes
+            (user-error "At least one remote must be specified"))
+          (when invalid-remotes
+            (user-error "%s are not valid for method %s" (rem-join-and invalid-remotes .method)))
+          (stp-set-attribute pkg-info pkg-name 'remote new-remote)
+          (if new-other-remotes
+              (stp-set-attribute pkg-info pkg-name 'other-remotes new-other-remotes)
+            (stp-delete-attribute pkg-info pkg-name 'other-remotes))
+          (stp-write-info pkg-info)
+          (stp-git-commit-push (format "Set remote to %s and other remotes to %S for %s"
+                                       new-remote
+                                       new-other-remotes
+                                       pkg-name)
+                               do-commit
+                               do-push))))))
+
 (cl-defun stp-toggle-update (pkg-name &key do-commit do-push (refresh t))
   "Toggle the update attribute for the package named pkg-name between stable and
 unstable."
@@ -459,7 +496,7 @@ unstable."
                                                                           pkg-name
                                                                           'remote)))))
                   (stp-set-attribute pkg-info pkg-name 'branch branch))
-              (stp-remove-attribute pkg-info pkg-name 'branch))
+              (stp-delete-attribute pkg-info pkg-name 'branch))
             (stp-write-info pkg-info)
             (stp-git-commit-push (format "Changed update to %s for %s"
                                          (stp-invert-update update)
@@ -801,6 +838,7 @@ that many packages."
               "m" #'stp-build-info
               "M" #'stp-build-all-info
               "d" #'stp-uninstall
+              "e" #'stp-edit-remotes
               "g" #'stp-list-refresh
               "G" #'stp-reload
               "i" #'stp-install

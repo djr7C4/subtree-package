@@ -445,7 +445,7 @@ from remote."
                   (if (stp-git-remote-tag-p remote version)
                       ;; Tags do not have a branch to update from and are
                       ;; considered stable.
-                      (setq pkg-info (stp-remove-attribute pkg-info pkg-name 'branch)
+                      (setq pkg-info (stp-delete-attribute pkg-info pkg-name 'branch)
                             pkg-info (stp-set-attribute pkg-info pkg-name 'update 'stable))
                     ;; If there is a 'branch attribute when updating to a hash,
                     ;; leave it as is.
