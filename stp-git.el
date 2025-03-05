@@ -235,12 +235,15 @@ are converted to hashes before they are returned."
                          :default default
                          :sort-fun #'identity)))
 
+(defvar stp-branch-history nil)
+
 (defun stp-git-read-branch (prompt remote &optional default)
   "Read a branch for pkg-name."
   (rem-comp-read prompt
                  (stp-git-remote-heads-sorted remote)
                  :require-match t
                  :default default
+                 :history 'stp-branch-history
                  :sort-fun #'identity))
 
 (defvar stp-git-head-explicit-order '("dev" "devel" "develop" "development" "main" "master" "stable"))

@@ -65,7 +65,8 @@ with a slash."
   "Read the name of a package that is already installed."
   (rem-comp-read prompt
                  (stp-info-names)
-                 :require-match t))
+                 :require-match t
+                 :history 'stp-read-name-history))
 
 (defun stp-read-method (prompt &optional default)
   (when (and default (symbolp default))
@@ -83,23 +84,6 @@ with a slash."
         (minibuffer-message "%s is invalid" remote))
       (setq remote (rem-read-from-mini prompt :default default :history history)))
     remote))
-
-(defun stp-choose-remote (prompt remote &optional other-remotes)
-  ;; A match is not required. This way, a new remote can be added.
-  (rem-comp-read prompt
-                 (cons remote other-remotes)
-                 :default remote
-                 :sort-fun #'identity))
-
-(defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
-  ;; Remote should always be chosen-remote since that is where the package was
-  ;; just installed or upgraded from. (See the documentation of
-  ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
-  ;; not chosen.
-  (stp-set-attribute pkg-info pkg-name 'remote chosen-remote)
-  (->> (cons remote other-remotes)
-       (remove chosen-remote)
-       (stp-set-attribute pkg-info pkg-name 'other-remotes)))
 
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
