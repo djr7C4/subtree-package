@@ -71,6 +71,35 @@
               (remote . ,remote)
               (version . ,version))))))
 
+(defvar stp-use-other-remotes t
+  "If this variable is non-nil, allow the user to choose from the
+other-remotes attribute in `stp-info-file' when a remote needs to
+be selected.")
+
+(defvar stp-remote-history nil)
+
+(defun stp-choose-remote (prompt remote &optional other-remotes)
+  (if stp-use-other-remotes
+      ;; A match is not required. This way, a new remote can be added
+      ;; interactively by the user.
+      (rem-comp-read prompt
+                     (completion-table-in-turn (cons remote other-remotes)
+                                               #'completion-file-name-table)
+                     :default remote
+                     :history 'stp-remote-history
+                     :sort-fun #'identity)
+    remote))
+
+(defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
+  ;; Remote should always be chosen-remote since that is where the package was
+  ;; just installed or upgraded from. (See the documentation of
+  ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
+  ;; not chosen.
+  (stp-set-attribute pkg-info pkg-name 'remote chosen-remote)
+  (->> (cons remote other-remotes)
+       (remove chosen-remote)
+       (stp-set-attribute pkg-info pkg-name 'other-remotes)))
+
 (defun stp-repair-default-callback (type pkg-info pkg-name)
   (cl-flet ((handle-partial-elpa-url (pkg-info pkg-name)
               (stp-set-alist pkg-info
