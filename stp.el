@@ -461,16 +461,18 @@ arguments are as in `stp-install'."
 
 (cl-defun stp-edit-remotes (pkg-name &key do-commit do-push (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME using
-`completing-read-multiple'."
+`completing-read-multiple'. The first chosen will be remotes and
+the rest will be other-remotes."
   (interactive (stp-command-args))
   (when pkg-name
     (let ((pkg-info (stp-read-info)))
       (let-alist (stp-get-alist pkg-info pkg-name)
-        (let* ((new-remotes (stp-comp-read-remotes "Remotes (remote, other-remotes...): " .remote .other-remotes t))
+        (let* ((new-remotes (stp-comp-read-remotes "Remotes: " .remote (cons .remote .other-remotes) t))
                (new-remote (car new-remotes))
                (new-other-remotes (cdr new-remotes))
-               (invalid-remotes (lambda (remote)
-                                  (not (stp-valid-remote-p remote .method)))))
+               (invalid-remotes (-filter (lambda (remote)
+                                           (not (stp-valid-remote-p remote .method)))
+                                         new-remotes)))
           (unless new-remotes
             (user-error "At least one remote must be specified"))
           (when invalid-remotes
