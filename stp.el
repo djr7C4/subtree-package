@@ -79,16 +79,24 @@ be selected.")
 (defvar stp-remote-history nil)
 
 (defun stp-comp-read-remotes (prompt remote known-remotes &optional multiple)
-  (rem-comp-read prompt
-                 (completion-table-in-turn known-remotes
-                                           #'completion-file-name-table)
-                 :predicate (lambda (candidate)
-                              (or (member candidate known-remotes)
-                                  (f-dir-p candidate)))
-                 :default remote
-                 :history 'stp-remote-history
-                 :sort-fun #'identity
-                 :multiple multiple))
+  (let ((remotes (rem-comp-read prompt
+                                (completion-table-in-turn known-remotes
+                                                          #'completion-file-name-table)
+                                :predicate (lambda (candidate)
+                                             (or (member candidate known-remotes)
+                                                 (f-dir-p candidate)))
+                                :default remote
+                                :history 'stp-remote-history
+                                :sort-fun #'identity
+                                ;; Setting multiple to t prevents http:// from
+                                ;; being replaced with /. This is helpful when
+                                ;; entering URLs.
+                                :multiple t)))
+    (when (and (not multiple) (> (length remotes) 1))
+      (user-error "Multiple remotes are not allowed for this command"))
+    (if multiple
+        remotes
+      (car remotes))))
 
 (defun stp-choose-remote (prompt remote &optional other-remotes)
   (if stp-use-other-remotes

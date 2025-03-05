@@ -79,10 +79,19 @@ with a slash."
 
 (defun stp-read-remote-with-predicate (prompt valid-remote-p &optional default history)
   (let (remote)
-    (while (or (not remote) (not (funcall valid-remote-p remote)))
+    (while (or (not remote)
+               (consp remote)
+               (not (funcall valid-remote-p remote)))
       (when remote
         (minibuffer-message "%s is invalid" remote))
-      (setq remote (rem-read-from-mini prompt :default default :history history)))
+      (setq remote (rem-comp-read prompt
+                                  #'completion-file-name-table
+                                  :default default
+                                  :history history
+                                  ;; Setting multiple to t prevents http:// from
+                                  ;; being replaced with /. This is helpful when
+                                  ;; entering URLs.
+                                  :multiple t)))
     remote))
 
 (defun stp-version< (v1 v2)
