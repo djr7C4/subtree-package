@@ -87,7 +87,7 @@ with a slash."
 (defun stp-choose-remote (prompt remote &optional other-remotes)
   ;; A match is not required. This way, a new remote can be added.
   (rem-comp-read prompt
-                 (cons prompt other-remotes)
+                 (cons remote other-remotes)
                  :default remote
                  :sort-fun #'identity))
 
