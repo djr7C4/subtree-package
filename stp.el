@@ -75,7 +75,7 @@
   (cl-flet ((handle-partial-elpa-url (pkg-info pkg-name)
               (stp-set-alist pkg-info
                              pkg-name
-                             (cdr (stp-read-package :pkg-name pkg-name :pkg-alist (stp-get-alist pkg-info pkg-name))))))
+                             (stp-read-package :pkg-name pkg-name :pkg-alist (stp-get-alist pkg-info pkg-name)))))
     (cl-case type
       (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
       (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " (stp-get-attribute pkg-info pkg-name 'remote) pkg-name)))
@@ -90,6 +90,11 @@
       ;; This callback ensures that the `stp-info-file' is updated after
       ;; each package is repaired. This is helpful in case there is an error.
       (pkg-info-updated (stp-write-info pkg-info)))))
+
+(defun stp-valid-remote-p (remote)
+  (or (stp-git-valid-remote-p remote)
+      (stp-elpa-valid-remote-p remote)
+      (stp-url-valid-remote-p remote)))
 
 (cl-defun stp-repair-info (pkg-info &key (quiet t) (pkg-names (stp-filesystem-names)) (callback #'stp-repair-default-callback))
   "Update package info that does not match the versions in the
@@ -129,6 +134,9 @@ occurred."
                     (when (stp-git-subtree-p pkg-name)
                       (setq method 'git
                             pkg-info (stp-set-attribute pkg-info pkg-name 'method 'git))))
+                  (let* ((other-remotes (stp-get-attribute pkg-info pkg-name 'other-remotes))
+                         (valid-other-remotes (-filter #'stp-valid-remote-p other-remotes)))
+                    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes valid-other-remotes)))
                   (cl-case method
                     (git
                      ;; First make sure that the remote is valid. This has to be done

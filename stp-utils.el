@@ -288,7 +288,8 @@ should already exist."
         (setq remote (url-generic-parse-url remote))
         (not (-any (lambda (regexp)
                      (and (string-match-p regexp (url-domain remote)) t))
-                   stp-url-unsafe-regexps)))))
+                   stp-url-unsafe-regexps)))
+      (yes-or-no-p (format "The remote %s is unsafe. Continue anyway? " remote))))
 
 (defun stp-invert-update (update)
   (cl-ecase update
