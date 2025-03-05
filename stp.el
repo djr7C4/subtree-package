@@ -302,16 +302,19 @@ negated relative to the default."
     (let ((pkg-info (stp-read-info)))
       (save-window-excursion
         (let-alist pkg-alist
-          (cl-ecase .method
-            (git (stp-git-install pkg-info pkg-name .remote .version .update :branch .branch))
-            (elpa (stp-elpa-install pkg-info pkg-name .remote .version))
-            (url (stp-url-install pkg-info pkg-name .remote .version)))
-          (when (stp-url-safe-remote-p .remote)
-            (stp-git-commit-push (format "Installed version %s of %s" .version pkg-name) do-commit do-push)
-            (when do-actions
-              (stp-post-actions pkg-name)))
-          (when refresh
-            (stp-list-refresh pkg-name t)))))))
+          (let ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes)))
+            (when (stp-url-safe-remote-p chosen-remote)
+              (cl-ecase .method
+                (git (stp-git-install pkg-info pkg-name chosen-remote .version .update :branch .branch))
+                (elpa (stp-elpa-install pkg-info pkg-name chosen-remote .version))
+                (url (stp-url-install pkg-info pkg-name chosen-remote .version)))
+              (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes)
+              (stp-write-info pkg-info)
+              (stp-git-commit-push (format "Installed version %s of %s" .version pkg-name) do-commit do-push)
+              (when do-actions
+                (stp-post-actions pkg-name))
+              (when refresh
+                (stp-list-refresh pkg-name t)))))))))
 
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
   "Uninstall the package named pkg-name. The do-commit and do-push arguments are
@@ -344,27 +347,30 @@ do-push and proceed arguments are as in `stp-install'."
     (let ((pkg-info (stp-read-info)))
       (save-window-excursion
         (let-alist (stp-get-alist pkg-info pkg-name)
-          (let ((prompt (format "Upgrade from %s to version: " .version))
-                (extra-versions (and (or stp-git-upgrade-always-offer-remote-heads
-                                         (eq .update 'unstable))
-                                     (stp-git-remote-heads-sorted .remote))))
-            (when (and .branch (member .branch extra-versions))
-              (setq extra-versions (cons .branch (remove .branch extra-versions))))
-            (cl-ecase .method
-              (git (->> extra-versions
-                        (stp-git-read-version prompt .remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions)
-                        (stp-git-upgrade pkg-info pkg-name .remote)))
-              (elpa (->> (stp-elpa-read-version prompt pkg-name .remote)
-                         (stp-elpa-upgrade pkg-info pkg-name .remote)))
-              (url (->> (stp-url-read-version prompt)
-                        (stp-url-upgrade pkg-info pkg-name .remote))))
-            (let ((new-version (stp-get-attribute pkg-info pkg-name 'version)))
-              (when (stp-url-safe-remote-p .remote)
+          (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
+                 (extra-versions (and (or stp-git-upgrade-always-offer-remote-heads
+                                          (eq .update 'unstable))
+                                      (stp-git-remote-heads-sorted chosen-remote)))
+                 (prompt (format "Upgrade from %s to version: " .version)))
+            (when (stp-url-safe-remote-p chosen-remote)
+              (when (and .branch (member .branch extra-versions))
+                (setq extra-versions (cons .branch (remove .branch extra-versions))))
+              (cl-ecase .method
+                (git (->> extra-versions
+                          (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions)
+                          (stp-git-upgrade pkg-info pkg-name chosen-remote)))
+                (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
+                           (stp-elpa-upgrade pkg-info pkg-name chosen-remote)))
+                (url (->> (stp-url-read-version prompt)
+                          (stp-url-upgrade pkg-info pkg-name chosen-remote))))
+              (let ((new-version (stp-get-attribute pkg-info pkg-name 'version)))
+                (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes)
+                (stp-write-info pkg-info)
                 (stp-git-commit-push (format "Installed version %s of %s" new-version pkg-name) do-commit do-push)
                 (when do-actions
-                  (stp-post-actions pkg-name)))
-              (when refresh
-                (stp-list-refresh pkg-name t)))))))))
+                  (stp-post-actions pkg-name))
+                (when refresh
+                  (stp-list-refresh pkg-name t))))))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
   "Repair the package named pkg-name. The do-commit, do-push and proceed

@@ -84,6 +84,24 @@ with a slash."
       (setq remote (rem-read-from-mini prompt :default default :history history)))
     remote))
 
+(defun stp-choose-remote (prompt remote &optional other-remotes)
+  ;; A match is not required. This way, a new remote can be added.
+  (rem-comp-read prompt
+                 (cons prompt other-remotes)
+                 :default remote
+                 :sort-fun #'identity))
+
+(defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
+  (db (new-remote new-other-remotes)
+      (if (string= chosen-remote remote)
+          ;; When the main remote is chosen, nothing is changed.
+          (list remote other-remotes)
+        ;; Otherwise, chosen-remote is in other-remotes or is a new remote. Either
+        ;; way, we add it to the beginning of other-remotes.
+        (list remote (cons chosen-remote (remove chosen-remote other-remotes))))
+    (stp-set-attribute pkg-info pkg-name 'remote new-remote)
+    (stp-set-attribute pkg-info pkg-name 'other-remotes new-other-remotes)))
+
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
   (rem-version< (stp-version-extract v1)
