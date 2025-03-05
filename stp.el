@@ -81,13 +81,18 @@ be selected.")
 (defun stp-choose-remote (prompt remote &optional other-remotes)
   (if stp-use-other-remotes
       ;; A match is not required. This way, a new remote can be added
-      ;; interactively by the user.
-      (rem-comp-read prompt
-                     (completion-table-in-turn (cons remote other-remotes)
-                                               #'completion-file-name-table)
-                     :default remote
-                     :history 'stp-remote-history
-                     :sort-fun #'identity)
+      ;; interactively by the user. Type ./ to complete in the current
+      ;; directory.
+      (let ((known-remotes (cons remote other-remotes)))
+        (rem-comp-read prompt
+                       (completion-table-in-turn known-remotes
+                                                 #'completion-file-name-table)
+                       :predicate (lambda (candidate)
+                                    (or (member candidate known-remotes)
+                                        (f-dir-p candidate)))
+                       :default remote
+                       :history 'stp-remote-history
+                       :sort-fun #'identity))
     remote))
 
 (defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
