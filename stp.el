@@ -101,9 +101,10 @@ be selected.")
   ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
   ;; not chosen.
   (stp-set-attribute pkg-info pkg-name 'remote chosen-remote)
-  (->> (cons remote other-remotes)
-       (remove chosen-remote)
-       (stp-set-attribute pkg-info pkg-name 'other-remotes)))
+  (when other-remotes
+    (->> (cons remote other-remotes)
+         (remove chosen-remote)
+         (stp-set-attribute pkg-info pkg-name 'other-remotes))))
 
 (defun stp-repair-default-callback (type pkg-info pkg-name)
   (cl-flet ((handle-partial-elpa-url (pkg-info pkg-name)
