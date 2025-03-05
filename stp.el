@@ -95,7 +95,7 @@ be selected.")
       ;; A match is not required. This way, a new remote can be added
       ;; interactively by the user. Type ./ to complete in the current
       ;; directory.
-      (comp-read-remotes prompt remote (cons remote other-remotes))
+      (stp-comp-read-remotes prompt remote (cons remote other-remotes))
     remote))
 
 (defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
