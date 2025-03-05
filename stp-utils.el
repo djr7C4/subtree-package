@@ -92,15 +92,14 @@ with a slash."
                  :sort-fun #'identity))
 
 (defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
-  (db (new-remote new-other-remotes)
-      (if (string= chosen-remote remote)
-          ;; When the main remote is chosen, nothing is changed.
-          (list remote other-remotes)
-        ;; Otherwise, chosen-remote is in other-remotes or is a new remote. Either
-        ;; way, we add it to the beginning of other-remotes.
-        (list remote (cons chosen-remote (remove chosen-remote other-remotes))))
-    (stp-set-attribute pkg-info pkg-name 'remote new-remote)
-    (stp-set-attribute pkg-info pkg-name 'other-remotes new-other-remotes)))
+  ;; Remote should always be chosen-remote since that is where the package was
+  ;; just installed or upgraded from. (See the documentation of
+  ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
+  ;; not chosen.
+  (stp-set-attribute pkg-info pkg-name 'remote chosen-remote)
+  (->> (cons remote other-remotes)
+       (remove chosen-remote)
+       (stp-set-attribute pkg-info pkg-name 'other-remotes)))
 
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
@@ -116,22 +115,25 @@ alists is of the form
 
   \\='((method . ...)
     (remote . ...)
+    (other-remotes ...)
     (version . ...)
     (update . ...)
     (branch . ...))
 
 Method should be one of the symbols \\='git or \\='url. Remote
-should be a \\='url indicating the location of the remote
-repository if method is \\='git or the url to fetch from if the
-method is \\='url. Version should be a string that indicates the
-version. If method is \\='git, this should be a ref. If method is
-\\='url, it can be any string that the user cares to use to
-describe the current version. If method is \\='git, then update
-indicates the update mechanism. \\='stable means that stable
-versions are being used and \\='unstable means that the value
-associated with the branch attribute is being used. If the method
-is \\='url, the \\='update and \\='branch attributes should not
-be present.")
+should be a \\='url indicating the location that the package was
+installed from. If method is \\='git, it should be a git
+repository and if it is \\='url it should be the URL it was
+downloaded from. Other-remotes should be a list of alternative
+remotes that the user may select to use instead of remote.
+Version should be a string that indicates the version. If method
+is \\='git, this should be a ref. If method is \\='url, it can be
+any string that the user cares to use to describe the current
+version. If method is \\='git, then update indicates the update
+mechanism. \\='stable means that stable versions are being used
+and \\='unstable means that the value associated with the branch
+attribute is being used. If the method is \\='url, the \\='update
+and \\='branch attributes should not be present.")
 
 (defun stp-attribute< (attribute attribute2)
   (< (cl-position attribute stp-attribute-order)
