@@ -322,16 +322,17 @@ as in `stp-install'."
            (version (stp-get-attribute pkg-info pkg-name 'version)))
       (save-window-excursion
         (stp-with-package-source-directory
-          (unless (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
-            (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))
-          (delete-directory pkg-name t)
-          (setq pkg-info (map-delete pkg-info pkg-name))
-          (stp-write-info pkg-info)
-          (stp-delete-load-path pkg-name)
-          (stp-git-commit-push (format "Uninstalled version %s of %s" version pkg-name) do-commit do-push)
-          (when refresh
-            (let ((other-pkg-name (stp-list-other-package)))
-              (stp-list-refresh other-pkg-name t))))))))
+          (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
+              (progn
+                (delete-directory pkg-name t)
+                (setq pkg-info (map-delete pkg-info pkg-name))
+                (stp-write-info pkg-info)
+                (stp-delete-load-path pkg-name)
+                (stp-git-commit-push (format "Uninstalled version %s of %s" version pkg-name) do-commit do-push)
+                (when refresh
+                  (let ((other-pkg-name (stp-list-other-package)))
+                    (stp-list-refresh other-pkg-name t))))
+            (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
