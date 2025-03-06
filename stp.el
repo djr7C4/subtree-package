@@ -115,7 +115,7 @@ be selected.")
   ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
   ;; not chosen.
   (stp-set-attribute pkg-info pkg-name 'remote chosen-remote)
-  (when other-remotes
+  (when (or other-remotes (not (string= chosen-remote remote)))
     (->> (cons remote other-remotes)
          (remove chosen-remote)
          (stp-set-attribute pkg-info pkg-name 'other-remotes))))
