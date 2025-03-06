@@ -24,15 +24,17 @@
 
 (defun stp-read-remote (prompt &optional default)
   "Read any type of remote."
-  (stp-read-remote-with-predicate prompt
-                                  (lambda (remote)
-                                    (-any-p (lambda (predicate)
-                                              (funcall predicate remote))
-                                            (list #'stp-git-valid-remote-p
-                                                  #'stp-elpa-valid-remote-p
-                                                  #'stp-url-valid-remote-p)))
-                                  default
-                                  'stp-remote-history))
+  (-> prompt
+      (stp-read-remote-with-predicate
+       (lambda (remote)
+         (-any-p (lambda (predicate)
+                   (funcall predicate remote))
+                 (list #'stp-git-valid-remote-p
+                       #'stp-elpa-valid-remote-p
+                       #'stp-url-valid-remote-p)))
+       default
+       'stp-remote-history)
+      stp-normalize-remote))
 
 (cl-defun stp-read-package (&key pkg-name pkg-alist prompt-prefix (line-pkg t))
   (let* ((remote (stp-read-remote (concat prompt-prefix "Remote: ") (alist-get 'remote pkg-alist)))
@@ -94,6 +96,7 @@ be selected.")
                                 :multiple t)))
     (when (and (not multiple) (> (length remotes) 1))
       (user-error "Multiple remotes are not allowed for this command"))
+    (setq remotes (mapcar #'stp-normalize-remote remotes))
     (if multiple
         remotes
       (car remotes))))

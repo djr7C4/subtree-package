@@ -77,6 +77,12 @@ with a slash."
                          :default default
                          :sort-fun #'identity)))
 
+(defun stp-normalize-remote (remote)
+  ;; Use absolute paths for local repositories.
+  (if (f-dir-p remote)
+      (setq remote (f-full remote))
+    remote))
+
 (defun stp-read-remote-with-predicate (prompt valid-remote-p &optional default history)
   (let (remote)
     (while (or (not remote)
@@ -92,7 +98,7 @@ with a slash."
                                   ;; being replaced with /. This is helpful when
                                   ;; entering URLs.
                                   :multiple t)))
-    remote))
+    (stp-normalize-remote remote)))
 
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
