@@ -419,9 +419,9 @@ do-push and proceed arguments are as in `stp-install'."
               (when (and .branch (member .branch extra-versions))
                 (setq extra-versions (cons .branch (remove .branch extra-versions))))
               (cl-ecase .method
-                (git (->> extra-versions
-                          (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions)
-                          (stp-git-upgrade pkg-info pkg-name chosen-remote)))
+                (git (--> extra-versions
+                          (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions it :branch-to-hash nil)
+                          (stp-git-upgrade pkg-info pkg-name chosen-remote it)))
                 (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
                            (stp-elpa-upgrade pkg-info pkg-name chosen-remote)))
                 (url (->> (stp-url-read-version prompt)
