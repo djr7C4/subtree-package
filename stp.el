@@ -81,19 +81,21 @@ be selected.")
 (defvar stp-remote-history nil)
 
 (defun stp-comp-read-remotes (prompt remote known-remotes &optional multiple)
-  (let ((remotes (rem-comp-read prompt
-                                (completion-table-in-turn known-remotes
-                                                          #'completion-file-name-table)
-                                :predicate (lambda (candidate)
-                                             (or (member candidate known-remotes)
-                                                 (f-dir-p candidate)))
-                                :default remote
-                                :history 'stp-remote-history
-                                :sort-fun #'identity
-                                ;; Setting multiple to t prevents http:// from
-                                ;; being replaced with /. This is helpful when
-                                ;; entering URLs.
-                                :multiple t)))
+  (let ((remotes (let ((default-directory (or stp-read-remote-default-directory
+                                              default-directory)))
+                   (rem-comp-read prompt
+                                  (completion-table-in-turn known-remotes
+                                                            #'completion-file-name-table)
+                                  :predicate (lambda (candidate)
+                                               (or (member candidate known-remotes)
+                                                   (f-dir-p candidate)))
+                                  :default remote
+                                  :history 'stp-remote-history
+                                  :sort-fun #'identity
+                                  ;; Setting multiple to t prevents http:// from
+                                  ;; being replaced with /. This is helpful when
+                                  ;; entering URLs.
+                                  :multiple t))))
     (when (and (not multiple) (> (length remotes) 1))
       (user-error "Multiple remotes are not allowed for this command"))
     (setq remotes (mapcar #'stp-normalize-remote remotes))

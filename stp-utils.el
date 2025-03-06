@@ -83,6 +83,8 @@ with a slash."
       (setq remote (f-full remote))
     remote))
 
+(defvar stp-read-remote-default-directory nil)
+
 (defun stp-read-remote-with-predicate (prompt valid-remote-p &optional default history)
   (let (remote)
     (while (or (not remote)
@@ -90,14 +92,17 @@ with a slash."
                (not (funcall valid-remote-p remote)))
       (when remote
         (minibuffer-message "%s is invalid" remote))
-      (setq remote (rem-comp-read prompt
-                                  #'completion-file-name-table
-                                  :default default
-                                  :history history
-                                  ;; Setting multiple to t prevents http:// from
-                                  ;; being replaced with /. This is helpful when
-                                  ;; entering URLs.
-                                  :multiple t)))
+      (setq remote
+            (let ((default-directory (or stp-read-remote-default-directory
+                                         default-directory)))
+              (rem-comp-read prompt
+                           #'completion-file-name-table
+                           :default default
+                           :history history
+                           ;; Setting multiple to t prevents http:// from
+                           ;; being replaced with /. This is helpful when
+                           ;; entering URLs.
+                           :multiple t))))
     (stp-normalize-remote remote)))
 
 (defun stp-version< (v1 v2)
