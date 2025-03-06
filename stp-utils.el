@@ -283,10 +283,13 @@ should already exist."
 
 (defun stp-url-safe-remote-p (remote)
   (or (not remote)
-      (progn
-        (setq remote (url-generic-parse-url remote))
+      (let ((domain (if (f-dir-p remote)
+                        ;; Handle local paths which cannot be parsed by
+                        ;; `url-generic-parse-url'.
+                        remote
+                      (url-domain (url-generic-parse-url remote)))))
         (not (-any (lambda (regexp)
-                     (and (string-match-p regexp (url-domain remote)) t))
+                     (and (string-match-p regexp domain) t))
                    stp-url-unsafe-regexps)))
       (yes-or-no-p (format "The remote %s is unsafe. Continue anyway? " remote))))
 
