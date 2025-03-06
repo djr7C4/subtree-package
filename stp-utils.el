@@ -46,7 +46,7 @@ with a slash."
 (defvar stp-methods-order '(git elpa url)
   "Valid values for the METHOD attribute.")
 
-(defvar stp-attribute-order '(method remote version update branch)
+(defvar stp-attribute-order '(method remote other-remotes version update branch)
   "The order in which package attributes should be sorted before being written
   to disk.")
 
