@@ -777,7 +777,7 @@ info files in the directory for that package."
 
 (defvar stp-list-missing-field-string "???")
 
-(define-derived-mode stp-list-mode fundamental-mode "STPPackage"
+(define-derived-mode stp-list-mode special-mode "STPPackage"
   "Major mode for managing source packages. \\{stp-list-mode-map}"
   (setq-local font-lock-defaults stp-list-font-lock-keywords)
   ;; Without this, fontification will not be done on parts of the buffer that
