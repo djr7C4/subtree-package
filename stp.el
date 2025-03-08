@@ -192,7 +192,7 @@ occurred."
                       (setq method 'git
                             pkg-info (stp-set-attribute pkg-info pkg-name 'method 'git))))
                   (let* ((other-remotes (stp-get-attribute pkg-info pkg-name 'other-remotes))
-                         (valid-other-remotes (-filter #'stp-valid-remote-p other-remotes)))
+                         (valid-other-remotes (-filter (-rpartial #'stp-valid-remote-p method) other-remotes)))
                     (when valid-other-remotes
                       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes valid-other-remotes))))
                   (cl-case method
