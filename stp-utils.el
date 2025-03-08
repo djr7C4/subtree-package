@@ -6,6 +6,13 @@
 (require 'rem-abbrev)
 (require 's)
 
+(defun stp-prefix-prompt (prompt-prefix prompt)
+  (if (or (not prompt-prefix) (string= prompt-prefix ""))
+      prompt
+    (concat prompt-prefix
+            (s-downcase (substring prompt 0 1))
+            (substring prompt 1))))
+
 (defvar stp-source-directory (f-join user-emacs-directory "package-source"))
 
 (defun stp-delete-load-path (pkg-name)

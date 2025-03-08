@@ -36,9 +36,9 @@
        'stp-remote-history)
       stp-normalize-remote))
 
-(cl-defun stp-read-package (&key pkg-name pkg-alist prompt-prefix (line-pkg t))
+(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") (line-pkg t))
   (let* ((remote (stp-read-remote (concat prompt-prefix "Remote: ") (alist-get 'remote pkg-alist)))
-         (pkg-name (or pkg-name (stp-read-name "Package name: " (stp-default-name remote))))
+         (pkg-name (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote))))
          (method (stp-remote-method remote))
          version
          update
@@ -48,20 +48,20 @@
        (unless (stp-git-valid-remote-p remote)
          (user-error "Invalid git repository (or host is down): %s" remote))
        (unless update
-         (setq update (stp-git-read-update (concat prompt-prefix "Update policy: ") (alist-get 'update pkg-alist))))
+         (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (alist-get 'update pkg-alist))))
        (when (and (eq update 'unstable)
                   (not branch))
-         (setq branch (stp-git-read-branch (concat prompt-prefix "Branch: ") remote (alist-get 'branch pkg-alist))))
+         (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (alist-get 'branch pkg-alist))))
        (unless version
-         (setq version (stp-git-read-version (concat prompt-prefix "Version: ") remote :extra-versions (list (alist-get 'version pkg-alist) branch) :default (alist-get 'version pkg-alist)))))
+         (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (alist-get 'version pkg-alist) branch) :default (alist-get 'version pkg-alist)))))
       ((elpa url)
        (when (or (not (string-match-p rem-strict-url-regexp remote))
                  (not (url-file-exists-p remote)))
          (user-error "Invalid URL (or host is down): %s" remote))
        (unless version
          (cl-ecase method
-           (elpa (setq version (stp-elpa-read-version (concat prompt-prefix "Version: ") pkg-name remote (alist-get 'version pkg-alist))))
-           (url (setq version (stp-url-read-version (concat prompt-prefix "Version: ") (alist-get 'version pkg-alist))))))))
+           (elpa (setq version (stp-elpa-read-version (stp-prefix-prompt prompt-prefix "Version: ") pkg-name remote (alist-get 'version pkg-alist))))
+           (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: ") (alist-get 'version pkg-alist))))))))
     (cons pkg-name
           (if (eq method 'git)
               `((method . ,method)
@@ -126,7 +126,7 @@ be selected.")
   (cl-flet ((handle-partial-elpa-url (pkg-info pkg-name)
               (stp-set-alist pkg-info
                              pkg-name
-                             (stp-read-package :pkg-name pkg-name :pkg-alist (stp-get-alist pkg-info pkg-name)))))
+                             (stp-read-package :pkg-name pkg-name :pkg-alist (stp-get-alist pkg-info pkg-name) :prompt-prefix (format "[%s] " pkg-name)))))
     (cl-case type
       (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
       (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " (stp-get-attribute pkg-info pkg-name 'remote) pkg-name)))
