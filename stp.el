@@ -37,7 +37,7 @@
       stp-normalize-remote))
 
 (cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") (line-pkg t))
-  (let* ((remote (stp-read-remote (concat prompt-prefix "Remote: ") (alist-get 'remote pkg-alist)))
+  (let* ((remote (stp-read-remote (stp-prefix-prompt prompt-prefix "Remote: ") (alist-get 'remote pkg-alist)))
          (pkg-name (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote))))
          (method (stp-remote-method remote))
          version
