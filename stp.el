@@ -210,11 +210,13 @@ occurred."
                            (message "Failed to determine the remote of %s" pkg-name))))
                      (db (version update)
                          (stp-git-subtree-version pkg-info pkg-name)
-                       ;; Use callback to determine the version if it could not be
-                       ;; deduced above.
+                       ;; Use callback to determine the version if it could not
+                       ;; be deduced above.
                        (setq version (or version (funcall callback 'unknown-git-version pkg-info pkg-name)))
                        (if version
-                           (progn
+                           ;; Only update hashes if they are different. Shorter
+                           ;; versions of hashes are acceptable.
+                           (unless (stp-git-hash= version (stp-get-attribute pkg-info pkg-name 'version))
                              (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version)))
                          (unless quiet
                            (message "Failed to determine the version of %s" pkg-name)))
