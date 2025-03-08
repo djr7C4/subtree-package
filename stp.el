@@ -189,6 +189,7 @@ occurred."
                     ;; installed the package manually without using
                     ;; `stp-install'.
                     (when (stp-git-subtree-p pkg-name)
+                      (message "A manual installation was detected for %s" pkg-name)
                       (setq method 'git
                             pkg-info (stp-set-attribute pkg-info pkg-name 'method 'git))))
                   (let* ((other-remotes (stp-get-attribute pkg-info pkg-name 'other-remotes))
