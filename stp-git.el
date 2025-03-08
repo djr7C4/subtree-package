@@ -295,10 +295,12 @@ are converted to hashes before they are returned."
 
 (defun stp-git-commit (&optional msg)
   (setq msg (or msg ""))
-  (db (exit-code output)
-      (rem-call-process-shell-command (format "git commit --allow-empty-message -am '%s'" msg))
-    (unless (= exit-code 0)
-      (error "Failed to commit to git repository: %s" (s-trim output)))))
+  (if (stp-git-clean-p)
+      (message "There are no changes to commit. Skipping...")
+    (db (exit-code output)
+        (rem-call-process-shell-command (format "git commit --allow-empty-message -am '%s'" msg))
+      (unless (= exit-code 0)
+        (error "Failed to commit to git repository: %s" (s-trim output))))))
 
 (defun stp-git-push ()
   (db (exit-code output)
