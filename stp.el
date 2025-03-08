@@ -46,7 +46,7 @@
     (cl-ecase method
       (git
        (unless (stp-git-valid-remote-p remote)
-         (user-error "Invalid git repository (or host is down): %s" remote))
+         (user-error (stp-prefix-prompt prompt-prefix "Invalid git repository (or host is down): %s") remote))
        (unless update
          (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (alist-get 'update pkg-alist))))
        (when (and (eq update 'unstable)
@@ -57,11 +57,11 @@
       ((elpa url)
        (when (or (not (string-match-p rem-strict-url-regexp remote))
                  (not (url-file-exists-p remote)))
-         (user-error "Invalid URL (or host is down): %s" remote))
+         (user-error (stp-prefix-prompt prompt-prefix "Invalid URL (or host is down): %s") remote))
        (unless version
          (cl-ecase method
-           (elpa (setq version (stp-elpa-read-version (stp-prefix-prompt prompt-prefix "Version: ") pkg-name remote (alist-get 'version pkg-alist))))
-           (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: ") (alist-get 'version pkg-alist))))))))
+           (elpa (setq version (stp-elpa-read-version (stp-prefix-prompt prompt-prefix "Version: ") pkg-name remote)))
+           (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: "))))))))
     (cons pkg-name
           (if (eq method 'git)
               `((method . ,method)
@@ -124,9 +124,21 @@ be selected.")
 
 (defun stp-repair-default-callback (type pkg-info pkg-name)
   (cl-flet ((handle-partial-elpa-url (pkg-info pkg-name)
-              (stp-set-alist pkg-info
-                             pkg-name
-                             (stp-read-package :pkg-name pkg-name :pkg-alist (stp-get-alist pkg-info pkg-name) :prompt-prefix (format "[%s] " pkg-name)))))
+              (let* ((pkg-alist (stp-get-alist pkg-info pkg-name))
+                     (method (stp-get-attribute pkg-info pkg-name 'method))
+                     (remote (stp-get-attribute pkg-info pkg-name 'remote))
+                     (version (stp-get-attribute pkg-info pkg-name 'version)))
+                (while (or (not (string-match-p rem-strict-url-regexp remote))
+                           (not (url-file-exists-p remote))
+                           (not (stp-valid-remote-p remote method)))
+                  (setq remote (stp-read-remote :prompt-prefix (format "Invalid URL (or host is down): %s" remote) remote)))
+                (stp-set-attribute pkg-info pkg-name 'remote remote)
+                (unless version
+                  (let ((prompt (format "[%s] version: " pkg-name)))
+                    (cl-ecase method
+                      (elpa (setq version (stp-elpa-read-version prompt pkg-name remote)))
+                      (url (setq version (stp-url-read-version prompt))))))
+                pkg-info)))
     (cl-case type
       (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
       (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " (stp-get-attribute pkg-info pkg-name 'remote) pkg-name)))
