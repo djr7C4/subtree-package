@@ -184,11 +184,20 @@ kept. By default all refs are returned."
 (defun stp-git-remote-head-p (remote ref)
   (member ref (stp-git-remote-heads remote)))
 
+(defun stp-git-ref-to-hash (remote ref-or-hash)
+  (let ((hash-heads (stp-git-remote-hash-head-alist remote)))
+    (aif (rassoc ref-or-hash hash-heads)
+        (car it)
+      (let ((hash-tags (stp-git-remote-hash-tag-alist remote)))
+        (aif (rassoc ref-or-hash hash-tags)
+            (car it)
+          ref-or-hash)))))
+
 (defun stp-git-hash= (hash hash2)
-  (cl-assert (and (>= (length hash) 6)
-               (>= (length hash2) 6)))
-  (or (s-prefix-p hash hash2)
-      (s-prefix-p hash2 hash)))
+  (and (>= (length hash) 6)
+       (>= (length hash2) 6)
+       (or (s-prefix-p hash hash2)
+           (s-prefix-p hash2 hash))))
 
 (defun stp-git-subtree-version (pkg-info pkg-name)
   "Determine the version and the update type of the package that was
@@ -405,7 +414,14 @@ from remote."
       (error "%s does not exist" pkg-name))
     (rem-with-directory git-root
       ;; Upgrade package
-      (let ((hash-p (stp-git-maybe-fetch remote version)))
+      (let* ((hash-p (stp-git-maybe-fetch remote version))
+             (version-hash (stp-git-ref-to-hash remote version)))
+        (when (stp-git-hash= (stp-git-subtree-hash pkg-name) version-hash)
+          (user-error "Commit %s of %s is already installed"
+                      (if (stp-git-hash= version version-hash)
+                          version-hash
+                        (format "%s (%s)" version-hash version))
+                      pkg-name))
         (db (exit-code output)
             (rem-call-process-shell-command
              (apply #'format
