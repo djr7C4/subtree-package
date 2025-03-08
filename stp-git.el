@@ -85,6 +85,27 @@
   (stp-with-git-root
     (string= (s-trim (cadr (rem-call-process-shell-command "git status --porcelain | grep -v '^??'"))) "")))
 
+;; Based on `magit-get-current-branch'.
+(defun stp-git-current-branch ()
+  (stp-with-git-root
+    (s-trim (cadr (rem-call-process-shell-command "git symbolic-ref --short HEAD")))))
+
+;; Based on `magit-get-push-remote'.
+(defun stp-git-push-target (&optional branch)
+  "Determine if the git repository has commits that have not yet been pushed."
+  (stp-with-git-root
+    (setq branch (or branch (stp-git-current-branch)))
+    (let ((push-default (s-trim (cadr (rem-call-process-shell-command "remote.pushDefault")))))
+      (if (string= push-default "")
+          (s-trim (cadr (rem-call-process-shell-command (s-join "." "branch" branch "pushRemote"))))
+        push-default))))
+
+(defun stp-git-unpushed-p ()
+  (stp-with-git-root
+    (let* ((branch (stp-git-current-branch))
+           (target (stp-git-push-target branch)))
+      (not (string= (s-trim (cadr (rem-call-process-shell-command (format "git cherry %s %s" target branch)))) "")))))
+
 (defvar stp-git-ask-when-unclean-p t)
 
 (defun stp-git-clean-or-ask-p ()
@@ -303,10 +324,12 @@ are converted to hashes before they are returned."
         (error "Failed to commit to git repository: %s" (s-trim output))))))
 
 (defun stp-git-push ()
-  (db (exit-code output)
-      (rem-call-process-shell-command "git push")
-    (unless (= exit-code 0)
-      (error "Failed to push to remote: %s" (s-trim output)))))
+  (if (stp-git-unpushed-p)
+      (db (exit-code output)
+          (rem-call-process-shell-command "git push")
+        (unless (= exit-code 0)
+          (error "Failed to push to remote: %s" (s-trim output))))
+    (message "There are no commits to push. Skipping...")))
 
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
