@@ -364,7 +364,7 @@ active."
               (list pkg-alist))
             args)))
 
-(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t))
+(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
 do-commit is non-nil, then automatically commit to the Git
 repository after installing the package. If both do-commit and
@@ -383,7 +383,12 @@ negated relative to the default."
     (let ((pkg-info (stp-read-info)))
       (save-window-excursion
         (let-alist pkg-alist
-          (let ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes)))
+          ;; Don't prompt for the remote when one is already known. This
+          ;; prevents prompting the user twice in `stp-git-upgrade' when pulling
+          ;; the new subtree in fails and the package has to be uninstalled and
+          ;; reinstalled manually.
+          (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
+                                   (stp-choose-remote "Remote: " .remote .other-remotes))))
             (when (stp-url-safe-remote-p chosen-remote)
               (cl-ecase .method
                 (git (stp-git-install pkg-info pkg-name chosen-remote .version .update :branch .branch))
