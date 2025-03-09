@@ -29,6 +29,8 @@ each type per interactive command."
          (unless ,memoization-active-orig
            (mapc #'memoize-restore stp-memoized-functions))))))
 
+(def-edebug-spec stp-with-memoization t)
+
 (defun stp-prefix-prompt (prompt-prefix prompt)
   (if (or (not prompt-prefix) (string= prompt-prefix ""))
       prompt
