@@ -944,7 +944,7 @@ that many packages."
          (buf (get-buffer-create stp-list-buffer-name)))
     (pop-to-buffer buf)
     (stp-list-mode)
-    (stp-list-refresh nil t)))
+    (stp-list-refresh (stp-list-package-on-line) t)))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
   "Remove packages that exist in `stp-info-file' but not on the
