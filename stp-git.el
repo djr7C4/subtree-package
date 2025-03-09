@@ -461,13 +461,13 @@ from remote."
               (progn
                 (if (stp-git-remote-head-p remote version)
                     ;; If we update to a head (i.e. a branch), update the branch
-                    ;; parameter and store the current hash as the version. Since
-                    ;; branches are constantly updated as more commits are pushed to
-                    ;; the remote, storing a branch name is not particularly useful.
-                    (let ((hash (car (rassoc version (stp-git-remote-hash-head-alist remote)))))
-                      (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version hash)
-                            pkg-info (stp-set-attribute pkg-info pkg-name 'branch version)
-                            pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable)))
+                    ;; parameter and store the current hash as the version.
+                    ;; Since branches are constantly updated as more commits are
+                    ;; pushed to the remote, storing a branch name does not
+                    ;; make sense.
+                    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version-hash)
+                          pkg-info (stp-set-attribute pkg-info pkg-name 'branch version)
+                          pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable))
                   ;; For tags or hashes, use the tag or hash.
                   (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
                   (if (stp-git-remote-tag-p remote version)
