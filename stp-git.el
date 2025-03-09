@@ -302,26 +302,16 @@ are converted to hashes before they are returned."
                              (not (string-match-p stp-version-regexp v)))
                            (stp-git-remote-heads remote)))))
 
-(defun stp-git-remote-tags-sorted (remote)
-  (-filter (lambda (v)
-             (> (length v) 0))
-           (reverse (-sort 'stp-version<
-                           (-filter 'stp-version-extract
-                                    (stp-git-remote-tags remote))))))
+(defun stp-git-remote-hash-tag-alist-sorted (remote)
+  (-filter (lambda (cell)
+             (> (length (cdr cell)) 0))
+           (reverse (-sort (lambda (cell cell2)
+                             (stp-version< (cdr cell) (cdr cell2)))
+                           (-filter (-compose #'stp-version-extract #'cdr)
+                                    (stp-git-remote-hash-tag-alist remote))))))
 
-(defun stp-git-filtered-tags (pkg-info &optional dir)
-  "Find all tags that are not recognized by `stp-version-extract'."
-  (when (not dir)
-    (setq dir stp-source-directory))
-  (-filter 'cdr
-           (mapcar (lambda (pkg)
-                     (cons (f-filename pkg)
-                           (-filter (lambda (v)
-                                      (not (stp-version-extract v)))
-                                    (stp-git-remote-tags pkg))))
-                   (-filter (lambda (pkg-name)
-                              (stp-git-remote-p (stp-get-attribute pkg-info pkg-name 'remote)))
-                            (stp-info-names)))))
+(defun stp-git-remote-tags-sorted (remote)
+  (mapcar #'cdr (stp-git-remote-hash-tag-alist-sorted remote)))
 
 (defun stp-git-commit (&optional msg)
   (setq msg (or msg ""))
