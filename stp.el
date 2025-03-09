@@ -382,25 +382,27 @@ negated relative to the default."
   (when pkg-name
     (let ((pkg-info (stp-read-info)))
       (save-window-excursion
-        (let-alist pkg-alist
-          ;; Don't prompt for the remote when one is already known. This
-          ;; prevents prompting the user twice in `stp-git-upgrade' when pulling
-          ;; the new subtree in fails and the package has to be uninstalled and
-          ;; reinstalled manually.
-          (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
-                                   (stp-choose-remote "Remote: " .remote .other-remotes))))
-            (when (stp-url-safe-remote-p chosen-remote)
-              (cl-ecase .method
-                (git (stp-git-install pkg-info pkg-name chosen-remote .version .update :branch .branch))
-                (elpa (stp-elpa-install pkg-info pkg-name chosen-remote .version))
-                (url (stp-url-install pkg-info pkg-name chosen-remote .version)))
-              (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes)
-              (stp-write-info pkg-info)
-              (stp-git-commit-push (format "Installed version %s of %s" .version pkg-name) do-commit do-push)
-              (when do-actions
-                (stp-post-actions pkg-name))
-              (when refresh
-                (stp-list-refresh pkg-name t)))))))))
+        (stp-with-package-source-directory
+          (stp-with-memoization
+            (let-alist pkg-alist
+              ;; Don't prompt for the remote when one is already known. This
+              ;; prevents prompting the user twice in `stp-git-upgrade' when pulling
+              ;; the new subtree in fails and the package has to be uninstalled and
+              ;; reinstalled manually.
+              (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
+                                       (stp-choose-remote "Remote: " .remote .other-remotes))))
+                (when (stp-url-safe-remote-p chosen-remote)
+                  (cl-ecase .method
+                    (git (stp-git-install pkg-info pkg-name chosen-remote .version .update :branch .branch))
+                    (elpa (stp-elpa-install pkg-info pkg-name chosen-remote .version))
+                    (url (stp-url-install pkg-info pkg-name chosen-remote .version)))
+                  (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes)
+                  (stp-write-info pkg-info)
+                  (stp-git-commit-push (format "Installed version %s of %s" .version pkg-name) do-commit do-push)
+                  (when do-actions
+                    (stp-post-actions pkg-name))
+                  (when refresh
+                    (stp-list-refresh pkg-name t)))))))))))
 
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
   "Uninstall the package named pkg-name. The do-commit and do-push arguments are
@@ -411,17 +413,18 @@ as in `stp-install'."
            (version (stp-get-attribute pkg-info pkg-name 'version)))
       (save-window-excursion
         (stp-with-package-source-directory
-          (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
-              (progn
-                (delete-directory pkg-name t)
-                (setq pkg-info (map-delete pkg-info pkg-name))
-                (stp-write-info pkg-info)
-                (stp-delete-load-path pkg-name)
-                (stp-git-commit-push (format "Uninstalled version %s of %s" version pkg-name) do-commit do-push)
-                (when refresh
-                  (let ((other-pkg-name (stp-list-other-package)))
-                    (stp-list-refresh other-pkg-name t))))
-            (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
+          (stp-with-memoization
+            (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
+                (progn
+                  (delete-directory pkg-name t)
+                  (setq pkg-info (map-delete pkg-info pkg-name))
+                  (stp-write-info pkg-info)
+                  (stp-delete-load-path pkg-name)
+                  (stp-git-commit-push (format "Uninstalled version %s of %s" version pkg-name) do-commit do-push)
+                  (when refresh
+                    (let ((other-pkg-name (stp-list-other-package)))
+                      (stp-list-refresh other-pkg-name t))))
+              (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
@@ -432,31 +435,33 @@ do-push and proceed arguments are as in `stp-install'."
   (when pkg-name
     (let ((pkg-info (stp-read-info)))
       (save-window-excursion
-        (let-alist (stp-get-alist pkg-info pkg-name)
-          (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
-                 (extra-versions (and (or stp-git-upgrade-always-offer-remote-heads
-                                          (eq .update 'unstable))
-                                      (stp-git-remote-heads-sorted chosen-remote)))
-                 (prompt (format "Upgrade from %s to version: " .version)))
-            (when (stp-url-safe-remote-p chosen-remote)
-              (when (and .branch (member .branch extra-versions))
-                (setq extra-versions (cons .branch (remove .branch extra-versions))))
-              (cl-ecase .method
-                (git (--> extra-versions
-                          (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions it :branch-to-hash nil)
-                          (stp-git-upgrade pkg-info pkg-name chosen-remote it)))
-                (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
-                           (stp-elpa-upgrade pkg-info pkg-name chosen-remote)))
-                (url (->> (stp-url-read-version prompt)
-                          (stp-url-upgrade pkg-info pkg-name chosen-remote))))
-              (let ((new-version (stp-get-attribute pkg-info pkg-name 'version)))
-                (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes)
-                (stp-write-info pkg-info)
-                (stp-git-commit-push (format "Installed version %s of %s" new-version pkg-name) do-commit do-push)
-                (when do-actions
-                  (stp-post-actions pkg-name))
-                (when refresh
-                  (stp-list-refresh pkg-name t))))))))))
+        (stp-with-package-source-directory
+          (stp-with-memoization
+            (let-alist (stp-get-alist pkg-info pkg-name)
+              (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
+                     (extra-versions (and (or stp-git-upgrade-always-offer-remote-heads
+                                              (eq .update 'unstable))
+                                          (stp-git-remote-heads-sorted chosen-remote)))
+                     (prompt (format "Upgrade from %s to version: " .version)))
+                (when (stp-url-safe-remote-p chosen-remote)
+                  (when (and .branch (member .branch extra-versions))
+                    (setq extra-versions (cons .branch (remove .branch extra-versions))))
+                  (cl-ecase .method
+                    (git (--> extra-versions
+                              (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions it :branch-to-hash nil)
+                              (stp-git-upgrade pkg-info pkg-name chosen-remote it)))
+                    (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
+                               (stp-elpa-upgrade pkg-info pkg-name chosen-remote)))
+                    (url (->> (stp-url-read-version prompt)
+                              (stp-url-upgrade pkg-info pkg-name chosen-remote))))
+                  (let ((new-version (stp-get-attribute pkg-info pkg-name 'version)))
+                    (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes)
+                    (stp-write-info pkg-info)
+                    (stp-git-commit-push (format "Installed version %s of %s" new-version pkg-name) do-commit do-push)
+                    (when do-actions
+                      (stp-post-actions pkg-name))
+                    (when refresh
+                      (stp-list-refresh pkg-name t))))))))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
   "Repair the package named pkg-name. The do-commit, do-push and proceed
@@ -466,10 +471,11 @@ arguments are as in `stp-install'."
     (let ((pkg-info (stp-read-info)))
       (save-window-excursion
         (stp-with-package-source-directory
-          (stp-write-info (stp-repair-info pkg-info :quiet nil :pkg-names (list pkg-name)))
-          (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
-          (when refresh
-            (stp-list-refresh pkg-name t)))))))
+          (stp-with-memoization
+            (stp-write-info (stp-repair-info pkg-info :quiet nil :pkg-names (list pkg-name)))
+            (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
+            (when refresh
+              (stp-list-refresh pkg-name t))))))))
 
 (cl-defun stp-repair-all (&key do-commit do-push (refresh t) interactive-p)
   "Run `stp-repair-info' and write the repaired package info to
@@ -480,10 +486,11 @@ arguments are as in `stp-install'."
     (let ((refresh-pkg-name (stp-list-package-on-line)))
       (save-window-excursion
         (stp-with-package-source-directory
-          (stp-write-info (stp-repair-info (stp-read-info) :quiet nil))
-          (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
-          (when refresh
-            (stp-list-refresh refresh-pkg-name t)))))))
+          (stp-with-memoization
+            (stp-write-info (stp-repair-info (stp-read-info) :quiet nil))
+            (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
+            (when refresh
+              (stp-list-refresh refresh-pkg-name t))))))))
 
 (cl-defun stp-edit-remotes (pkg-name &key do-commit do-push (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME using
@@ -492,66 +499,69 @@ the rest will be other-remotes."
   (interactive (stp-command-args))
   (when pkg-name
     (let ((pkg-info (stp-read-info)))
-      (let-alist (stp-get-alist pkg-info pkg-name)
-        (let* ((new-remotes (stp-comp-read-remotes "Remotes: " .remote (cons .remote .other-remotes) t))
-               (new-remote (car new-remotes))
-               (new-other-remotes (cdr new-remotes))
-               (invalid-remotes (-filter (lambda (remote)
-                                           (not (stp-valid-remote-p remote .method)))
-                                         new-remotes)))
-          (unless new-remotes
-            (user-error "At least one remote must be specified"))
-          (when invalid-remotes
-            (user-error "%s are not valid for method %s" (rem-join-and invalid-remotes .method)))
-          (stp-set-attribute pkg-info pkg-name 'remote new-remote)
-          (if new-other-remotes
-              (stp-set-attribute pkg-info pkg-name 'other-remotes new-other-remotes)
-            (stp-delete-attribute pkg-info pkg-name 'other-remotes))
-          (stp-write-info pkg-info)
-          (stp-git-commit-push (format "Set remote to %s and other remotes to %S for %s"
-                                       new-remote
-                                       new-other-remotes
-                                       pkg-name)
-                               do-commit
-                               do-push))))))
+      (stp-with-memoization
+        (let-alist (stp-get-alist pkg-info pkg-name)
+          (let* ((new-remotes (stp-comp-read-remotes "Remotes: " .remote (cons .remote .other-remotes) t))
+                 (new-remote (car new-remotes))
+                 (new-other-remotes (cdr new-remotes))
+                 (invalid-remotes (-filter (lambda (remote)
+                                             (not (stp-valid-remote-p remote .method)))
+                                           new-remotes)))
+            (unless new-remotes
+              (user-error "At least one remote must be specified"))
+            (when invalid-remotes
+              (user-error "%s are not valid for method %s" (rem-join-and invalid-remotes .method)))
+            (stp-set-attribute pkg-info pkg-name 'remote new-remote)
+            (if new-other-remotes
+                (stp-set-attribute pkg-info pkg-name 'other-remotes new-other-remotes)
+              (stp-delete-attribute pkg-info pkg-name 'other-remotes))
+            (stp-write-info pkg-info)
+            (stp-git-commit-push (format "Set remote to %s and other remotes to %S for %s"
+                                         new-remote
+                                         new-other-remotes
+                                         pkg-name)
+                                 do-commit
+                                 do-push)))))))
 
 (cl-defun stp-toggle-update (pkg-name &key do-commit do-push (refresh t))
   "Toggle the update attribute for the package named pkg-name between stable and
 unstable."
   (interactive (stp-command-args))
   (when pkg-name
-    (let* ((pkg-info (stp-read-info))
-           (method (stp-get-attribute pkg-info pkg-name 'method)))
-      (if (eq method 'git)
-          (let ((update (stp-get-attribute pkg-info pkg-name 'update)))
-            (stp-set-attribute pkg-info pkg-name 'update (stp-invert-update update))
-            (if (eq update 'stable)
-                (let ((branch (or (stp-get-attribute pkg-info pkg-name 'branch)
-                                  (stp-git-read-branch "Branch: "
-                                                       (stp-get-attribute pkg-info
-                                                                          pkg-name
-                                                                          'remote)))))
-                  (stp-set-attribute pkg-info pkg-name 'branch branch))
-              (stp-delete-attribute pkg-info pkg-name 'branch))
-            (stp-write-info pkg-info)
-            (stp-git-commit-push (format "Changed update to %s for %s"
-                                         (stp-invert-update update)
-                                         pkg-name)
-                                 do-commit
-                                 do-push)
-            (when refresh
-              (stp-list-refresh pkg-name t)))
-        (user-error "The update attribute can only be toggled for git packages.")))))
+    (stp-with-memoization
+      (let* ((pkg-info (stp-read-info))
+             (method (stp-get-attribute pkg-info pkg-name 'method)))
+        (if (eq method 'git)
+            (let ((update (stp-get-attribute pkg-info pkg-name 'update)))
+              (stp-set-attribute pkg-info pkg-name 'update (stp-invert-update update))
+              (if (eq update 'stable)
+                  (let ((branch (or (stp-get-attribute pkg-info pkg-name 'branch)
+                                    (stp-git-read-branch "Branch: "
+                                                         (stp-get-attribute pkg-info
+                                                                            pkg-name
+                                                                            'remote)))))
+                    (stp-set-attribute pkg-info pkg-name 'branch branch))
+                (stp-delete-attribute pkg-info pkg-name 'branch))
+              (stp-write-info pkg-info)
+              (stp-git-commit-push (format "Changed update to %s for %s"
+                                           (stp-invert-update update)
+                                           pkg-name)
+                                   do-commit
+                                   do-push)
+              (when refresh
+                (stp-list-refresh pkg-name t)))
+          (user-error "The update attribute can only be toggled for git packages."))))))
 
 (defun stp-post-actions (pkg-name)
   "Perform actions that are necessary after a package is installed or upgraded
 such as building, updating info directories and updating the load path."
   (interactive (list (stp-list-read-package "Package name: ")))
-  (stp-update-load-path (stp-absolute-path pkg-name))
-  (stp-reload pkg-name)
-  (stp-build pkg-name)
-  (stp-build-info pkg-name)
-  (stp-update-info-directories pkg-name))
+  (stp-with-memoization
+    (stp-update-load-path (stp-absolute-path pkg-name))
+    (stp-reload pkg-name)
+    (stp-build pkg-name)
+    (stp-build-info pkg-name)
+    (stp-update-info-directories pkg-name)))
 
 (defvar stp-build-output-buffer-name "*STP Build Output*")
 
@@ -570,75 +580,76 @@ there were no errors."
                      (xor stp-allow-naive-byte-compile current-prefix-arg)))
   (save-window-excursion
     (stp-with-package-source-directory
-      (let* ((output-buffer stp-build-output-buffer-name)
-             (pkg-path (stp-absolute-path pkg-name))
-             (build-dir pkg-path))
-        ;; Setup output buffer
-        (get-buffer-create output-buffer)
-        ;; Handle CMake separately. Since it generates makefiles, make may need
-        ;; to be run afterwards.
-        (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
-          (message "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
-          ;; Try to use the directory build by default. It is fine if
-          ;; this directory already exists as long as it is not tracked
-          ;; by git.
-          (setq build-dir (f-expand "build" pkg-path))
-          (when (and (f-exists-p build-dir)
-                     (stp-git-tracked-p build-dir))
-            (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
-          (unless (f-exists-p build-dir)
-            (make-directory build-dir))
-          (rem-with-directory build-dir
-            (let ((cmd "cmake .."))
-              (stp-before-build-command cmd output-buffer)
-              ;; This will use `build-dir' as the build directory and
-              ;; `pkg-path' as the source directory so there is no
-              ;; ambiguity as to which CMakeLists.txt file should be
-              ;; used.
-              (unless (eql (call-process-shell-command cmd nil output-buffer) 0)
-                (message "Failed to run cmake on %s" build-dir)))))
-        (let ((success
-               ;; Try different methods of building the package until one
-               ;; succeeds.
-               (or nil
-                   ;; Handle GNU make. We use a separate `rem-with-directory' here
-                   ;; because the cmake code above can change build-dir.
-                   (rem-with-directory build-dir
-                     (when (-any (lambda (file)
-                                   (f-exists-p file))
-                                 stp-gnu-makefile-names)
-                       (message "A makefile was found in %s. Attempting to run make..." build-dir)
-                       (let ((cmd "make"))
-                         (stp-before-build-command cmd output-buffer)
-                         ;; Make expects a makefile to be in the current directory
-                         ;; so there is no ambiguity over which makefile will be
-                         ;; used.
-                         (or (eql (call-process-shell-command cmd nil output-buffer) 0)
-                             (and (message "Failed to run make on %s" pkg-path)
-                                  nil)))))
-                   ;; Note that `byte-recompile-directory' won't recompile files
-                   ;; unless they are out of date.
-                   (and allow-naive-byte-compile
-                        (rem-with-directory pkg-path
-                          (message "Attempting to byte compile files in %s..." pkg-path)
-                          (condition-case err
-                              (progn
-                                ;; Put the messages from `byte-recompile-directory' in
-                                ;; output-buffer.
-                                (dflet ((message (&rest args)
-                                                 (with-current-buffer output-buffer
-                                                   (insert (apply #'format args)))))
-                                  (stp-before-build-command "Byte compiling files" output-buffer)
-                                  (byte-recompile-directory pkg-path 0))
-                                t)
-                            (error (ignore err)
-                                   (message "Byte-compiling %s failed" pkg-path)
-                                   nil)))))))
-          ;; Return success or failure
-          (if success
-              (message "Successfully built %s" pkg-name)
-            (message "Build failed for %s" pkg-name))
-          success)))))
+      (stp-with-memoization
+        (let* ((output-buffer stp-build-output-buffer-name)
+               (pkg-path (stp-absolute-path pkg-name))
+               (build-dir pkg-path))
+          ;; Setup output buffer
+          (get-buffer-create output-buffer)
+          ;; Handle CMake separately. Since it generates makefiles, make may need
+          ;; to be run afterwards.
+          (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
+            (message "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
+            ;; Try to use the directory build by default. It is fine if
+            ;; this directory already exists as long as it is not tracked
+            ;; by git.
+            (setq build-dir (f-expand "build" pkg-path))
+            (when (and (f-exists-p build-dir)
+                       (stp-git-tracked-p build-dir))
+              (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
+            (unless (f-exists-p build-dir)
+              (make-directory build-dir))
+            (rem-with-directory build-dir
+              (let ((cmd "cmake .."))
+                (stp-before-build-command cmd output-buffer)
+                ;; This will use `build-dir' as the build directory and
+                ;; `pkg-path' as the source directory so there is no
+                ;; ambiguity as to which CMakeLists.txt file should be
+                ;; used.
+                (unless (eql (call-process-shell-command cmd nil output-buffer) 0)
+                  (message "Failed to run cmake on %s" build-dir)))))
+          (let ((success
+                 ;; Try different methods of building the package until one
+                 ;; succeeds.
+                 (or nil
+                     ;; Handle GNU make. We use a separate `rem-with-directory' here
+                     ;; because the cmake code above can change build-dir.
+                     (rem-with-directory build-dir
+                       (when (-any (lambda (file)
+                                     (f-exists-p file))
+                                   stp-gnu-makefile-names)
+                         (message "A makefile was found in %s. Attempting to run make..." build-dir)
+                         (let ((cmd "make"))
+                           (stp-before-build-command cmd output-buffer)
+                           ;; Make expects a makefile to be in the current directory
+                           ;; so there is no ambiguity over which makefile will be
+                           ;; used.
+                           (or (eql (call-process-shell-command cmd nil output-buffer) 0)
+                               (and (message "Failed to run make on %s" pkg-path)
+                                    nil)))))
+                     ;; Note that `byte-recompile-directory' won't recompile files
+                     ;; unless they are out of date.
+                     (and allow-naive-byte-compile
+                          (rem-with-directory pkg-path
+                            (message "Attempting to byte compile files in %s..." pkg-path)
+                            (condition-case err
+                                (progn
+                                  ;; Put the messages from `byte-recompile-directory' in
+                                  ;; output-buffer.
+                                  (dflet ((message (&rest args)
+                                                   (with-current-buffer output-buffer
+                                                     (insert (apply #'format args)))))
+                                    (stp-before-build-command "Byte compiling files" output-buffer)
+                                    (byte-recompile-directory pkg-path 0))
+                                  t)
+                              (error (ignore err)
+                                     (message "Byte-compiling %s failed" pkg-path)
+                                     nil)))))))
+            ;; Return success or failure
+            (if success
+                (message "Successfully built %s" pkg-name)
+              (message "Build failed for %s" pkg-name))
+            success))))))
 
 (defvar stp-build-blacklist nil
   "This is a list of packages that should not be built by
@@ -651,14 +662,15 @@ there were no errors."
                                         :test #'equal)
                      (xor stp-allow-naive-byte-compile current-prefix-arg)))
   (stp-with-package-source-directory
-    (let (failed)
-      (dolist (pkg-name pkg-names)
-        (message "Building %s" pkg-name)
-        (when (not (stp-build pkg-name))
-          (push pkg-name failed)))
-      (if failed
-          (message "Failed to build: %s" (s-join " " failed))
-        (message "Successfully built all packages")))))
+    (stp-with-memoization
+      (let (failed)
+        (dolist (pkg-name pkg-names)
+          (message "Building %s" pkg-name)
+          (when (not (stp-build pkg-name))
+            (push pkg-name failed)))
+        (if failed
+            (message "Failed to build: %s" (s-join " " failed))
+          (message "Successfully built all packages"))))))
 
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."

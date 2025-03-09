@@ -17,6 +17,7 @@ Cached results are only retained while within the scope of this
 macro. This allows functions that would otherwise make many
 duplicate queries to remote Git repositories to only make one of
 each type per interactive command."
+  (declare (indent 0))
   (with-gensyms (memoization-active-orig)
     `(let ((,memoization-active-orig stp-memoization-active)
            (stp-memoization-active t))
