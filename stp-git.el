@@ -232,6 +232,16 @@ the \\='git method."
 (defun stp-git-read-remote (prompt &optional default)
   (stp-read-remote-with-predicate prompt #'stp-git-valid-remote-p default 'stp-git-remote-history))
 
+(defvar stp-git-version-hash-separator "    ")
+
+(defun stp-git-versions-with-hashes (remote versions)
+  (let ((n (apply #'max (mapcar #'length versions))))
+    (mapcar (lambda (version)
+              (concat (string-pad version n)
+                      stp-git-version-hash-separator
+                      (stp-git-ref-to-hash remote version)))
+            versions)))
+
 (defvar stp-git-version-history nil)
 
 (cl-defun stp-git-read-version (prompt remote &key (extra-versions-position 'first) extra-versions default (branch-to-hash t))
@@ -244,17 +254,20 @@ are converted to hashes before they are returned."
   ;; (hashes or tags are).
   (setq extra-versions (-filter #'identity extra-versions))
   (let (version
-        (tags (stp-git-remote-tags-sorted remote)))
+        (versions (->> (append (when (eq extra-versions-position 'first)
+                                 extra-versions)
+                               (stp-git-remote-tags-sorted remote)
+                               (when (eq extra-versions-position 'last)
+                                 extra-versions))
+                       (stp-git-versions-with-hashes remote))))
     (while (or (not version) (not (stp-git-valid-remote-ref-p remote version t)))
-      (setq version (rem-comp-read prompt
-                                   (append (when (eq extra-versions-position 'first)
-                                             extra-versions)
-                                           tags
-                                           (when (eq extra-versions-position 'last)
-                                             extra-versions))
-                                   :default default
-                                   :history 'stp-git-version-history
-                                   :sort-fun #'identity)))
+      (setq version (->> (rem-comp-read prompt
+                                        versions
+                                        :default default
+                                        :history 'stp-git-version-history
+                                        :sort-fun #'identity)
+                         (s-split " ")
+                         car)))
     ;; Convert version to a hash if it is a branch.
     (if branch-to-hash
         (stp-git-head-to-hash remote version)
@@ -275,12 +288,16 @@ are converted to hashes before they are returned."
 
 (defun stp-git-read-branch (prompt remote &optional default)
   "Read a branch for pkg-name."
-  (rem-comp-read prompt
-                 (stp-git-remote-heads-sorted remote)
-                 :require-match t
-                 :default default
-                 :history 'stp-branch-history
-                 :sort-fun #'identity))
+  (let ((versions (->> (stp-git-remote-heads-sorted remote)
+                       (stp-git-versions-with-hashes remote))))
+    (->> (rem-comp-read prompt
+                        versions
+                        :require-match t
+                        :default default
+                        :history 'stp-branch-history
+                        :sort-fun #'identity)
+         (s-split " ")
+         car)))
 
 (defvar stp-git-head-explicit-order '("dev" "devel" "develop" "development" "main" "master" "stable"))
 
