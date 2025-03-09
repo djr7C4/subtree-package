@@ -190,10 +190,10 @@ kept. By default all refs are returned."
                (rassoc ref-or-hash (stp-git-remote-hash-tag-alist remote))))
       ref-or-hash))
 
-(defun stp-git-branch-to-hash (remote branch-or-hash)
-  "Convert BRANCH-OR-HASH to a hash if it isn't one already."
-  (or (car (rassoc branch-or-hash (stp-git-remote-hash-head-alist remote)))
-      branch-or-hash))
+(defun stp-git-head-to-hash (remote head-or-hash)
+  "Convert HEAD-OR-HASH to a hash if it isn't one already."
+  (or (car (rassoc head-or-hash (stp-git-remote-hash-head-alist remote)))
+      head-or-hash))
 
 (defun stp-git-tag-to-hash (remote tag-or-hash)
   "Convert TAG-OR-HASH to a hash if it isn't one already."
@@ -257,7 +257,7 @@ are converted to hashes before they are returned."
                                    :sort-fun #'identity)))
     ;; Convert version to a hash if it is a branch.
     (if branch-to-hash
-        (stp-git-branch-to-hash remote version)
+        (stp-git-head-to-hash remote version)
       version)))
 
 (defun stp-git-read-update (prompt &optional default)
