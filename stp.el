@@ -744,9 +744,7 @@ there were no errors."
         (message "Failed to build info manuals for: %s" (s-join " " failed))
       (message "Successfully built info manuals for all packages"))))
 
-(defun stp-reload (pkg-name)
-  "Reload the package."
-  (interactive (list (stp-list-read-package "Package name: ")))
+(defun stp-reload-once (pkg-name)
   (let* ((pkg-path (stp-absolute-path pkg-name))
          ;; Reload those features that were already loaded and correspond to
          ;; files in the package.
@@ -760,8 +758,15 @@ there were no errors."
                                (cl-intersection features))))
     (setq features (cl-set-difference features reload-features))
     (dolist (f reload-features)
-      (require f))
-    (message "Reloaded %s" pkg-name)))
+      (require f))))
+
+(defun stp-reload (pkg-name)
+  "Reload the package."
+  (interactive (list (stp-list-read-package "Package name: ")))
+  ;; Reload the package twice so that macros are handled properly.
+  (stp-reload-once pkg-name)
+  (stp-reload-once pkg-name)
+  (message "Reloaded %s" pkg-name))
 
 (defun stp-update-info-directories (pkg-name &optional quiet)
   "By default, detect info files for all source packages in
