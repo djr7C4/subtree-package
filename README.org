@@ -74,10 +74,11 @@ In your =~/.emacs= or =~/.emacs.d/init.el=
   (keymap-global-set "C-c P" #'stp-list)
 #+end_src
 
-You will also need to manually install the =dash=, =f=, =s= and =rem= libraries
-as STP depends on them internally. To install a package manually, open a command
-line and go to the top-level directory of the git repository that contains
-=stp-source-directory=. Then use
+You will also need to manually install the =anaphora=, =dash=, =f=,
+=emacs-memoize=, =mmt=, =s= and =rem= libraries as STP depends on them
+internally. To install a package manually, open a command line and go to the
+top-level directory of the git repository that contains =stp-source-directory=.
+Then use
 
 #+begin_src bash
   git subtree add --prefix "path/to/package-source/pkg-name" <repo-url> <package-ref>

@@ -133,7 +133,7 @@ remote repository."
   "Determine if there is a git subtree for this package."
   (stp-git-subtree-hash pkg-name))
 
-(cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p))
+(cl-defun stp-git-remote-hash-alist (remote &rest args &key (prefixes nil prefixes-supplied-p))
   "Return an alist that maps hashes to refs. If supplied, prefixes is a list of
 allowed prefixes. Only those prefixes that match a prefix in prefixes will be
 kept. By default all refs are returned."

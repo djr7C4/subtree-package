@@ -2,9 +2,31 @@
 
 (require 'cl-lib)
 (require 'f)
+(require 'memoize)
 (require 'rem)
 (require 'rem-abbrev)
 (require 's)
+
+(defvar stp-memoized-functions '(stp-git-remote-hash-alist))
+
+(defvar stp-memoization-active nil)
+
+(defmacro stp-with-memoization (&rest body)
+  "Evaluate BODY with memoization active for expensive functions.
+Cached results are only retained while within the scope of this
+macro. This allows functions that would otherwise make many
+duplicate queries to remote Git repositories to only make one of
+each type per interactive command."
+  (with-gensyms (memoization-active-orig)
+    `(let ((,memoization-active-orig stp-memoization-active)
+           (stp-memoization-active t))
+       (unwind-protect
+           (progn
+             (unless ,memoization-active-orig
+               (mapc (-rpartial #'memoize nil) stp-memoized-functions))
+             ,@body)
+         (unless ,memoization-active-orig
+           (mapc #'memoize-restore stp-memoized-functions))))))
 
 (defun stp-prefix-prompt (prompt-prefix prompt)
   (if (or (not prompt-prefix) (string= prompt-prefix ""))
