@@ -185,13 +185,10 @@ kept. By default all refs are returned."
   (member ref (stp-git-remote-heads remote)))
 
 (defun stp-git-ref-to-hash (remote ref-or-hash)
-  (let ((hash-heads (stp-git-remote-hash-head-alist remote)))
-    (aif (rassoc ref-or-hash hash-heads)
-        (car it)
-      (let ((hash-tags (stp-git-remote-hash-tag-alist remote)))
-        (aif (rassoc ref-or-hash hash-tags)
-            (car it)
-          ref-or-hash)))))
+  "Convert REF-OR-HASH to a hash if it isn't one already."
+  (or (car (or (rassoc ref-or-hash (stp-git-remote-hash-head-alist remote))
+               (rassoc ref-or-hash (stp-git-remote-hash-tag-alist remote))))
+      ref-or-hash))
 
 (defun stp-git-hash= (hash hash2)
   (and (>= (length hash) 6)
