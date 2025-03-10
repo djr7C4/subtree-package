@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+if [[ ! -d ".git" ]]; then
+    echo "This script must be run from the top-level of a Git repository" >&2
+    exit 1
+fi
+
+repos=("https://github.com/rolandwalker/anaphora.git master" "https://github.com/magnars/dash.el.git master" "https://github.com/rejeep/f.el.git master" "https://github.com/djr7C4/emacs-memoize.git master" "https://github.com/mrkkrp/mmt.git master" "https://github.com/magnars/s.el.git master" "https://github.com/djr7C4/rem.git main")
+
+for repo in "${repos[@]}"; do
+    repo="$(echo "$repo" | cut -d -f 1)"
+    branch="$(echo "$repo" | cut -d -f 2)"
+    pkg_name="${repo##*/}"
+    pkg_name="${pkg_name%.git}"
+    git subtree add --prefix "package-source/${pkg_name}" --squash "$repo" "$branch"
+done
