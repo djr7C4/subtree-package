@@ -2,7 +2,7 @@
 Subtree package (STP) is a package manager for Emacs that stores packages as git
 subtrees in the git repository for your Emacs configuration.
 * Motivation
-- Reproducing your configuration is trivially achieve by cloning the git
+- Reproducing your configuration is trivial to achieve by cloning the git
   repository
 - This works even if some of the repositories for packages it depends on no
   longer exist (which does happen occasionally)
@@ -20,6 +20,7 @@ using =stp-list-mode= and has convenience bindings for
 - uninstalling (=x=),
 - repairing (=r=) and
 - toggling between stable and unstable (=t=),
+- editing available remotes (=e=),
 - reloading (=G=) and
 - adding to the load path (=l=).
 ** Automatically detect stable versions
@@ -37,6 +38,9 @@ releases. Stable packages are only upgraded to other stable releases by default.
 
 Packages can also be marked as unstable which allows them to installed
 and upgraded to any hash, branch or tag.
+** Choose between multiple remotes
+STP remembers all remotes that the user has entered when upgrading a package.
+These are available for the user to choose for future upgrades using completion.
 ** Automatically build packages
 Use =M-x stp-build= Packages can be built automatically by detecting Makefiles
 or other build systems as well as compiling the elisp files directly. Info
@@ -76,7 +80,7 @@ In your =~/.emacs= or =~/.emacs.d/init.el=
 
 You will also need to manually install the dependencies of STP before it can
 used. The simplest way is to run the bootstrap script from this repository in
-the top-level directory of the Git repository for your Emacs configuration.
+the top-level directory of the git repository for your Emacs configuration.
 
 #+begin_src bash
   cd <emacs-git-directory>
@@ -84,7 +88,7 @@ the top-level directory of the Git repository for your Emacs configuration.
 #+end_src
 
 After the packages are installed, restart Emacs and run =M-x stp-repair-all= to
-initialize the package information database from the Git repository.
+initialize the package information database from the git repository.
 
 Alternatively, you can manually install each of the dependencies using
 
