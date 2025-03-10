@@ -249,7 +249,9 @@ the \\='git method."
 (defvar stp-git-version-hash-separator "    ")
 
 (defun stp-git-versions-with-hashes (remote versions)
-  (let ((n (apply #'max (mapcar #'length versions))))
+  (let ((n (if versions
+               (apply #'max (mapcar #'length versions))
+             0)))
     (mapcar (lambda (version)
               (concat (string-pad version n)
                       stp-git-version-hash-separator
