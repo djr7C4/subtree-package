@@ -139,16 +139,16 @@ with a slash."
       (when remote
         (minibuffer-message "%s is invalid" remote))
       (setq remote
-            (let ((default-directory (or stp-read-remote-default-directory
-                                         default-directory)))
-              (rem-comp-read prompt
-                           #'completion-file-name-table
-                           :default default
-                           :history history
-                           ;; Setting multiple to t prevents http:// from
-                           ;; being replaced with /. This is helpful when
-                           ;; entering URLs.
-                           :multiple t))))
+            (car (let ((default-directory (or stp-read-remote-default-directory
+                                              default-directory)))
+                   (rem-comp-read prompt
+                                  #'completion-file-name-table
+                                  :default default
+                                  :history history
+                                  ;; Setting multiple to t prevents http:// from
+                                  ;; being replaced with /. This is helpful when
+                                  ;; entering URLs.
+                                  :multiple t)))))
     (stp-normalize-remote remote)))
 
 (defun stp-version< (v1 v2)
