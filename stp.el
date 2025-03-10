@@ -402,7 +402,9 @@ negated relative to the default."
               (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
                                        (stp-choose-remote "Remote: " .remote .other-remotes))))
                 ;; Guess the method if it isn't already known.
-                (setq .method (or .method (stp-remote-method chosen-remote)))
+                (unless .method
+                  (setq .method (stp-remote-method chosen-remote)
+                        pkg-info (stp-set-attribute pkg-info pkg-name 'method .method)))
                 (when (stp-url-safe-remote-p chosen-remote)
                   (setq pkg-info
                         (cl-ecase .method
