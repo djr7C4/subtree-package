@@ -404,11 +404,12 @@ negated relative to the default."
                 ;; Guess the method if it isn't already known.
                 (setq .method (or .method (stp-remote-method chosen-remote)))
                 (when (stp-url-safe-remote-p chosen-remote)
-                  (cl-ecase .method
-                    (git (stp-git-install pkg-info pkg-name chosen-remote .version .update :branch .branch))
-                    (elpa (stp-elpa-install pkg-info pkg-name chosen-remote .version))
-                    (url (stp-url-install pkg-info pkg-name chosen-remote .version)))
-                  (setq pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
+                  (setq pkg-info
+                        (cl-ecase .method
+                          (git (stp-git-install pkg-info pkg-name chosen-remote .version .update :branch .branch))
+                          (elpa (stp-elpa-install pkg-info pkg-name chosen-remote .version))
+                          (url (stp-url-install pkg-info pkg-name chosen-remote .version)))
+                        pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                   (stp-write-info pkg-info)
                   (stp-git-commit-push (format "Installed version %s of %s" .version pkg-name) do-commit do-push)
                   (when do-actions
@@ -458,14 +459,15 @@ do-push and proceed arguments are as in `stp-install'."
                 (when (stp-url-safe-remote-p chosen-remote)
                   (when (and .branch (member .branch extra-versions))
                     (setq extra-versions (cons .branch (remove .branch extra-versions))))
-                  (cl-ecase .method
-                    (git (--> extra-versions
-                              (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions it :branch-to-hash nil)
-                              (stp-git-upgrade pkg-info pkg-name chosen-remote it)))
-                    (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
-                               (stp-elpa-upgrade pkg-info pkg-name chosen-remote)))
-                    (url (->> (stp-url-read-version prompt)
-                              (stp-url-upgrade pkg-info pkg-name chosen-remote))))
+                  (setq pkg-info
+                        (cl-ecase .method
+                          (git (--> extra-versions
+                                    (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions it :branch-to-hash nil)
+                                    (stp-git-upgrade pkg-info pkg-name chosen-remote it)))
+                          (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
+                                     (stp-elpa-upgrade pkg-info pkg-name chosen-remote)))
+                          (url (->> (stp-url-read-version prompt)
+                                    (stp-url-upgrade pkg-info pkg-name chosen-remote)))))
                   ;; The call to `stp-get-attribute' can't be replaced with
                   ;; .version because the 'version attribute will have changed
                   ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or

@@ -103,8 +103,8 @@ be performed."
     (when (eq type 'install)
       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'method 'elpa)))
     ;; Add any new files to the git index.
-    (stp-git-add pkg-path)
-    (stp-write-info pkg-info)))
+    (stp-git-add pkg-path))
+  pkg-info)
 
 (defun stp-elpa-install (pkg-info pkg-name remote version)
   "Install the specified version of pkg-name from remote into

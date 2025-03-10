@@ -54,9 +54,9 @@ operation should be performed."
       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
       (when (eq type 'install)
         (setq pkg-info (stp-set-attribute pkg-info pkg-name 'method 'url)))
-      (stp-write-info pkg-info)
       ;; Add any new files to the git index.
-      (stp-git-add pkg-path))))
+      (stp-git-add pkg-path)))
+  pkg-info)
 
 (defun stp-url-install (pkg-info pkg-name remote version)
   "Install the specified version of pkg-name from remote into

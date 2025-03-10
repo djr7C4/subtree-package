@@ -422,9 +422,9 @@ are converted to hashes before they are returned."
                                                                   (version . ,version)
                                                                   (update . ,update))))
                 (when branch
-                  (setq pkg-info (stp-set-attribute pkg-info pkg-name 'branch branch)))
-                (stp-write-info pkg-info))
-            (error "Failed to install %s as a git subtree: %s" pkg-name (s-trim output))))))))
+                  (setq pkg-info (stp-set-attribute pkg-info pkg-name 'branch branch))))
+            (error "Failed to install %s as a git subtree: %s" pkg-name (s-trim output)))))))
+  pkg-info)
 
 (defvar stp-subtree-pull-fallback t
   "When this is non-nil and git subtree pull fails, attempt to uninstall the
@@ -517,11 +517,11 @@ from remote."
                             pkg-info (stp-set-attribute pkg-info pkg-name 'update 'stable))
                     ;; If there is a 'branch attribute when updating to a hash,
                     ;; leave it as is.
-                    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable))))
-                (stp-write-info pkg-info))
+                    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable)))))
             ;; This should never be reached since `stp-uninstall' and
             ;; `stp-install' raise errors when they fail.
-            (error "Uninstalling and reinstalling %s failed: %s" pkg-name (s-trim output))))))))
+            (error "Uninstalling and reinstalling %s failed: %s" pkg-name (s-trim output))))))
+    pkg-info))
 
 (provide 'stp-git)
 ;;; stp-git.el ends here
