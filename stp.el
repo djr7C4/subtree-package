@@ -116,43 +116,41 @@ be selected.")
   ;; just installed or upgraded from. (See the documentation of
   ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
   ;; not chosen.
-  (stp-set-attribute pkg-info pkg-name 'remote chosen-remote)
+  (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote chosen-remote))
   (when (or other-remotes (not (string= chosen-remote remote)))
     (->> (cons remote other-remotes)
          (remove chosen-remote)
-         (stp-set-attribute pkg-info pkg-name 'other-remotes))))
+         (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes))))
+  pkg-info)
 
 (defun stp-repair-default-callback (type pkg-info pkg-name)
-  (cl-flet ((handle-partial-elpa-url (pkg-info pkg-name)
-              (let* ((pkg-alist (stp-get-alist pkg-info pkg-name))
-                     (method (stp-get-attribute pkg-info pkg-name 'method))
-                     (remote (stp-get-attribute pkg-info pkg-name 'remote))
-                     (version (stp-get-attribute pkg-info pkg-name 'version)))
-                (while (or (not (string-match-p rem-strict-url-regexp remote))
-                           (not (url-file-exists-p remote))
-                           (not (stp-valid-remote-p remote method)))
-                  (setq remote (stp-read-remote :prompt-prefix (format "Invalid URL (or host is down): %s" remote) remote)))
-                (stp-set-attribute pkg-info pkg-name 'remote remote)
-                (unless version
+  (let-alist (stp-get-alist pkg-info pkg-name)
+    (cl-flet ((handle-partial-elpa-url (pkg-info pkg-name)
+                (while (or (not (string-match-p rem-strict-url-regexp .remote))
+                           (not (url-file-exists-p .remote))
+                           (not (stp-valid-remote-p .remote .method)))
+                  (setq .remote (stp-read-remote :prompt-prefix (format "Invalid URL (or host is down): %s" .remote) .remote)))
+                (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote .remote))
+                (unless .version
                   (let ((prompt (format "[%s] version: " pkg-name)))
-                    (cl-ecase method
-                      (elpa (setq version (stp-elpa-read-version prompt pkg-name remote)))
-                      (url (setq version (stp-url-read-version prompt))))))
-                pkg-info)))
-    (cl-case type
-      (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
-      (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " (stp-get-attribute pkg-info pkg-name 'remote) pkg-name)))
-      (unknown-git-version (stp-git-read-version (format "Unable to determine verion for %s; enter version: " pkg-name)
-                                                 (stp-get-attribute pkg-info pkg-name 'remote)
-                                                 :extra-versions (list (stp-get-attribute pkg-info pkg-name 'branch))))
-      (unknown-git-update (stp-git-read-update (format "Unable to determine update for %s; enter update: " pkg-name)))
-      (unknown-git-branch (stp-git-read-branch (format "Unable to determine branch for %s; enter branch: " pkg-name) (stp-get-attribute pkg-info pkg-name 'remote)))
-      (partial-elpa-package (handle-partial-elpa-url pkg-info pkg-name))
-      (partial-url-package (handle-partial-elpa-url pkg-info pkg-name))
-      (unknown-package (stp-set-alist pkg-info pkg-name (cdr (stp-read-package :pkg-name pkg-name :prompt-prefix (format "Package info is missing for %s; " pkg-name)))))
-      ;; This callback ensures that the `stp-info-file' is updated after
-      ;; each package is repaired. This is helpful in case there is an error.
-      (pkg-info-updated (stp-write-info pkg-info)))))
+                    (cl-ecase .method
+                      (elpa (setq .version (stp-elpa-read-version prompt pkg-name remote)))
+                      (url (setq .version (stp-url-read-version prompt))))))
+                pkg-info))
+      (cl-case type
+        (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
+        (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " .remote pkg-name)))
+        (unknown-git-version (stp-git-read-version (format "Unable to determine verion for %s; enter version: " pkg-name)
+                                                   .remote
+                                                   :extra-versions (list .branch)))
+        (unknown-git-update (stp-git-read-update (format "Unable to determine update for %s; enter update: " pkg-name)))
+        (unknown-git-branch (stp-git-read-branch (format "Unable to determine branch for %s; enter branch: " pkg-name) .remote))
+        (partial-elpa-package (handle-partial-elpa-url pkg-info pkg-name))
+        (partial-url-package (handle-partial-elpa-url pkg-info pkg-name))
+        (unknown-package (stp-set-alist pkg-info pkg-name (cdr (stp-read-package :pkg-name pkg-name :prompt-prefix (format "Package info is missing for %s; " pkg-name)))))
+        ;; This callback ensures that the `stp-info-file' is updated after
+        ;; each package is repaired. This is helpful in case there is an error.
+        (pkg-info-updated (stp-write-info pkg-info))))))
 
 (defun stp-valid-remote-p (remote &optional method)
   "Check if REMOTE is a valid remote for some method. If METHOD is
@@ -185,88 +183,85 @@ occurred."
          (n (length pkg-names)))
     (unwind-protect
         (dolist (pkg-name pkg-names)
-          (let ((pkg-name (stp-name pkg-name))
-                (method (stp-get-attribute pkg-info pkg-name 'method)))
-            (unless quiet
-              (message (concat (if (> n 1)
-                                   (format "(%d/%d) " i n)
-                                 "")
-                               "Analyzing %s...")
-                       pkg-name))
-            (if (f-dir-p pkg-name)
-                (progn
-                  (unless method
-                    ;; This means that pkg-name exists in `stp-source-directory'
-                    ;; but is not recorded in pkg-info. In other words, the user
-                    ;; installed the package manually without using
-                    ;; `stp-install'.
-                    (when (stp-git-subtree-p pkg-name)
-                      (message "A manual installation was detected for %s" pkg-name)
-                      (setq method 'git
-                            pkg-info (stp-set-attribute pkg-info pkg-name 'method 'git))))
-                  (let* ((other-remotes (stp-get-attribute pkg-info pkg-name 'other-remotes))
-                         (valid-other-remotes (-filter (-rpartial #'stp-valid-remote-p method) other-remotes)))
-                    (when valid-other-remotes
-                      (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes valid-other-remotes))))
-                  (cl-case method
-                    (git
-                     ;; First make sure that the remote is valid. This has to be done
-                     ;; first since `stp-git-subtree-version' needs to know the
-                     ;; remote.
-                     (let ((remote (stp-get-attribute pkg-info pkg-name 'remote)))
-                       (unless (stp-git-valid-remote-p remote)
-                         (setq remote (funcall callback 'invalid-git-remote pkg-info pkg-name)))
-                       (if remote
-                           (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote remote))
+          (let ((pkg-name (stp-name pkg-name)))
+            (let-alist (stp-get-alist pkg-info pkg-name)
+              (unless quiet
+                (message (concat (if (> n 1)
+                                     (format "(%d/%d) " i n)
+                                   "")
+                                 "Analyzing %s...")
+                         pkg-name))
+              (if (f-dir-p pkg-name)
+                  (progn
+                    (unless .method
+                      ;; This means that pkg-name exists in
+                      ;; `stp-source-directory' but is not recorded in pkg-info.
+                      ;; In other words, the user installed the package manually
+                      ;; without using `stp-install'.
+                      (when (stp-git-subtree-p pkg-name)
+                        (message "A manual installation was detected for %s" pkg-name)
+                        (setq .method 'git
+                              pkg-info (stp-set-attribute pkg-info pkg-name 'method 'git))))
+                    (let* ((valid-other-remotes (-filter (-rpartial #'stp-valid-remote-p .method) .other-remotes)))
+                      (when valid-other-remotes
+                        (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes valid-other-remotes))))
+                    (cl-case .method
+                      (git
+                       ;; First make sure that the remote is valid. This has to
+                       ;; be done first since `stp-git-subtree-version' needs to
+                       ;; know the remote.
+                       (unless (stp-git-valid-remote-p .remote)
+                         (setq .remote (funcall callback 'invalid-git-remote pkg-info pkg-name)))
+                       (if .remote
+                           (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote .remote))
                          (unless quiet
-                           (message "Failed to determine the remote of %s" pkg-name))))
-                     (db (version update)
-                         (stp-git-subtree-version pkg-info pkg-name)
-                       ;; Use callback to determine the version if it could not
-                       ;; be deduced above.
-                       (setq version (or version (funcall callback 'unknown-git-version pkg-info pkg-name)))
-                       (if version
-                           ;; Only update hashes if they are different. Shorter
-                           ;; versions of hashes are acceptable.
-                           (unless (stp-git-hash= version (stp-get-attribute pkg-info pkg-name 'version))
-                             (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version)))
-                         (unless quiet
-                           (message "Failed to determine the version of %s" pkg-name)))
-                       ;; Use callback to determine update if it could not be deduced
-                       ;; above.
-                       (setq update (or update (funcall callback 'unknown-git-update pkg-info pkg-name)))
-                       (if update
-                           (progn
-                             (setq pkg-info (stp-set-attribute pkg-info pkg-name 'update update))
-                             (when (eq update 'unstable)
-                               ;; If the 'update attribute is 'unstable, there
-                               ;; should be a 'branch attribute. If it is missing,
-                               ;; we try to get it from the callback function. If
-                               ;; that doesn't work, we assume that it should be the
-                               ;; master branch.
-                               (let ((branch (stp-get-attribute pkg-info pkg-name 'branch)))
-                                 (setq branch
-                                       (or branch
+                           (message "Failed to determine the remote of %s" pkg-name)))
+                       (db (version update)
+                           (stp-git-subtree-version pkg-info pkg-name)
+                         ;; Use callback to determine the version if it could
+                         ;; not be deduced above.
+                         (setq version (or version (funcall callback 'unknown-git-version pkg-info pkg-name)))
+                         (if version
+                             ;; Only update hashes if they are different.
+                             ;; Shorter versions of hashes are acceptable.
+                             (unless (stp-git-hash= version .version)
+                               (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version)))
+                           (unless quiet
+                             (message "Failed to determine the version of %s" pkg-name)))
+                         ;; Use callback to determine update if it could not be
+                         ;; deduced above.
+                         (setq update (or update (funcall callback 'unknown-git-update pkg-info pkg-name)))
+                         (if update
+                             (progn
+                               (setq pkg-info (stp-set-attribute pkg-info pkg-name 'update update))
+                               (when (eq update 'unstable)
+                                 ;; If the 'update attribute is 'unstable, there
+                                 ;; should be a 'branch attribute. If it is
+                                 ;; missing, we try to get it from the callback
+                                 ;; function. If that doesn't work, we assume
+                                 ;; that it should be the master branch.
+                                 (setq .branch
+                                       (or .branch
                                            (funcall callback 'unknown-git-branch pkg-info pkg-name)))
-                                 (if branch
+                                 (if .branch
                                      (progn
-                                       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'branch branch)))
+                                       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'branch .branch)))
                                    (unless quiet
-                                     (message "Failed to determine the update mechanism for %s" pkg-name)))))))))
-                    (elpa
-                     (setq pkg-info (funcall callback 'partial-elpa-package pkg-info pkg-name)))
-                    (url
-                     (setq pkg-info (funcall callback 'partial-url-package pkg-info pkg-name)))
-                    ;; nil means that we were unable to determine the method. In
-                    ;; this case, we obtain the information via callbacks.
-                    ((nil)
-                     (setq pkg-info (funcall callback 'unknown-package pkg-info pkg-name)))))
-              (when (funcall callback 'ghost-package pkg-info pkg-name)
-                (setq pkg-info (cl-remove-if (lambda (cell) (string= (car cell) pkg-name)) pkg-info))))
-            (cl-incf i)))
-      ;; Ensure that the package info file is updated even on a keyboard quit or
-      ;; other signal.
-      (funcall callback 'pkg-info-updated pkg-info nil)))
+                                     (message "Failed to determine the update mechanism for %s" pkg-name))))))))
+                      (elpa
+                       (setq pkg-info (funcall callback 'partial-elpa-package pkg-info pkg-name)))
+                      (url
+                       (setq pkg-info (funcall callback 'partial-url-package pkg-info pkg-name)))
+                      ;; nil means that we were unable to determine the method.
+                      ;; In this case, we obtain the information via callbacks.
+                      ((nil)
+                       (setq pkg-info (funcall callback 'unknown-package pkg-info pkg-name)))))
+                (when (funcall callback 'ghost-package pkg-info pkg-name)
+                  (setq pkg-info (cl-remove-if (lambda (cell) (string= (car cell) pkg-name)) pkg-info))))
+              (cl-incf i)
+              ;; Ensure that the package info file is updated even on a keyboard
+              ;; quit or other signal.
+              (funcall callback 'pkg-info-updated pkg-info nil))))))
   pkg-info)
 
 (defvar stp-auto-commit t
@@ -396,7 +391,7 @@ negated relative to the default."
                     (git (stp-git-install pkg-info pkg-name chosen-remote .version .update :branch .branch))
                     (elpa (stp-elpa-install pkg-info pkg-name chosen-remote .version))
                     (url (stp-url-install pkg-info pkg-name chosen-remote .version)))
-                  (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes)
+                  (setq pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                   (stp-write-info pkg-info)
                   (stp-git-commit-push (format "Installed version %s of %s" .version pkg-name) do-commit do-push)
                   (when do-actions
@@ -409,22 +404,22 @@ negated relative to the default."
 as in `stp-install'."
   (interactive (stp-command-args))
   (when pkg-name
-    (let* ((pkg-info (stp-read-info))
-           (version (stp-get-attribute pkg-info pkg-name 'version)))
-      (save-window-excursion
-        (stp-with-package-source-directory
-          (stp-with-memoization
-            (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
-                (progn
-                  (delete-directory pkg-name t)
-                  (setq pkg-info (map-delete pkg-info pkg-name))
-                  (stp-write-info pkg-info)
-                  (stp-delete-load-path pkg-name)
-                  (stp-git-commit-push (format "Uninstalled version %s of %s" version pkg-name) do-commit do-push)
-                  (when refresh
-                    (let ((other-pkg-name (stp-list-other-package)))
-                      (stp-list-refresh other-pkg-name t))))
-              (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))))
+    (let ((pkg-info (stp-read-info)))
+      (let-alist (stp-get-alist pkg-info pkg-name)
+        (save-window-excursion
+          (stp-with-package-source-directory
+            (stp-with-memoization
+              (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
+                  (progn
+                    (delete-directory pkg-name t)
+                    (setq pkg-info (map-delete pkg-info pkg-name))
+                    (stp-write-info pkg-info)
+                    (stp-delete-load-path pkg-name)
+                    (stp-git-commit-push (format "Uninstalled version %s of %s" version pkg-name) do-commit do-push)
+                    (when refresh
+                      (let ((other-pkg-name (stp-list-other-package)))
+                        (stp-list-refresh other-pkg-name t))))
+                (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
@@ -454,8 +449,12 @@ do-push and proceed arguments are as in `stp-install'."
                                (stp-elpa-upgrade pkg-info pkg-name chosen-remote)))
                     (url (->> (stp-url-read-version prompt)
                               (stp-url-upgrade pkg-info pkg-name chosen-remote))))
+                  ;; The call to `stp-get-attribute' can't be replaced with
+                  ;; .version because the 'version attribute will have changed
+                  ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
+                  ;; `stp-url-upgrade'.
                   (let ((new-version (stp-get-attribute pkg-info pkg-name 'version)))
-                    (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes)
+                    (setq pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                     (stp-write-info pkg-info)
                     (stp-git-commit-push (format "Installed version %s of %s" new-version pkg-name) do-commit do-push)
                     (when do-actions
@@ -511,10 +510,10 @@ the rest will be other-remotes."
               (user-error "At least one remote must be specified"))
             (when invalid-remotes
               (user-error "%s are not valid for method %s" (rem-join-and invalid-remotes .method)))
-            (stp-set-attribute pkg-info pkg-name 'remote new-remote)
+            (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote new-remote))
             (if new-other-remotes
-                (stp-set-attribute pkg-info pkg-name 'other-remotes new-other-remotes)
-              (stp-delete-attribute pkg-info pkg-name 'other-remotes))
+                (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes new-other-remotes))
+              (setq pkg-info (stp-delete-attribute pkg-info pkg-name 'other-remotes)))
             (stp-write-info pkg-info)
             (stp-git-commit-push (format "Set remote to %s and other remotes to %S for %s"
                                          new-remote
@@ -529,28 +528,25 @@ unstable."
   (interactive (stp-command-args))
   (when pkg-name
     (stp-with-memoization
-      (let* ((pkg-info (stp-read-info))
-             (method (stp-get-attribute pkg-info pkg-name 'method)))
-        (if (eq method 'git)
-            (let ((update (stp-get-attribute pkg-info pkg-name 'update)))
-              (stp-set-attribute pkg-info pkg-name 'update (stp-invert-update update))
-              (if (eq update 'stable)
-                  (let ((branch (or (stp-get-attribute pkg-info pkg-name 'branch)
-                                    (stp-git-read-branch "Branch: "
-                                                         (stp-get-attribute pkg-info
-                                                                            pkg-name
-                                                                            'remote)))))
-                    (stp-set-attribute pkg-info pkg-name 'branch branch))
-                (stp-delete-attribute pkg-info pkg-name 'branch))
-              (stp-write-info pkg-info)
-              (stp-git-commit-push (format "Changed update to %s for %s"
-                                           (stp-invert-update update)
-                                           pkg-name)
-                                   do-commit
-                                   do-push)
-              (when refresh
-                (stp-list-refresh pkg-name t)))
-          (user-error "The update attribute can only be toggled for git packages."))))))
+      (let ((pkg-info (stp-read-info)))
+        (let-alist (stp-get-alist pkg-info pkg-name)
+          (if (eq .method 'git)
+              (progn
+                (setq pkg-info (stp-set-attribute pkg-info pkg-name 'update (stp-invert-update .update)))
+                (if (eq .update 'stable)
+                    (setq .branch (or .branch
+                                      (stp-git-read-branch "Branch: " .remote))
+                          pkg-info (stp-set-attribute pkg-info pkg-name 'branch .branch))
+                  (setq pkg-info (stp-delete-attribute pkg-info pkg-name 'branch)))
+                (stp-write-info pkg-info)
+                (stp-git-commit-push (format "Changed update to %s for %s"
+                                             (stp-invert-update .update)
+                                             pkg-name)
+                                     do-commit
+                                     do-push)
+                (when refresh
+                  (stp-list-refresh pkg-name t)))
+            (user-error "The update attribute can only be toggled for git packages.")))))))
 
 (defun stp-post-actions (pkg-name)
   "Perform actions that are necessary after a package is installed or upgraded

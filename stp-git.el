@@ -211,21 +211,21 @@ kept. By default all refs are returned."
 installed at the subtree. Use a tag if one is available;
 otherwise, use the hash. This only works for packages that use
 the \\='git method."
-  (let* ((pkg-name (stp-name pkg-name))
-         (pkg-remote (stp-get-attribute pkg-info pkg-name 'remote)))
-    (if (stp-git-remote-p pkg-remote)
-        (let ((cur-hash (stp-git-subtree-hash pkg-name))
-              (hash-tags (stp-git-remote-hash-tag-alist pkg-remote)))
-          (if cur-hash
-              (aif (cl-assoc-if (lambda (hash)
-                                  (stp-git-hash= cur-hash hash))
-                                hash-tags)
-                  (list (cdr it) 'stable)
-                (list cur-hash 'unstable))
-            ;; When cur-hash is nil, it means that the subtree version was not
-            ;; found.
-            (list nil nil)))
-      (list nil nil))))
+  (let* ((pkg-name (stp-name pkg-name)))
+    (let-alist (stp-get-alist pkg-info pkg-name)
+      (if (stp-git-remote-p .remote)
+          (let ((cur-hash (stp-git-subtree-hash pkg-name))
+                (hash-tags (stp-git-remote-hash-tag-alist .remote)))
+            (if cur-hash
+                (aif (cl-assoc-if (lambda (hash)
+                                    (stp-git-hash= cur-hash hash))
+                                  hash-tags)
+                    (list (cdr it) 'stable)
+                  (list cur-hash 'unstable))
+              ;; When cur-hash is nil, it means that the subtree version was not
+              ;; found.
+              (list nil nil)))
+        (list nil nil)))))
 
 (defvar stp-git-remote-history nil)
 
