@@ -50,7 +50,7 @@
        'stp-remote-history)
       stp-normalize-remote))
 
-(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") (line-pkg t))
+(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") (_line-pkg t))
   (let* ((remote (stp-read-remote (stp-prefix-prompt prompt-prefix "Remote: ") (alist-get 'remote pkg-alist)))
          (pkg-name (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote))))
          (method (stp-remote-method remote))
@@ -134,7 +134,8 @@ be selected.")
   (when (or other-remotes (not (string= chosen-remote remote)))
     (->> (cons remote other-remotes)
          (remove chosen-remote)
-         (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes))))
+         (stp-set-attribute pkg-info pkg-name 'other-remotes)
+         (setq pkg-info) ))
   pkg-info)
 
 (defun stp-repair-default-callback (type pkg-info pkg-name)
@@ -143,12 +144,12 @@ be selected.")
                 (while (or (not (string-match-p rem-strict-url-regexp .remote))
                            (not (url-file-exists-p .remote))
                            (not (stp-valid-remote-p .remote .method)))
-                  (setq .remote (stp-read-remote :prompt-prefix (format "Invalid URL (or host is down): %s" .remote) .remote)))
+                  (setq .remote (stp-read-remote (format "Invalid URL (or host is down): %s" .remote) .remote)))
                 (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote .remote))
                 (unless .version
                   (let ((prompt (format "[%s] version: " pkg-name)))
                     (cl-ecase .method
-                      (elpa (setq .version (stp-elpa-read-version prompt pkg-name remote)))
+                      (elpa (setq .version (stp-elpa-read-version prompt pkg-name .remote)))
                       (url (setq .version (stp-url-read-version prompt))))))
                 pkg-info))
       (cl-case type
@@ -429,7 +430,7 @@ as in `stp-install'."
                     (setq pkg-info (map-delete pkg-info pkg-name))
                     (stp-write-info pkg-info)
                     (stp-delete-load-path pkg-name)
-                    (stp-git-commit-push (format "Uninstalled version %s of %s" version pkg-name) do-commit do-push)
+                    (stp-git-commit-push (format "Uninstalled version %s of %s" .version pkg-name) do-commit do-push)
                     (when refresh
                       (let ((other-pkg-name (stp-list-other-package)))
                         (stp-list-refresh other-pkg-name t))))
@@ -523,7 +524,7 @@ the rest will be other-remotes."
             (unless new-remotes
               (user-error "At least one remote must be specified"))
             (when invalid-remotes
-              (user-error "%s are not valid for method %s" (rem-join-and invalid-remotes .method)))
+              (user-error "%s are not valid for method %s" (rem-join-and invalid-remotes) .method))
             (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote new-remote))
             (if new-other-remotes
                 (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes new-other-remotes))
@@ -534,7 +535,9 @@ the rest will be other-remotes."
                                          new-other-remotes
                                          pkg-name)
                                  do-commit
-                                 do-push)))))))
+                                 do-push)
+            (when refresh
+              (stp-list-refresh pkg-name t))))))))
 
 (cl-defun stp-toggle-update (pkg-name &key do-commit do-push (refresh t))
   "Toggle the update attribute for the package named pkg-name between stable and
@@ -676,7 +679,7 @@ there were no errors."
       (let (failed)
         (dolist (pkg-name pkg-names)
           (message "Building %s" pkg-name)
-          (when (not (stp-build pkg-name))
+          (when (not (stp-build pkg-name allow-naive-byte-compile))
             (push pkg-name failed)))
         (if failed
             (message "Failed to build: %s" (s-join " " failed))
@@ -731,7 +734,7 @@ there were no errors."
                     (message "Built the info manual for %s using makeinfo" pkg-name)
                     (cl-return t))
                    (t
-                    (message "makeinfo failed" source))))))))
+                    (message "'makeinfo --no-split %s' failed" source))))))))
     (unless attempted
       (message "No makefiles or texi source files found for the %s info manual" pkg-name))
     success))

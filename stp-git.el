@@ -111,7 +111,7 @@
     (setq branch (or branch (stp-git-current-branch)))
     (let ((push-default (s-trim (cadr (rem-call-process-shell-command "remote.pushDefault")))))
       (if (string= push-default "")
-          (s-trim (cadr (rem-call-process-shell-command (s-join "." "branch" branch "pushRemote"))))
+          (s-trim (cadr (rem-call-process-shell-command (s-join "." (list "branch" branch "pushRemote")))))
         push-default))))
 
 (defun stp-git-unpushed-p ()
