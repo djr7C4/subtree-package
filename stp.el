@@ -401,6 +401,8 @@ negated relative to the default."
               ;; reinstalled manually.
               (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
                                        (stp-choose-remote "Remote: " .remote .other-remotes))))
+                ;; Guess the method if it isn't already known.
+                (setq .method (or .method (stp-remote-method chosen-remote)))
                 (when (stp-url-safe-remote-p chosen-remote)
                   (cl-ecase .method
                     (git (stp-git-install pkg-info pkg-name chosen-remote .version .update :branch .branch))
