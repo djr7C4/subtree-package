@@ -717,7 +717,7 @@ there were no errors."
                           (progn
                             (message "Built the info manual for %s using make" pkg-name)
                             (cl-return t))
-                        (message "'make %s' failed in %s" target (f-dirname makefile)))))))
+                        (message "'%s' failed in %s" cmd (f-dirname makefile)))))))
 
               ;; Try to compile a texi file directly.
               (dolist (source (f-entries (stp-absolute-path pkg-name)
@@ -740,7 +740,7 @@ there were no errors."
                     (message "Built the info manual for %s using makeinfo" pkg-name)
                     (cl-return t))
                    (t
-                    (message "'makeinfo --no-split %s' failed" source))))))))
+                    (message "'%s' failed" cmd))))))))
     (unless attempted
       (message "No makefiles or texi source files found for the %s info manual" pkg-name))
     success))

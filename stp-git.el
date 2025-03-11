@@ -463,9 +463,8 @@ from remote."
                             "\"%s\"%s")
                     (append (list (if hash-p
                                       ;; merging is done instead of pulling for
-                                      ;; pulling for hashes because git subtree
-                                      ;; pull does not work for hashes on
-                                      ;; remotes.
+                                      ;; hashes because git subtree pull does
+                                      ;; not work for hashes on remotes.
                                       "merge"
                                     "pull")
                                   prefix)
