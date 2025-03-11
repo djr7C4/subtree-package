@@ -145,11 +145,7 @@ with a slash."
                                  #'completion-file-name-table
                                  :default default
                                  :history history
-                                 ;; Setting multiple to t prevents http:// from
-                                 ;; being replaced with /. This is helpful when
-                                 ;; entering URLs.
-                                 :multiple t)
-                  car
+                                 :metadata '((category . nil)))
                   stp-normalize-remote))))
     remote))
 

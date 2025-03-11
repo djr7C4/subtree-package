@@ -94,35 +94,30 @@ be selected.")
 
 (defvar stp-remote-history nil)
 
-(defun stp-comp-read-remotes (prompt remote known-remotes &optional multiple)
-  (let ((remotes (let ((default-directory (or stp-read-remote-default-directory
-                                              default-directory)))
-                   (rem-comp-read prompt
-                                  (completion-table-in-turn known-remotes
-                                                            #'completion-file-name-table)
-                                  :predicate (lambda (candidate)
-                                               (or (member candidate known-remotes)
-                                                   (f-dir-p candidate)))
-                                  :default remote
-                                  :history 'stp-remote-history
-                                  :sort-fun #'identity
-                                  ;; Setting multiple to t prevents http:// from
-                                  ;; being replaced with /. This is helpful when
-                                  ;; entering URLs.
-                                  :multiple t))))
-    (when (and (not multiple) (> (length remotes) 1))
-      (user-error "Multiple remotes are not allowed for this command"))
-    (setq remotes (mapcar #'stp-normalize-remote remotes))
-    (if multiple
-        remotes
-      (car remotes))))
+(defun stp-comp-read-remote (prompt remote known-remotes)
+  (let ((default-directory (or stp-read-remote-default-directory
+                               default-directory)))
+    (stp-normalize-remote
+     (rem-comp-read prompt
+                    (completion-table-in-turn known-remotes
+                                              #'completion-file-name-table)
+                    :predicate (lambda (candidate)
+                                 (or (member candidate known-remotes)
+                                     (f-dir-p candidate)))
+                    :default remote
+                    :history 'stp-remote-history
+                    :sort-fun #'identity
+                    ;; Disable the category. By default, it will be 'file which
+                    ;; will cause https:// to be replaced with / during
+                    ;; completion.
+                    :metadata '((category . nil))))))
 
 (defun stp-choose-remote (prompt remote &optional other-remotes)
   (if stp-use-other-remotes
       ;; A match is not required. This way, a new remote can be added
       ;; interactively by the user. Type ./ to complete in the current
       ;; directory.
-      (stp-comp-read-remotes prompt remote (cons remote other-remotes))
+      (stp-comp-read-remote prompt remote (cons remote other-remotes))
     remote))
 
 (defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
@@ -521,7 +516,7 @@ the rest will be other-remotes."
     (let ((pkg-info (stp-read-info)))
       (stp-with-memoization
         (let-alist (stp-get-alist pkg-info pkg-name)
-          (let* ((new-remotes (stp-comp-read-remotes "Remotes: " .remote (cons .remote .other-remotes) t))
+          (let* ((new-remotes (stp-comp-read-remote "Remotes: " .remote (cons .remote .other-remotes) t))
                  (new-remote (car new-remotes))
                  (new-other-remotes (cdr new-remotes))
                  (invalid-remotes (-filter (lambda (remote)
