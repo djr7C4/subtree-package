@@ -917,6 +917,7 @@ that many packages."
               "p" #'stp-list-previous-package
               "M-n" #'stp-list-next-repair
               "M-p" #'stp-list-previous-repair
+              "o" #'stp-find-other-package
               "r" #'stp-repair
               "R" #'stp-repair-all
               "t" #'stp-toggle-update
