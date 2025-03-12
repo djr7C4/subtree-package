@@ -73,6 +73,18 @@ with a slash."
   never ends with a slash (nor does it contain any slashes)."
   (f-filename pkg-path))
 
+(defun stp-split-current-package ()
+  "Return a list containing the name of the current package and the
+ relative path to the current file or directory within that
+ package."
+  (let* ((relative-path (s-chop-prefix (f-canonical stp-source-directory)
+                                       (f-canonical (or buffer-file-name default-directory))))
+         (split (f-split relative-path)))
+    (list (car split)
+          (if (cdr split)
+              (apply #'f-join (cdr split))
+            "."))))
+
 (defmacro stp-with-package-source-directory (&rest body)
   (declare (indent 0))
   `(rem-with-directory stp-source-directory

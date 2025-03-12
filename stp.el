@@ -1027,5 +1027,26 @@ confirmation."
              deleted-dirs
              stp-source-directory)))
 
+(defun stp-find-other-package (pkg-name &optional file)
+  "Find FILE in a remote on the local filesystem for PKG-NAME. This
+can be helpful for switching between the installed version of
+package and a local copy of git repository used for development."
+  (interactive (if (derived-mode-p 'stp-list-mode)
+                   (list (stp-list-package-on-line))
+                 (stp-split-current-package)))
+  (let ((pkg-info (stp-read-info)))
+    (let-alist pkg-info
+      (let ((other-dirs (-filter #'f-dir-p
+                                 (append (and .remote (list .remote))
+                                         .other-remotes
+                                         (list (f-join stp-read-remote-default-directory pkg-name))))))
+        (if other-dirs
+            (let ((dir (if (cdr other-dirs)
+                           (rem-comp-read "Directory: " other-dirs :require-match t)
+                         (car other-dirs))))
+              (let ((default-directory dir))
+                (find-file (or file "."))))
+          (message "%s was not found in the local filesystem" pkg-name))))))
+
 (provide 'stp)
 ;;; subtree-package.el ends here
