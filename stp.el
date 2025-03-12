@@ -845,25 +845,12 @@ With a negative prefix argument, go backward that many packages."
 (defun stp-list-goto-package (&optional arg)
   "In `stp-list-mode', open the source file that shares the same
 name as the package on the current line if such a file exists.
-With a prefix argument, open the directory for the current
-package."
+With a prefix argument or if no such file exists, open the
+directory for the current package."
   (interactive "P")
   (let* ((pkg-name (stp-list-read-package "Package name: "))
-         (pkg-file (concat pkg-name ".el"))
-         (pkg-path (stp-absolute-path pkg-name))
-         (paths (-sort (lambda (path path2)
-                         (or (< (rem-path-length path)
-                                (rem-path-length path2))
-                             (and (= (rem-path-length path)
-                                     (rem-path-length path2))
-                                  (string< path path2))))
-                       (directory-files-recursively pkg-path (regexp-quote pkg-file))))
-         (path (car paths)))
-    (if arg
-        (dired pkg-path)
-      (if path
-          (find-file path)
-        (message "No file named %s found" pkg-file)))))
+         (path (stp-main-package-file (stp-absolute-path pkg-name))))
+    (find-file path)))
 
 (defun stp-list-previous-package (&optional n)
   "Go to the previous package. With a prefix argument, go backward
@@ -1029,24 +1016,38 @@ confirmation."
              stp-source-directory)))
 
 (defun stp-find-other-package (pkg-name &optional file)
-  "Find FILE in a remote on the local filesystem for PKG-NAME. This
-can be helpful for switching between the installed version of
-package and a local copy of git repository used for development."
-  (interactive (if (derived-mode-p 'stp-list-mode)
-                   (list (stp-list-package-on-line))
-                 (stp-split-current-package)))
+  "Try to find a directory named PKG-NAME in a remote on the local
+filesystem or `stp-read-remote-default-directory'. If neither
+exists, try to find PKG-NAME in `stp-source-directory' for
+PKG-NAME. If FILE is non-nil, open the corresponding file in this directory.
+
+This command is helpful for switching between the installed
+version of package and a local copy of git repository used for
+development or for opening packages from `stp-list-mode'."
+  (interactive (let ((path (f-canonical (or buffer-file-name default-directory)))
+                     (dir (f-canonical stp-source-directory)))
+                 (unless (or (f-same-p dir path)
+                             (f-ancestor-of-p dir path))
+                   (user-error "Not in %s" stp-source-directory))
+                 (if (derived-mode-p 'stp-list-mode)
+                     (list (stp-list-package-on-line))
+                   (stp-split-current-package))))
   (let ((pkg-info (stp-read-info)))
     (let-alist pkg-info
-      (let ((other-dirs (-filter #'f-dir-p
-                                 (append (and .remote (list .remote))
-                                         .other-remotes
-                                         (list (f-join stp-read-remote-default-directory pkg-name))))))
-        (if other-dirs
-            (let ((dir (if (cdr other-dirs)
-                           (rem-comp-read "Directory: " other-dirs :require-match t)
-                         (car other-dirs))))
+      ;; Prefer a remote on the local filesystem or
+      ;; `stp-read-remote-default-directory'. If neither of these exists,
+      ;; fallback on the copy of the package in `stp-source-directory'.
+      (let ((dirs (or (-filter #'f-dir-p
+                               (append (and .remote (list .remote))
+                                       .other-remotes
+                                       (list (f-join stp-read-remote-default-directory pkg-name))))
+                      (list (f-join stp-source-directory pkg-name)))))
+        (if dirs
+            (let ((dir (f-canonical (if (cdr dirs)
+                                        (rem-comp-read "Directory: " dirs :require-match t)
+                                      (car dirs)))))
               (let ((default-directory dir))
-                (find-file (or file "."))))
+                (find-file (or file (stp-main-package-file dir)))))
           (message "%s was not found in the local filesystem" pkg-name))))))
 
 (provide 'stp)

@@ -73,6 +73,19 @@ with a slash."
   never ends with a slash (nor does it contain any slashes)."
   (f-filename pkg-path))
 
+(defun stp-main-package-file (pkg-path)
+  (let* ((pkg-name (stp-name pkg-path))
+         (pkg-file (concat pkg-name ".el"))
+         (paths (-sort (lambda (path path2)
+                         (or (< (rem-path-length path)
+                                (rem-path-length path2))
+                             (and (= (rem-path-length path)
+                                     (rem-path-length path2))
+                                  (string< path path2))))
+                       (directory-files-recursively pkg-path (regexp-quote pkg-file))))
+         (path (car paths)))
+    (or path pkg-path)))
+
 (defun stp-split-current-package ()
   "Return a list containing the name of the current package and the
  relative path to the current file or directory within that
@@ -80,6 +93,8 @@ with a slash."
   (let* ((relative-path (s-chop-prefix (f-canonical stp-source-directory)
                                        (f-canonical (or buffer-file-name default-directory))))
          (split (f-split relative-path)))
+    (when (string= (car split) "/")
+      (error "Not in %s"  stp-source-directory))
     (list (car split)
           (if (cdr split)
               (apply #'f-join (cdr split))
