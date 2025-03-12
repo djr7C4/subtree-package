@@ -904,12 +904,11 @@ that many packages."
               "p" #'stp-list-previous-package
               "M-n" #'stp-list-next-repair
               "M-p" #'stp-list-previous-repair
-              "o" #'stp-find-other-package
               "r" #'stp-repair
               "R" #'stp-repair-all
               "t" #'stp-toggle-update
               "u" #'stp-upgrade
-              "RET" #'stp-list-goto-package)
+              "RET" #'stp-find-package)
 
 (cl-defun stp-list-refresh (&optional refresh-pkg-name quiet)
   (interactive (list (stp-list-package-on-line)))
@@ -1015,11 +1014,15 @@ confirmation."
              deleted-dirs
              stp-source-directory)))
 
-(defun stp-find-other-package (pkg-name &optional file)
-  "Try to find a directory named PKG-NAME in a remote on the local
-filesystem or `stp-read-remote-default-directory'. If neither
-exists, try to find PKG-NAME in `stp-source-directory' for
-PKG-NAME. If FILE is non-nil, open the corresponding file in this directory.
+(defun stp-find-package (pkg-name &optional file arg)
+  "Try to find FILE for the package PKG-NAME in the main source
+location on the local filesystem. This is done as follows.
+
+First, look for a directory named PKG-NAME in a remote on the
+local filesystem or `stp-read-remote-default-directory'. If
+neither exists, look for PKG-NAME in `stp-source-directory' for
+PKG-NAME. If FILE is non-nil, open the corresponding file in this
+directory. Otherwise (or with a prefix argument), open PKG-NAME.
 
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
@@ -1030,8 +1033,8 @@ development or for opening packages from `stp-list-mode'."
                              (f-ancestor-of-p dir path))
                    (user-error "Not in %s" stp-source-directory))
                  (if (derived-mode-p 'stp-list-mode)
-                     (list (stp-list-package-on-line))
-                   (stp-split-current-package))))
+                     (list (stp-list-package-on-line) nil current-prefix-arg)
+                   (append (stp-split-current-package) (list current-prefix-arg)))))
   (let ((pkg-info (stp-read-info)))
     (let-alist pkg-info
       ;; Prefer a remote on the local filesystem or
@@ -1047,7 +1050,9 @@ development or for opening packages from `stp-list-mode'."
                                         (rem-comp-read "Directory: " dirs :require-match t)
                                       (car dirs)))))
               (let ((default-directory dir))
-                (find-file (or file (stp-main-package-file dir)))))
+                (find-file (if arg
+                               dir
+                             (or file (stp-main-package-file dir))))))
           (message "%s was not found in the local filesystem" pkg-name))))))
 
 (provide 'stp)
