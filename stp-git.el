@@ -127,7 +127,7 @@
       (stp-git-clean-p)
       (yes-or-no-p "The Git repo is unclean. Proceed anyway?")))
 
-(defvar stp-git-abbreviated-hash-length 8)
+(defvar stp-git-abbreviated-hash-length 7)
 
 (defun stp-git-abbreviate-hash (hash)
   (if (>= (length hash) stp-git-abbreviated-hash-length)
