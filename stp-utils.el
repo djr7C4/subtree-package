@@ -236,7 +236,7 @@ and \\='branch attributes should not be present.")
 (defun stp-write-info (pkg-info)
   (with-temp-buffer
     (insert ";;; mode: read-only; -*- no-byte-compile: t; -*-\n\n")
-    (insert (pp (stp-sort-info pkg-info) (current-buffer)))
+    (pp (stp-sort-info pkg-info) (current-buffer))
     (write-file stp-info-file)))
 
 (defun stp-get-attribute (pkg-info pkg-name attr)
