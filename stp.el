@@ -1076,7 +1076,9 @@ development or for opening packages from `stp-list-mode'."
                  (if (derived-mode-p 'stp-list-mode)
                      (list (stp-list-package-on-line) nil current-prefix-arg)
                    (append (stp-split-current-package) (list current-prefix-arg)))))
-  (let ((pkg-info (stp-read-info)))
+  (let ((pkg-info (stp-read-info))
+        (pt (point))
+        (window-line-num (rem-window-line-number-at-pos)))
     (let-alist pkg-info
       ;; Prefer a remote on the local filesystem or
       ;; `stp-read-remote-default-directory'. If neither of these exists,
@@ -1093,7 +1095,11 @@ development or for opening packages from `stp-list-mode'."
               (let ((default-directory dir))
                 (find-file (if arg
                                dir
-                             (or file (stp-main-package-file dir))))))
+                             (or file (stp-main-package-file dir))))
+                ;; Go to the corresponding line in the file if possible.
+                (when (and file (<= (point-min) pt (point-max)))
+                  (goto-char pt)
+                  (rem-move-current-window-line-to-pos window-line-num))))
           (message "%s was not found in the local filesystem" pkg-name))))))
 
 (provide 'stp)
