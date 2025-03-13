@@ -320,6 +320,11 @@ performed.")
                                 (not stp-auto-post-actions)
                                 stp-auto-post-actions))))
 
+;; `stp-git-abbreviate-version' is too slow to used in `stp-list-mode' so a
+;; faster but less careful variant is used.
+(defun stp-list-abbreviate-version (version)
+  (stp-git-abbreviate-hash version))
+
 (defun stp-list-package-on-line (&optional offset)
   (when (derived-mode-p 'stp-list-mode)
     (setq offset (or offset 0))
@@ -944,9 +949,7 @@ that many packages."
         (let-alist (stp-get-alist pkg-info pkg-name)
           (insert (format "%s %s %s %s %s %s\n"
                           (stp-name pkg-name)
-                          (or (if (and .method .remote .version)
-                                  (stp-abbreviate-version .method .remote .version)
-                                .version)
+                          (or (stp-list-abbreviate-version .version)
                               stp-list-missing-field-string)
                           (if .method
                               (symbol-name .method)

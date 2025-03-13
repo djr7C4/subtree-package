@@ -130,7 +130,9 @@
 (defvar stp-git-abbreviated-hash-length 8)
 
 (defun stp-git-abbreviate-hash (hash)
-  (substring hash 0 stp-git-abbreviated-hash-length))
+  (if (>= (length hash) stp-git-abbreviated-hash-length)
+      (substring hash 0 stp-git-abbreviated-hash-length)
+    hash))
 
 (defun stp-git-abbreviate-version (remote version)
   (if (stp-git-valid-remote-ref-p remote version)
