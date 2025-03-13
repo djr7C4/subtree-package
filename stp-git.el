@@ -220,6 +220,14 @@ kept. By default all refs are returned."
        (or (s-prefix-p hash hash2)
            (s-prefix-p hash2 hash))))
 
+(defun stp-normalize-version (pkg-name remote version)
+  ;; If version is a hash, it might be shortened if the user entered it
+  ;; manually. In this case, we replace it with the full hash from the installed
+  ;; subtree.
+  (if (stp-git-valid-remote-ref-p remote version)
+      version
+    (stp-git-subtree-hash pkg-name)))
+
 (defun stp-git-subtree-version (pkg-info pkg-name)
   "Determine the version and the update type of the package that was
 installed at the subtree. Use a tag if one is available;
@@ -419,7 +427,8 @@ are converted to hashes before they are returned."
           (if (= exit-code 0)
               ;; If installation was successful, add the information for the package
               (progn
-                (setq pkg-info (stp-set-alist pkg-info pkg-name `((method . git)
+                (setq version (stp-normalize-version pkg-name remote version)
+                      pkg-info (stp-set-alist pkg-info pkg-name `((method . git)
                                                                   (remote . ,remote)
                                                                   (version . ,version)
                                                                   (update . ,update))))
@@ -510,7 +519,8 @@ from remote."
                           pkg-info (stp-set-attribute pkg-info pkg-name 'branch version)
                           pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable))
                   ;; For tags or hashes, use the tag or hash.
-                  (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
+                  (setq version (stp-normalize-version pkg-name remote version)
+                        pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
                   (if (stp-git-remote-tag-p remote version)
                       ;; Tags do not have a branch to update from and are
                       ;; considered stable.
