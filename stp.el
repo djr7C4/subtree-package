@@ -858,7 +858,11 @@ info files in the directory for that package."
   (setq-local font-lock-defaults stp-list-font-lock-keywords)
   ;; Without this, fontification will not be done on parts of the buffer that
   ;; are not visible which will break `stp-list-next-repair'.
-  (font-lock-ensure))
+  (font-lock-ensure)
+  (visual-line-mode 0)
+  ;; Line wrapping isn't appropriate for `stp-list-mode' as it just makes a
+  ;; mess.
+  (setq-local truncate-lines t))
 
 (defun stp-list-next-package (&optional n)
   "Go to the next package. With a prefix argument, go forward that many packages.
