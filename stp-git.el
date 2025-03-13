@@ -130,11 +130,9 @@
 (defvar stp-git-abbreviated-hash-length 7)
 
 (defun stp-git-abbreviate-hash (hash)
-  (if (>= (length hash) stp-git-abbreviated-hash-length)
-      (substring hash 0 stp-git-abbreviated-hash-length)
-    hash))
+  (s-left hash stp-git-abbreviated-hash-length))
 
-(defun stp-git-abbreviate-version (remote version)
+(defun stp-git-abbreviate-remote-version (remote version)
   (if (stp-git-valid-remote-ref-p remote version)
       version
     (stp-git-abbreviate-hash version)))
@@ -266,7 +264,7 @@ the \\='git method."
 (defun stp-git-read-remote (prompt &optional default)
   (stp-read-remote-with-predicate prompt #'stp-git-valid-remote-p default 'stp-git-remote-history))
 
-(defvar stp-git-version-hash-separator "    ")
+(defvar stp-git-version-hash-separator "  ")
 
 (defun stp-git-versions-with-hashes (remote versions)
   (let ((n (if versions

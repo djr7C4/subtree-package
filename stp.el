@@ -26,9 +26,9 @@
 (require 'url-handlers)
 (require 'xml)
 
-(defun stp-abbreviate-version (method remote version)
+(defun stp-abbreviate-remote-version (method remote version)
   (if (eq method 'git)
-      (stp-git-abbreviate-version remote version)
+      (stp-git-abbreviate-remote-version remote version)
     version))
 
 (defun stp-remote-method (remote)
@@ -320,10 +320,20 @@ performed.")
                                 (not stp-auto-post-actions)
                                 stp-auto-post-actions))))
 
-;; `stp-git-abbreviate-version' is too slow to used in `stp-list-mode' so a
-;; faster but less careful variant is used.
-(defun stp-list-abbreviate-version (version)
-  (stp-git-abbreviate-hash version))
+(defvar stp-list-version-length 12)
+
+;; `stp-git-abbreviate-remote-version' is too slow to used in `stp-list-mode' so
+;; a faster but less careful variant is used.
+(defun stp-list-abbreviate-version (method version)
+  (if (and (eq method 'git)
+           ;; This is a crude test to determine if version is a git hash and it
+           ;; is not completely correct. A hash might have only letters (though
+           ;; it is not likely). It is also possible for a branch or tag to
+           ;; match this regexp. However, this is much faster than using
+           ;; `stp-git-valid-remote-ref-p' to check
+           (string-match-p "[a-zA-Z]*[0-9][a-zA-Z]*" version))
+      (stp-git-abbreviate-hash version)
+    (concat (s-left version stp-list-version-length) stp-ellipsis)))
 
 (defun stp-list-package-on-line (&optional offset)
   (when (derived-mode-p 'stp-list-mode)
@@ -424,7 +434,7 @@ negated relative to the default."
                         pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                   (stp-write-info pkg-info)
                   (stp-git-commit-push (format "Installed version %s of %s"
-                                               (stp-abbreviate-version .method chosen-remote .version)
+                                               (stp-abbreviate-remote-version .method chosen-remote .version)
                                                pkg-name)
                                        do-commit do-push)
                   (when do-actions
@@ -449,7 +459,7 @@ as in `stp-install'."
                     (stp-write-info pkg-info)
                     (stp-delete-load-path pkg-name)
                     (stp-git-commit-push (format "Uninstalled version %s of %s"
-                                                 (stp-abbreviate-version .method .remote .version)
+                                                 (stp-abbreviate-remote-version .method .remote .version)
                                                  pkg-name)
                                          do-commit do-push)
                     (when refresh
@@ -473,7 +483,7 @@ do-push and proceed arguments are as in `stp-install'."
                      (extra-versions (and (or stp-git-upgrade-always-offer-remote-heads
                                               (eq .update 'unstable))
                                           (stp-git-remote-heads-sorted chosen-remote)))
-                     (prompt (format "Upgrade from %s to version: " (stp-abbreviate-version .method chosen-remote .version))))
+                     (prompt (format "Upgrade from %s to version: " (stp-abbreviate-remote-version .method chosen-remote .version))))
                 (when (stp-url-safe-remote-p chosen-remote)
                   (when (and .branch (member .branch extra-versions))
                     (setq extra-versions (cons .branch (remove .branch extra-versions))))
@@ -494,7 +504,7 @@ do-push and proceed arguments are as in `stp-install'."
                     (setq pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                     (stp-write-info pkg-info)
                     (stp-git-commit-push (format "Installed version %s of %s"
-                                                 (stp-abbreviate-version .method chosen-remote new-version)
+                                                 (stp-abbreviate-remote-version .method chosen-remote new-version)
                                                  pkg-name)
                                          do-commit do-push)
                     (when do-actions
@@ -953,7 +963,7 @@ that many packages."
         (let-alist (stp-get-alist pkg-info pkg-name)
           (insert (format "%s %s %s %s %s %s\n"
                           (stp-name pkg-name)
-                          (or (stp-list-abbreviate-version .version)
+                          (or (stp-list-abbreviate-version .method .version)
                               stp-list-missing-field-string)
                           (if .method
                               (symbol-name .method)

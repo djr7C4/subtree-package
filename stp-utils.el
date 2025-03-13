@@ -21,6 +21,8 @@
 (require 'rem-abbrev)
 (require 's)
 
+(defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
+
 (defvar stp-memoized-functions '(stp-git-remote-hash-alist))
 
 (defvar stp-memoization-active nil)
