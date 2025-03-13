@@ -320,7 +320,7 @@ performed.")
                                 (not stp-auto-post-actions)
                                 stp-auto-post-actions))))
 
-(defvar stp-list-version-length 12)
+(defvar stp-list-version-length 16)
 
 ;; `stp-git-abbreviate-remote-version' is too slow to used in `stp-list-mode' so
 ;; a faster but less careful variant is used.
@@ -333,7 +333,9 @@ performed.")
            ;; `stp-git-valid-remote-ref-p' to check
            (string-match-p "[a-zA-Z]*[0-9][a-zA-Z]*" version))
       (stp-git-abbreviate-hash version)
-    (concat (s-left version stp-list-version-length) stp-ellipsis)))
+    (if (> (length version) stp-list-version-length)
+        (concat (s-left stp-list-version-length version) stp-ellipsis)
+      version)))
 
 (defun stp-list-package-on-line (&optional offset)
   (when (derived-mode-p 'stp-list-mode)
