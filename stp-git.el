@@ -127,6 +127,16 @@
       (stp-git-clean-p)
       (yes-or-no-p "The Git repo is unclean. Proceed anyway?")))
 
+(defvar stp-git-abbreviated-hash-length 8)
+
+(defun stp-git-abbreviate-hash (hash)
+  (substring hash 0 stp-git-abbreviated-hash-length))
+
+(defun stp-git-abbreviate-version (remote version)
+  (if (stp-git-valid-remote-ref-p remote version)
+      version
+    (stp-git-abbreviate-hash version)))
+
 (defun stp-git-subtree-hash (pkg-name)
   "Determine the hash that was last merged into the subtree at pkg-name from the
 remote repository."
@@ -263,7 +273,7 @@ the \\='git method."
     (mapcar (lambda (version)
               (concat (string-pad version n)
                       stp-git-version-hash-separator
-                      (stp-git-ref-to-hash remote version)))
+                      (stp-git-abbreviate-hash (stp-git-ref-to-hash remote version))))
             versions)))
 
 (defvar stp-git-version-history nil)
@@ -457,8 +467,8 @@ from remote."
         (when (stp-git-hash= (stp-git-subtree-hash pkg-name) version-hash)
           (user-error "Commit %s of %s is already installed"
                       (if (stp-git-hash= version version-hash)
-                          version-hash
-                        (format "%s (%s)" version-hash version))
+                          (stp-git-abbreviate-hash version-hash)
+                        (format "%s (%s)" (stp-git-abbreviate-hash version-hash) version))
                       pkg-name))
         (db (exit-code output)
             (rem-call-process-shell-command

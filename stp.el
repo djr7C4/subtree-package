@@ -26,6 +26,11 @@
 (require 'url-handlers)
 (require 'xml)
 
+(defun stp-abbreviate-version (method remote version)
+  (if (eq method 'git)
+      (stp-git-abbreviate-version remote version)
+    version))
+
 (defun stp-remote-method (remote)
   "Determine the method for the remote."
   (cond
@@ -173,6 +178,8 @@ specified, ensure that REMOTE is valid for that specific METHOD."
                (stp-elpa-valid-remote-p remote)
                (stp-url-valid-remote-p remote)))))
 
+(defvar stp-repair-allow-abbreviated-hashes nil)
+
 (cl-defun stp-repair-info (pkg-info &key (quiet t) (pkg-names (stp-filesystem-names)) (callback #'stp-repair-default-callback))
   "Update package info that does not match the versions in the
 package subtrees. Note that not all info can be recovered
@@ -233,8 +240,11 @@ occurred."
                          (setq version (or version (funcall callback 'unknown-git-version pkg-info pkg-name)))
                          (if version
                              ;; Only update hashes if they are different.
-                             ;; Shorter versions of hashes are acceptable.
-                             (unless (stp-git-hash= version .version)
+                             ;; Shorter versions of hashes are acceptable if
+                             ;; `stp-repair-allow-abbreviated-hashes' is
+                             ;; non-nil.
+                             (unless (and stp-repair-allow-abbreviated-hashes
+                                          (stp-git-hash= version .version))
                                (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version)))
                            (unless quiet
                              (message "Failed to determine the version of %s" pkg-name)))
@@ -408,7 +418,10 @@ negated relative to the default."
                           (url (stp-url-install pkg-info pkg-name chosen-remote .version)))
                         pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                   (stp-write-info pkg-info)
-                  (stp-git-commit-push (format "Installed version %s of %s" .version pkg-name) do-commit do-push)
+                  (stp-git-commit-push (format "Installed version %s of %s"
+                                               (stp-abbreviate-version .method chosen-remote .version)
+                                               pkg-name)
+                                       do-commit do-push)
                   (when do-actions
                     (stp-post-actions pkg-name))
                   (when refresh
@@ -430,7 +443,10 @@ as in `stp-install'."
                     (setq pkg-info (map-delete pkg-info pkg-name))
                     (stp-write-info pkg-info)
                     (stp-delete-load-path pkg-name)
-                    (stp-git-commit-push (format "Uninstalled version %s of %s" .version pkg-name) do-commit do-push)
+                    (stp-git-commit-push (format "Uninstalled version %s of %s"
+                                                 (stp-abbreviate-version .method .remote .version)
+                                                 pkg-name)
+                                         do-commit do-push)
                     (when refresh
                       (let ((other-pkg-name (stp-list-other-package)))
                         (stp-list-refresh other-pkg-name t))))
@@ -452,7 +468,7 @@ do-push and proceed arguments are as in `stp-install'."
                      (extra-versions (and (or stp-git-upgrade-always-offer-remote-heads
                                               (eq .update 'unstable))
                                           (stp-git-remote-heads-sorted chosen-remote)))
-                     (prompt (format "Upgrade from %s to version: " .version)))
+                     (prompt (format "Upgrade from %s to version: " (stp-abbreviate-version .method chosen-remote .version))))
                 (when (stp-url-safe-remote-p chosen-remote)
                   (when (and .branch (member .branch extra-versions))
                     (setq extra-versions (cons .branch (remove .branch extra-versions))))
@@ -472,7 +488,10 @@ do-push and proceed arguments are as in `stp-install'."
                   (let ((new-version (stp-get-attribute pkg-info pkg-name 'version)))
                     (setq pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                     (stp-write-info pkg-info)
-                    (stp-git-commit-push (format "Installed version %s of %s" new-version pkg-name) do-commit do-push)
+                    (stp-git-commit-push (format "Installed version %s of %s"
+                                                 (stp-abbreviate-version .method chosen-remote new-version)
+                                                 pkg-name)
+                                         do-commit do-push)
                     (when do-actions
                       (stp-post-actions pkg-name))
                     (when refresh
@@ -925,7 +944,10 @@ that many packages."
         (let-alist (stp-get-alist pkg-info pkg-name)
           (insert (format "%s %s %s %s %s %s\n"
                           (stp-name pkg-name)
-                          (or .version stp-list-missing-field-string)
+                          (or (if (and .method .remote .version)
+                                  (stp-abbreviate-version .method .remote .version)
+                                .version)
+                              stp-list-missing-field-string)
                           (if .method
                               (symbol-name .method)
                             stp-list-missing-field-string)
