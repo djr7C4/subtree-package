@@ -99,23 +99,28 @@ be selected.")
 
 (defvar stp-remote-history nil)
 
-(defun stp-comp-read-remote (prompt remote known-remotes)
-  (let ((default-directory (or stp-read-remote-default-directory
-                               default-directory)))
-    (stp-normalize-remote
-     (rem-comp-read prompt
-                    (completion-table-in-turn known-remotes
-                                              #'completion-file-name-table)
-                    :predicate (lambda (candidate)
-                                 (or (member candidate known-remotes)
-                                     (f-dir-p candidate)))
-                    :default remote
-                    :history 'stp-remote-history
-                    :sort-fun #'identity
-                    ;; Disable the category. By default, it will be 'file which
-                    ;; will cause https:// to be replaced with / during
-                    ;; completion.
-                    :metadata '((category . nil))))))
+(defun stp-comp-read-remote (prompt remote known-remotes &optional multiple)
+  (let* ((default-directory (or stp-read-remote-default-directory
+                                default-directory))
+         (new-remotes (rem-comp-read prompt
+                                     (completion-table-in-turn known-remotes
+                                                               #'completion-file-name-table)
+                                     :predicate (lambda (candidate)
+                                                  (or (member candidate known-remotes)
+                                                      (f-dir-p candidate)))
+                                     :default remote
+                                     :history 'stp-remote-history
+                                     :sort-fun #'identity
+                                     ;; Disable the category. By default, it
+                                     ;; will be 'file which will cause https://
+                                     ;; to be replaced with / during completion.
+                                     :metadata '((category . nil))
+                                     :multiple multiple)))
+    ;; When multiple is nil, new-remotes will just be a single remote rather
+    ;; than a list.
+    (if multiple
+        (mapcar #'stp-normalize-remote new-remotes)
+      (stp-normalize-remote new-remotes))))
 
 (defun stp-choose-remote (prompt remote &optional other-remotes)
   (if stp-use-other-remotes
