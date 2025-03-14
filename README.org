@@ -16,36 +16,38 @@
 Subtree package (STP) is a package manager for Emacs that stores packages as git
 subtrees in the git repository for your Emacs configuration.
 * Motivation
-- Reproducing your configuration is trivial to achieve by cloning the git
-  repository
+- Reproducing your configuration is trivial on a new machine is trivial via git
+  clone
 - This works even if some of the repositories for packages it depends on no
-  longer exist (which does happen occasionally)
+  longer exist
 - There is no need to initialize submodules since git subtree is used
-- It is easy to migrate existing configurations that use git subtrees to manage
-  packages
+- It is easy to migrate existing configurations that manually use git subtree to
+  manage packages
 * Features
 ** Manage all installed packages
 The main entry point to STP is =M-x stp-list= which shows all installed packages
 using =stp-list-mode= and has convenience bindings for
 - installing (=i=),
-- upgrading (=u=)
-- building source (=b=)
-- building info (=m=)
+- upgrading (=u=),
+- building source (=b=),
+- building info (=m=),
+- editing remotes (=e=),
 - uninstalling (=x=),
 - repairing (=r=) and
 - toggling between stable and unstable (=t=),
 - editing available remotes (=e=),
-- reloading (=G=) and
-- adding to the load path (=l=).
+- reloading (=G=),
+- adding to the load path (=l=) and
+- viewing the source code (=RET=)
 ** Automatically detect stable versions
 Stable versions of packages are automatically inferred from tags in the git
 repository. =stp-version-extractor-alist= can be modified in order to support
 unusual version strings if a package uses a scheme that is not supported by the
 defaults. Contributions of missing version extractors are very welcome!
 ** Install any commit by branch or hash
-Packages are automatically fetched before they are installed or upgraded when
-=stp-subtree-fetch= is non-nil. This allows a hash to be specified instead of a
-tag or branch.
+Git repositories are automatically fetched before packages are installed or
+upgraded when =stp-subtree-fetch= is non-nil. This allows a hash to be specified
+instead of a tag or branch.
 ** Mark packages as stable or unstable
 Stable releases are automatically detected from tags in git repositories or ELPA
 releases. Stable packages are only upgraded to other stable releases by default.
@@ -55,6 +57,17 @@ and upgraded to any hash, branch or tag.
 ** Choose between multiple remotes
 STP remembers all remotes that the user has entered when upgrading a package.
 These are available for the user to choose for future upgrades using completion.
+Set =stp-read-remote-default-directory= to the directory that contains your
+elisp repositories to allow for convenient completion of local directories via
+=stp-install=, =stp-upgrade= and =stp-edit-remotes=. Simply enter =./= at the remote completion prompt to begin directory completion.
+** Quickly open the source in a local git repository
+When developing packages that are installed with STP, a copy of the source code
+will be installed as a git subtree and there will also be a local copy of git
+repository on which development is already performed. With an installed packages
+copy of a file open, =stp-find-package= can be to find the corresponding file on
+local git repositories that are registered as remotes for that package or are in
+=stp-read-remote-default-directory=. When desired, install or upgrade the
+package from the local git repository using =stp-install= or =stp-upgrade=.
 ** Automatically build packages
 Use =M-x stp-build= Packages can be built automatically by detecting Makefiles
 or other build systems as well as compiling the elisp files directly. Info
@@ -111,3 +124,8 @@ Alternatively, you can manually install each of the dependencies using
 #+end_src
 
 for each dependency.
+* Recommended bindings
+#+begin_src emacs-lisp
+  (keymap-global-set "C-c O" #'stp-find-package)
+  (keymap-global-set "C-c P" #'stp-list)
+#+end_src
