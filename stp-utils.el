@@ -330,15 +330,25 @@ should already exist."
         ;; package directory.
         (url-copy-file remote (f-swap-ext (f-join pkg-path pkg-name) "el"))
       ;; Archives are downloaded, extracted and then copied to pkg-name.
-      (let* ((temp-dir (make-temp-file pkg-name t))
+      (let* (temp-pkg-dir
+             (temp-dir (make-temp-file pkg-name t))
              (archive-path (f-join temp-dir (f-filename remote)))
-             (extract-path (file-name-sans-extension archive-path)))
+             (extract-path (f-no-ext archive-path)))
         (unwind-protect
             (progn
               (url-copy-file remote archive-path)
               (rem-extract-archive archive-path)
+              ;; Handle tarbombs and compressed elisp files.
+              (when-let ((files (cl-set-difference (f-entries temp-dir)
+                                                   (list archive-path extract-path))))
+                (setq temp-pkg-dir (make-temp-file pkg-name t))
+                (dolist (file files)
+                  (f-move file temp-pkg-dir))
+                (setq extract-path temp-pkg-dir))
               (copy-directory extract-path pkg-path nil nil t))
-          (delete-directory temp-dir t))))))
+          (delete-directory temp-dir t)
+          (when (and temp-pkg-dir (f-dir-p temp-pkg-dir))
+            (delete-directory temp-pkg-dir t)))))))
 
 (defvar stp-url-unsafe-regexps '("emacswiki\\.org")
   "The user should be warned before downloading from an unsafe URL.")
