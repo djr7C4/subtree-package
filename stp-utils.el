@@ -319,22 +319,6 @@ pkg-name."
         (when (string-match regexp version)
           (cl-return (funcall extractor (match-string 1 version))))))))
 
-;; (defvar stp-memoized-functions '(stp-git-remote-hash-alist stp-elpa-version-url-alist))
-;;
-;; (defmacro stp-with-memoization (&rest body)
-;;   "Memoize functions that make requests via HTTP or Git that are not likely to
-;;   change during the body of the macro. Many stp functions that are
-;;   wrapped in this macro will run significantly faster."
-;;   `(unwind-protect
-;;        (progn
-;;          ,@(mapcar (lambda (fun)
-;;                      `(memoize ',fun))
-;;                    stp-memoized-functions)
-;;          ,@body)
-;;      ,@(mapcar (lambda (fun)
-;;                  `(memoize-restore ',fun))
-;;                stp-memoized-functions)))
-
 (defun stp-download-elisp (pkg-name remote)
   "Download the elisp file or archive at url and copy it to pkg-name. pkg-name
 should already exist."
