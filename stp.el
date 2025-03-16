@@ -488,7 +488,8 @@ do-push and proceed arguments are as in `stp-install'."
             (let-alist (stp-get-alist pkg-info pkg-name)
               (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
                      (extra-versions (and (or stp-git-upgrade-always-offer-remote-heads
-                                              (eq .update 'unstable))
+                                              (eq .method 'git))
+                                          (eq .update 'unstable)
                                           (stp-git-remote-heads-sorted chosen-remote)))
                      (prompt (format "Upgrade from %s to version: " (stp-abbreviate-remote-version .method chosen-remote .version))))
                 (when (stp-url-safe-remote-p chosen-remote)
