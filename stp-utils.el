@@ -340,7 +340,8 @@ should already exist."
               (rem-extract-archive archive-path)
               ;; Handle tarbombs and compressed elisp files.
               (when-let ((files (cl-set-difference (f-entries temp-dir)
-                                                   (list archive-path extract-path))))
+                                                   (list archive-path extract-path)
+                                                   :test #'equal)))
                 (setq temp-pkg-dir (make-temp-file pkg-name t))
                 (dolist (file files)
                   (f-move file temp-pkg-dir))
