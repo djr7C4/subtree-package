@@ -82,7 +82,9 @@ Currently, three different types of packages can be installed. STP automatically
 infers the packages type based on the remote provided so it is not necessary to
 specify the type manually.
 *** Git repositories
-To install a git repository in STP, simply provide its URL as the remote.
+To install a git repository in STP, simply provide its URL as the remote. Some
+packages are also available as ELPA or URL packages. In such cases, it is
+usually best to install them as git packages instead.
 *** GNU ELPA packages
 Use the page for the package on =elpa.gnu.org= as the remote. For example, for
 =ace-window= this would be =https://elpa.gnu.org/packages/ace-window.html=.
