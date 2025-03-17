@@ -888,12 +888,12 @@ With a negative prefix argument, go backward that many packages."
   (interactive "p")
   (forward-line n))
 
-(defun stp-list-goto-package (&optional arg)
+(defun stp-list-goto-package ()
   "In `stp-list-mode', open the source file that shares the same
 name as the package on the current line if such a file exists.
 With a prefix argument or if no such file exists, open the
 directory for the current package."
-  (interactive "P")
+  (interactive)
   (let* ((pkg-name (stp-list-read-package "Package name: "))
          (path (stp-main-package-file (stp-absolute-path pkg-name))))
     (find-file path)))
