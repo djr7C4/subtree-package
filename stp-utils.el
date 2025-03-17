@@ -21,6 +21,8 @@
 (require 'rem-abbrev)
 (require 's)
 
+(defvar stp-cache-directory (f-join user-emacs-directory "stp" "cache"))
+
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
 (defvar stp-memoized-functions '(stp-read-info stp-git-remote-hash-alist))
@@ -114,9 +116,15 @@ with a slash."
   (stp-with-package-source-directory
     (-filter 'f-directory-p (directory-files stp-source-directory nil "^[^.]"))))
 
-(defun stp-info-names ()
+(defun stp-info-names (&optional method)
   "Return a list of packages stored in `stp-info-file'."
-  (sort (mapcar 'car (stp-read-info)) 'string<))
+  (sort (mapcar 'car
+                (-filter (lambda (pkg)
+                           (or (not method)
+                               (let ((pkg-alist (cdr pkg)))
+                                 (eq (alist-get 'method pkg-alist nil nil #'equal) method))))
+                         (stp-read-info)))
+        'string<))
 
 (defvar stp-methods-order '(git elpa url)
   "Valid values for the METHOD attribute.")

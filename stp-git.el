@@ -370,6 +370,60 @@ are converted to hashes before they are returned."
 (defun stp-git-remote-tags-sorted (remote)
   (mapcar #'cdr (stp-git-remote-hash-tag-alist-sorted remote)))
 
+(defun stp-git-remote-latest-tag (remote)
+  (car (stp-git-remote-tags-sorted remote)))
+
+(defvar stp-git-repository-cache-directory (f-join stp-cache-directory "repositories"))
+
+(defun stp-git-cached-path (pkg-name)
+  (f-join stp-git-repository-cache-directory pkg-name))
+
+(defun stp-git-update-cached-repository (pkg-name)
+  (let ((path (stp-git-cached-path pkg-name))
+        (pkg-info (stp-read-info)))
+    (let-alist (stp-get-alist pkg-info pkg-name)
+      (if (f-dir-p path)
+          (db (exit-code output)
+              (let ((default-directory path))
+                (rem-call-process-shell-command "git remote update"))
+            (unless (= exit-code 0)
+              (error "Failed to update the cached repository for %s: %s" pkg-name (s-trim output))))
+        (f-mkdir-full-path path)
+        (db (exit-code output)
+            (let ((default-directory stp-git-repository-cache-directory))
+              (rem-call-process-shell-command (format "git clone %s" .remote)))
+          (unless (= exit-code 0)
+            (error "Failed to clone the repository for %s to the cache: %s" pkg-name (s-trim output))))))))
+
+(defun stp-git-update-cached-repositories ()
+  (mapc #'stp-git-update-cached-repository (stp-info-names 'git)))
+
+(defun stp-git-count-commits (ref ref2)
+  "Count the number of commits that have been made after REF but
+before REF2."
+  (db (exit-code output)
+      (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2))
+    (if (= exit-code 0)
+        (string-to-number (s-trim output))
+      (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output)))))
+
+(cl-defun stp-git-latest-version (pkg-name &key sync use-cache)
+  (let* ((path (stp-git-cached-path pkg-name))
+         (pkg-info (stp-read-info))
+         (remote path))
+    (let-alist (stp-get-alist pkg-info pkg-name)
+      ;; Stable versions can get newer tags from the remote without updating the
+      ;; local cache. Unstable version require the local cache.
+      (cond
+       (sync
+        (stp-git-update-cached-repository pkg-name)
+        (setq use-cache t))
+       ((and (not use-cache) (eq .update 'stable))
+        (setq remote .remote)))
+      (if (eq .update 'stable)
+          (stp-git-remote-latest-tag remote)
+        (car (rassoc .branch (stp-git-remote-hash-head-alist remote)))))))
+
 (defun stp-git-commit (&optional msg)
   (setq msg (or msg ""))
   (if (stp-git-clean-p)
@@ -394,7 +448,7 @@ are converted to hashes before they are returned."
   (db (exit-code output)
       (rem-call-process-shell-command (format "git fetch \"%s\"" remote))
     (unless (= exit-code 0)
-      (error "git fetch failed: %s" output))))
+      (error "git fetch failed: %s" (s-trim output)))))
 
 (defun stp-git-maybe-fetch (remote version)
   (when stp-subtree-fetch
