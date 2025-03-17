@@ -81,9 +81,10 @@ package at remote to the URL where it can be downloaded."
                   (stp-elpa-versions pkg-name remote))))
 
 (defun stp-elpa-count-versions (pkg-name remote v1 v2)
-  (let ((versions (stp-elpa-versions-sorted pkg-name remote)))
-    (- (cl-position v2 versions :test #'equal)
-       (cl-position v1 versions :test #'equal))))
+  (let* ((versions (stp-elpa-versions-sorted pkg-name remote))
+         (j (cl-position v1 versions :test #'equal))
+         (k (cl-position v2 versions :test #'equal)))
+    (and j k (- j k))))
 
 (defun stp-elpa-latest-version (pkg-name remote)
   (car (stp-elpa-versions-sorted pkg-name remote)))
@@ -99,7 +100,7 @@ be performed."
     (if (eq type 'install)
         (when (f-exists-p pkg-path)
           (error "%s already exists" pkg-name))
-      (when (not (f-exists-p pkg-path))
+      (unless (f-exists-p pkg-path)
         (error "%s does not exist" pkg-name)))
     (when (eq type 'install)
       (make-directory pkg-path))

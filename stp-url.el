@@ -45,7 +45,7 @@ operation should be performed."
       (if (eq type 'install)
           (when (f-exists-p pkg-path)
             (error "%s already exists" pkg-name))
-        (when (not (f-exists-p pkg-path))
+        (unless (f-exists-p pkg-path)
           (error "%s does not exist" pkg-name)))
       (when (eq type 'install)
         (make-directory pkg-path))

@@ -722,7 +722,7 @@ there were no errors."
       (let (failed)
         (dolist (pkg-name pkg-names)
           (message "Building %s" pkg-name)
-          (when (not (stp-build pkg-name allow-naive-byte-compile))
+          (unless (stp-build pkg-name allow-naive-byte-compile)
             (push pkg-name failed)))
         (if failed
             (message "Failed to build: %s" (s-join " " failed))
@@ -794,7 +794,7 @@ there were no errors."
   (let (failed)
     (dolist (pkg-name pkg-names)
       (message "Building the info manual for %s" pkg-name)
-      (when (not (stp-build-info pkg-name))
+      (unless (stp-build-info pkg-name)
         (push pkg-name failed)))
     (if failed
         (message "Failed to build info manuals for: %s" (s-join " " failed))
@@ -940,10 +940,12 @@ that many packages."
                 (let-alist pkg-alist
                   (cl-ecase .method
                     (git
-                     (let ((latest (stp-git-latest-version pkg-name :use-cache t)))
+                     (let* ((path (stp-git-cached-path .remote))
+                            (exists (f-dir-p path))
+                            (latest (and exists (stp-git-latest-version pkg-name path .update .branch))))
                        (list pkg-name
                              latest
-                             (stp-git-count-commits (stp-git-cached-path pkg-name) .version latest))))
+                             (and exists (stp-git-count-commits path .version latest)))))
                     (elpa
                      (let ((latest (stp-elpa-latest-version pkg-name .remote)))
                        (list pkg-name
@@ -954,6 +956,18 @@ that many packages."
                            nil
                            nil))))))
             pkg-info)))
+
+(defvar stp-latest-versions-cache nil)
+
+(defun stp-list-update-latest-versions ()
+  "Compute the latest field in `stp-list-mode' so that the user can
+see which packages can be upgraded. This is an expensive
+operation."
+  (interactive)
+  (stp-with-memoization
+    (stp-git-update-cached-repositories)
+    (setq stp-latest-versions-cache (stp-latest-versions))
+    (stp-list-refresh (stp-list-package-on-line) t)))
 
 (rem-set-keys stp-list-mode-map
               "b" #'stp-build
@@ -989,13 +1003,27 @@ that many packages."
                              (rem-window-line-number-at-pos))))
       (read-only-mode 0)
       (erase-buffer)
-      (insert "Package Version Method Update Branch Remote\n")
+      (insert (format "Package Version%s Method Update Branch Remote\n"
+                      (if stp-latest-versions-cache
+                          " Latest(newer)"
+                        "")))
       (dolist (pkg-name (stp-info-names))
         (let-alist (stp-get-alist pkg-info pkg-name)
-          (insert (format "%s %s %s %s %s %s\n"
+          (insert (format "%s %s %s %s %s %s %s\n"
                           (stp-name pkg-name)
                           (or (stp-list-abbreviate-version .method .version)
                               stp-list-missing-field-string)
+                          (if stp-latest-versions-cache
+                              (or (awhen (alist-get pkg-name stp-latest-versions-cache nil nil #'equal)
+                                    (db (latest count)
+                                        it
+                                      (and latest
+                                           (concat latest
+                                                   (if (and count (/= count 0))
+                                                       (format "(%d)" count)
+                                                     "")))))
+                                  "\t")
+                            "")
                           (if .method
                               (symbol-name .method)
                             stp-list-missing-field-string)

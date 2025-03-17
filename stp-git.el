@@ -141,7 +141,7 @@
   "Determine the hash that was last merged into the subtree at pkg-name from the
 remote repository."
   (let ((pkg-path (stp-absolute-path pkg-name)))
-    (when (not (f-dir-p pkg-path))
+    (unless (f-dir-p pkg-path)
       (error "Package directory %s does not exist" pkg-name))
     (db (exit-code string)
         (stp-with-git-root
@@ -161,7 +161,7 @@ remote repository."
   "Return an alist that maps hashes to refs. If supplied, prefixes is a list of
 allowed prefixes. Only those prefixes that match a prefix in prefixes will be
 kept. By default all refs are returned."
-  (when (not (stp-git-remote-p remote))
+  (unless (stp-git-valid-remote-p remote)
     (error "%s is not a valid remote" remote))
   (db (exit-code string)
       (stp-with-git-root
@@ -375,28 +375,32 @@ are converted to hashes before they are returned."
 
 (defvar stp-git-repository-cache-directory (f-join stp-cache-directory "repositories"))
 
-(defun stp-git-cached-path (pkg-name)
-  (f-join stp-git-repository-cache-directory pkg-name))
+(defun stp-git-cached-path (remote)
+  (f-join stp-git-repository-cache-directory (s-replace-all '(("/" . "_") (":" . "_")) remote)))
 
-(defun stp-git-update-cached-repository (pkg-name)
-  (let ((path (stp-git-cached-path pkg-name))
-        (pkg-info (stp-read-info)))
-    (let-alist (stp-get-alist pkg-info pkg-name)
-      (if (f-dir-p path)
-          (db (exit-code output)
-              (let ((default-directory path))
-                (rem-call-process-shell-command "git remote update"))
-            (unless (= exit-code 0)
-              (error "Failed to update the cached repository for %s: %s" pkg-name (s-trim output))))
-        (f-mkdir-full-path path)
+(defun stp-git-update-cached-repository (pkg-name remote)
+  (let ((path (stp-git-cached-path remote)))
+    (if (f-dir-p path)
         (db (exit-code output)
-            (let ((default-directory stp-git-repository-cache-directory))
-              (rem-call-process-shell-command (format "git clone %s" .remote)))
+            (let ((default-directory path))
+              (rem-call-process-shell-command "git remote update"))
           (unless (= exit-code 0)
-            (error "Failed to clone the repository for %s to the cache: %s" pkg-name (s-trim output))))))))
+            (error "Failed to update the cached repository for %s: %s" pkg-name (s-trim output))))
+      (f-mkdir-full-path path)
+      (db (exit-code output)
+          (let ((default-directory stp-git-repository-cache-directory))
+            (rem-call-process-shell-command (format "git clone %s" remote)))
+        (unless (= exit-code 0)
+          (error "Failed to clone the repository for %s to the cache: %s" pkg-name (s-trim output)))))))
 
 (defun stp-git-update-cached-repositories ()
-  (mapc #'stp-git-update-cached-repository (stp-info-names 'git)))
+  (mapc (lambda (pkg)
+          (db (pkg-name . pkg-alist)
+              pkg
+            (let-alist pkg-alist
+              (when (eq .method 'git)
+                (stp-git-update-cached-repository pkg-name .remote)))))
+        (stp-read-info)))
 
 (defun stp-git-count-commits (repository ref ref2)
   "Count the number of commits that have been made after REF but
@@ -408,22 +412,14 @@ before REF2."
         (string-to-number (s-trim output))
       (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output)))))
 
-(cl-defun stp-git-latest-version (pkg-name &key sync use-cache)
-  (let* ((path (stp-git-cached-path pkg-name))
-         (pkg-info (stp-read-info))
-         (remote path))
-    (let-alist (stp-get-alist pkg-info pkg-name)
-      ;; Stable versions can get newer tags from the remote without updating the
-      ;; local cache. Unstable version require the local cache.
-      (cond
-       (sync
-        (stp-git-update-cached-repository pkg-name)
-        (setq use-cache t))
-       ((and (not use-cache) (eq .update 'stable))
-        (setq remote .remote)))
-      (if (eq .update 'stable)
-          (stp-git-remote-latest-tag remote)
-        (car (rassoc .branch (stp-git-remote-hash-head-alist remote)))))))
+(defun stp-git-latest-version (pkg-name remote update branch)
+  (let* ((path (stp-git-cached-path remote))
+         (pkg-info (stp-read-info)))
+    ;; Stable versions can get newer tags from the remote without updating the
+    ;; local cache. Unstable version require the local cache.
+    (if (eq update 'stable)
+        (stp-git-remote-latest-tag path)
+      (car (rassoc branch (stp-git-remote-hash-head-alist path))))))
 
 (defun stp-git-commit (&optional msg)
   (setq msg (or msg ""))
@@ -513,7 +509,7 @@ from remote."
          (pkg-path (stp-absolute-path pkg-name))
          (prefix (f-relative pkg-path
                              git-root)))
-    (when (not (f-exists-p pkg-path))
+    (unless (f-exists-p pkg-path)
       (error "%s does not exist" pkg-name))
     (rem-with-directory git-root
       ;; Upgrade package
