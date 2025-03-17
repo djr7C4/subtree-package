@@ -78,10 +78,20 @@ package database that may have become out of sync with installed packages. This
 can be useful when the package database is not updated because a user updated a
 package using git commands manually or there is a bug.
 ** Supported package types
-Currently, three different types of packages can be installed.
-- git repositories
-- GNU ELPA packages
-- URL packages (when the source is a single file that can be accessed via a URL)
+Currently, three different types of packages can be installed. STP automatically
+infers the packages type based on the remote provided so it is not necessary to
+specify the type manually.
+*** Git repositories
+To install a git repository in STP, simply provide its URL as the remote.
+*** GNU ELPA packages
+Use the page for the package on =elpa.gnu.org= as the remote. For example, for
+=ace-window= this would be =https://elpa.gnu.org/packages/ace-window.html=.
+*** URL packages
+When the source is a single file or a tarball that can be accessed via a URL the
+package can be installed as a URL package using this URL as the remote. Unlike
+git and ELPA packages, there is no way for STP to detect the version of a URL
+package due to the lack of useful metadata. Therefore, it is up to the user to
+supply the version in this case.
 * Installation
 Subtree package can manage itself as a package. It is recommended to place the
 bootstraping code in =early-init.el=.
@@ -124,6 +134,9 @@ Alternatively, you can manually install each of the dependencies using
 #+end_src
 
 for each dependency.
+
+STP also requires that you install =atool= if you wish to install ELPA and
+compressed URL packages.
 * Recommended bindings
 #+begin_src emacs-lisp
   (keymap-global-set "C-c O" #'stp-find-package)
