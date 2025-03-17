@@ -25,7 +25,7 @@
 
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
-(defvar stp-memoized-functions '(stp-read-info stp-git-remote-hash-alist))
+(defvar stp-memoized-functions '(stp-read-info stp-git-remote-hash-alist stp-elpa-version-url-alist))
 
 (defvar stp-memoization-active nil)
 

@@ -43,13 +43,6 @@
                  :history 'stp-elpa-version-history
                  :sort-fun #'identity))
 
-(defun stp-elpa-versions (pkg-name remote)
-  (mapcar 'car (stp-elpa-version-url-alist pkg-name remote)))
-
-(defun stp-elpa-versions-sorted (pkg-name remote)
-  (reverse (-sort 'stp-version<
-                  (stp-elpa-versions pkg-name remote))))
-
 (defun stp-elpa-version-url-alist (pkg-name remote)
   "Return an alist that maps each available version for the ELPA
 package at remote to the URL where it can be downloaded."
@@ -79,6 +72,21 @@ package at remote to the URL where it can be downloaded."
                                  ;; enough to handle URLs.
                                  (concat (f-slash (rem-url-dirname remote)) url)))))
                      elpa-version-urls))))
+
+(defun stp-elpa-versions (pkg-name remote)
+  (mapcar 'car (stp-elpa-version-url-alist pkg-name remote)))
+
+(defun stp-elpa-versions-sorted (pkg-name remote)
+  (reverse (-sort 'stp-version<
+                  (stp-elpa-versions pkg-name remote))))
+
+(defun stp-elpa-count-versions (pkg-name remote v1 v2)
+  (let ((versions (stp-elpa-versions-sorted pkg-name remote)))
+    (- (cl-position v2 versions :test #'equal)
+       (cl-position v1 versions :test #'equal))))
+
+(defun stp-elpa-latest-version (pkg-name remote)
+  (car (stp-elpa-versions-sorted pkg-name remote)))
 
 (cl-defun stp-elpa-install-or-upgrade (pkg-info pkg-name remote version &key (type 'install))
   "Install or upgrade to the specified version of pkg-name from remote into

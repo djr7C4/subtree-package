@@ -398,11 +398,12 @@ are converted to hashes before they are returned."
 (defun stp-git-update-cached-repositories ()
   (mapc #'stp-git-update-cached-repository (stp-info-names 'git)))
 
-(defun stp-git-count-commits (ref ref2)
+(defun stp-git-count-commits (repository ref ref2)
   "Count the number of commits that have been made after REF but
 before REF2."
   (db (exit-code output)
-      (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2))
+      (let ((default-directory repository))
+        (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2)))
     (if (= exit-code 0)
         (string-to-number (s-trim output))
       (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output)))))
