@@ -95,7 +95,7 @@ package at remote to the URL where it can be downloaded."
 archive, it will be automatically extracted. type should be
 either \\='install or upgrade depending on which operation should
 be performed."
-  (let ((pkg-path (stp-absolute-path pkg-name))
+  (let ((pkg-path (stp-canonical-path pkg-name))
         (elpa-version-url-alist (stp-elpa-version-url-alist pkg-name remote)))
     (if (eq type 'install)
         (when (f-exists-p pkg-path)

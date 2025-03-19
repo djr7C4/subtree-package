@@ -140,7 +140,7 @@
 (defun stp-git-subtree-hash (pkg-name)
   "Determine the hash that was last merged into the subtree at pkg-name from the
 remote repository."
-  (let ((pkg-path (stp-absolute-path pkg-name)))
+  (let ((pkg-path (stp-canonical-path pkg-name)))
     (unless (f-dir-p pkg-path)
       (error "Package directory %s does not exist" pkg-name))
     (db (exit-code string)
@@ -457,7 +457,7 @@ before REF2."
   "Install the specified version of pkg-name from remote in
 `stp-source-directory'."
   (let* ((git-root (stp-git-root stp-source-directory))
-         (pkg-path (stp-absolute-path pkg-name))
+         (pkg-path (stp-canonical-path pkg-name))
          (prefix (f-relative pkg-path
                              git-root)))
     (when (f-exists-p pkg-path)
@@ -506,7 +506,7 @@ package and install the new version instead.")
   "Upgrade pkg-name in `stp-source-directory' to the specified version
 from remote."
   (let* ((git-root (stp-git-root stp-source-directory))
-         (pkg-path (stp-absolute-path pkg-name))
+         (pkg-path (stp-canonical-path pkg-name))
          (prefix (f-relative pkg-path
                              git-root)))
     (unless (f-exists-p pkg-path)

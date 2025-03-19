@@ -41,7 +41,7 @@ should be either \\='install or upgrade depending on which
 operation should be performed."
   (when (or (stp-url-safe-remote-p remote)
             (yes-or-no-p (format "The remote %s is unsafe. Proceed anyway?" remote)))
-    (let ((pkg-path (stp-absolute-path pkg-name)))
+    (let ((pkg-path (stp-canonical-path pkg-name)))
       (if (eq type 'install)
           (when (f-exists-p pkg-path)
             (error "%s already exists" pkg-name))

@@ -60,16 +60,24 @@ each type per interactive command."
 
 (defun stp-delete-load-path (pkg-name)
   (setq load-path (cl-delete-if (lambda (path)
-                                  (f-same-p (stp-absolute-path pkg-name)
+                                  (f-same-p (stp-canonical-path pkg-name)
                                             (f-slash path)))
                                 load-path)))
 
-(defun stp-absolute-path (pkg-name)
-  "Return the absolute path to pkg-name. The return value always
+(defun stp-canonical-path (pkg-name)
+  "Return the canonical path to pkg-name. The return value always
 ends with a slash."
-  (f-slash (f-canonical (if (f-absolute-p pkg-name)
-                            pkg-name
-                          (f-join stp-source-directory pkg-name)))))
+  (stp-full-path pkg-name t))
+
+(defun stp-full-path (pkg-name &optional canonical)
+  "Return the canonical path to pkg-name. The return value always
+ends with a slash."
+  (let ((path (if (f-absolute-p pkg-name)
+                  pkg-name
+                (f-join stp-source-directory pkg-name))))
+    (when canonical
+      (setq path (f-canonical path)))
+    (f-slash path)))
 
 (defun stp-relative-path (pkg-name)
   "Return the path to pkg-name relative to `stp-source-directory'.
@@ -337,7 +345,7 @@ pkg-name."
   "Download the elisp file or archive at url and copy it to pkg-name. pkg-name
 should already exist."
   (let ((pkg-name (f-filename pkg-name))
-        (pkg-path (stp-absolute-path pkg-name)))
+        (pkg-path (stp-canonical-path pkg-name)))
     ;; Check for archives
     (if (string= (f-ext remote) "el")
         ;; Ordinary elisp files can simply be downloaded and copied to the

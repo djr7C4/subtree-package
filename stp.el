@@ -613,7 +613,7 @@ unstable."
 such as building, updating info directories and updating the load path."
   (interactive (list (stp-list-read-package "Package name: ")))
   (stp-with-memoization
-    (stp-update-load-path (stp-absolute-path pkg-name))
+    (stp-update-load-path (stp-canonical-path pkg-name))
     (stp-reload pkg-name)
     (stp-build pkg-name)
     (stp-build-info pkg-name)
@@ -638,7 +638,7 @@ there were no errors."
     (stp-with-package-source-directory
       (stp-with-memoization
         (let* ((output-buffer stp-build-output-buffer-name)
-               (pkg-path (stp-absolute-path pkg-name))
+               (pkg-path (stp-canonical-path pkg-name))
                (build-dir pkg-path))
           ;; Setup output buffer
           (get-buffer-create output-buffer)
@@ -731,7 +731,7 @@ there were no errors."
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."
   (interactive (list (stp-list-read-package "Package name: ")))
-  (let* ((makefiles (f-entries (stp-absolute-path pkg-name)
+  (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
                                (lambda (path)
                                  (member (f-filename path) stp-gnu-makefile-names))
                                t))
@@ -757,7 +757,7 @@ there were no errors."
                         (message "'%s' failed in %s" cmd (f-dirname makefile)))))))
 
               ;; Try to compile a texi file directly.
-              (dolist (source (f-entries (stp-absolute-path pkg-name)
+              (dolist (source (f-entries (stp-canonical-path pkg-name)
                                          (lambda (path)
                                            (string= (f-filename path) texi-target))
                                          t))
@@ -801,7 +801,7 @@ there were no errors."
       (message "Successfully built info manuals for all packages"))))
 
 (defun stp-reload-once (pkg-name)
-  (let* ((pkg-path (stp-absolute-path pkg-name))
+  (let* ((pkg-path (stp-canonical-path pkg-name))
          ;; Reload those features that were already loaded and correspond to
          ;; files in the package.
          (reload-features (->> (directory-files-recursively pkg-path
@@ -830,7 +830,7 @@ there were no errors."
 `Info-directory-list'. If PKG-NAME is non-nil, only search for
 info files in the directory for that package."
   (interactive (list (stp-list-read-package "Package name: ")))
-  (let* ((directory (stp-absolute-path pkg-name))
+  (let* ((directory (stp-canonical-path pkg-name))
          (new (mapcar 'f-dirname
                       (f-entries directory
                                  (-partial #'string-match-p "\\.info$")
@@ -895,7 +895,7 @@ With a prefix argument or if no such file exists, open the
 directory for the current package."
   (interactive)
   (let* ((pkg-name (stp-list-read-package "Package name: "))
-         (path (stp-main-package-file (stp-absolute-path pkg-name))))
+         (path (stp-main-package-file (stp-canonical-path pkg-name))))
     (find-file path)))
 
 (defun stp-list-previous-package (&optional n)
@@ -1103,7 +1103,7 @@ confirmation."
         (dolist (dir orphaned-dir-names)
           (when (or (not confirm)
                     (yes-or-no-p (format "(%d/%d) The directory %s in %s has no entry in %s. Delete the directory?" k (length orphaned-dir-names) dir stp-source-directory stp-info-file)))
-            (delete-directory (stp-absolute-path dir) t)
+            (delete-directory (stp-canonical-path dir) t)
             (cl-incf deleted-dirs))
           (cl-incf k))))
     (message "Deleted %d orphaned entries in %s and %d orphaned directories in %s"
@@ -1147,8 +1147,8 @@ development or for opening packages from `stp-list-mode'."
                            (append (and .remote (list .remote))
                                    .other-remotes
                                    (list (f-slash (f-join stp-read-remote-default-directory pkg-name))
-                                         (stp-absolute-path pkg-name))))))
-        (setq dirs (cl-remove-duplicates dirs :test #'equal))
+                                         (stp-full-path pkg-name))))))
+        (setq dirs (cl-remove-duplicates dirs :test #'f-same-p))
         (if dirs
             (let ((dir (f-canonical (if (cdr dirs)
                                         (rem-comp-read "Directory: " dirs :require-match t)
