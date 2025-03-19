@@ -407,7 +407,7 @@ active."
 (defvar stp-latest-versions-cache nil)
 
 (defun stp-update-cached-latest (pkg-name)
-  (stp-list-update-latest-version pkg-name))
+  (stp-list-update-latest-version pkg-name :quiet t))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
@@ -1010,14 +1010,14 @@ packages. This is intended to help with rate limiting issues.")
              (message "Checking the latest version of %s" pkg-name))))))
     latest-versions))
 
-(defun stp-list-update-latest-version (pkg-name)
+(cl-defun stp-list-update-latest-version (pkg-name &key quiet)
   "Compute the latest field for the current package in
 `stp-list-mode'."
-  (interactive (list (stp-list-package-on-line)))
+  (interactive (list (stp-list-package-on-line) :quiet t))
   (when pkg-name
-    (stp-list-update-latest-versions (list pkg-name))))
+    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet)))
 
-(cl-defun stp-list-update-latest-versions (&optional (pkg-names t))
+(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
@@ -1026,16 +1026,22 @@ installed.
 By default, only compute the latest field for packages that are
 not already in the cache. With a prefix argument, recompute it
 for all packages."
-  (interactive (list (if current-prefix-arg
+  (interactive (list :pkg-names
+                     (if current-prefix-arg
                          t
                        (cl-set-difference (stp-info-names)
                                           (mapcar #'car stp-latest-versions-cache)
                                           :test #'equal))))
-  (stp-with-memoization
-    (setq stp-latest-versions-cache (map-merge 'alist
-                                               stp-latest-versions-cache
-                                               (stp-latest-versions :quiet nil :pkg-names pkg-names)))
-    (stp-list-refresh (stp-list-package-on-line) t)))
+  (let ((plural (or (eq pkg-names t)
+                    (not (= (length pkg-names) 1)))))
+    (stp-with-memoization
+      (setq stp-latest-versions-cache (map-merge 'alist
+                                                 stp-latest-versions-cache
+                                                 (stp-latest-versions :pkg-names pkg-names :quiet quiet)))
+      (if plural
+          (message "Finished updating the latest versions")
+        (message "Updated the latest version for %s" (car pkg-names)))
+      (stp-list-refresh (stp-list-package-on-line) t))))
 
 (rem-set-keys stp-list-mode-map
               "b" #'stp-build
