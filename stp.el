@@ -1113,38 +1113,42 @@ confirmation."
              stp-source-directory)))
 
 (defun stp-find-package (pkg-name &optional file arg)
-  "Try to find FILE for the package PKG-NAME in the main source
-location on the local filesystem. This is done as follows.
+  "Try to find FILE for the package PKG-NAME in the other source
+location on the local filesystem.
 
-First, look for a directory named PKG-NAME in a remote on the
-local filesystem or `stp-read-remote-default-directory'. If
-neither exists, look for PKG-NAME in `stp-source-directory' for
-PKG-NAME. If FILE is non-nil, open the corresponding file in this
-directory. Otherwise (or with a prefix argument), open PKG-NAME.
+This is done by looking for a directory named PKG-NAME in a
+remote on the local filesystem,
+`stp-read-remote-default-directory' or `stp-source-directory'. If
+more than one of these exists and does not contain the current
+file, the user will be prompted to choose between them. If FILE
+is non-nil, open the corresponding file in this directory.
+Otherwise (or with a prefix argument), open PKG-NAME.
 
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
 development or for opening packages from `stp-list-mode'."
-  (interactive (let ((path (f-canonical (or buffer-file-name default-directory)))
-                     (dir (f-canonical stp-source-directory)))
-                 (unless (or (f-same-p dir path)
-                             (f-ancestor-of-p dir path))
-                   (user-error "Not in %s" stp-source-directory))
-                 (if (derived-mode-p 'stp-list-mode)
-                     (list (stp-list-package-on-line) nil current-prefix-arg)
-                   (append (stp-split-current-package) (list current-prefix-arg)))))
-  (let ((pkg-info (stp-read-info))
+  (interactive (if (derived-mode-p 'stp-list-mode)
+                   (list (stp-list-package-on-line) nil current-prefix-arg)
+                 (append (stp-split-current-package) (list current-prefix-arg))))
+  (let ((path (f-canonical (or buffer-file-name default-directory)))
+        (pkg-info (stp-read-info))
         (pt (point))
         (window-line-num (rem-window-line-number-at-pos)))
-    (let-alist pkg-info
+    (let-alist (stp-get-alist pkg-info pkg-name)
       ;; Prefer a remote on the local filesystem or
       ;; `stp-read-remote-default-directory'. If neither of these exists,
       ;; fallback on the copy of the package in `stp-source-directory'.
-      (let ((dirs (or (-filter #'f-dir-p
-                               (append (and .remote (list .remote))
-                                       .other-remotes
-                                       (list (f-join stp-read-remote-default-directory pkg-name))))
-                      (list (f-join stp-source-directory pkg-name)))))
+      (let ((dirs (-filter (lambda (dir)
+                             ;; Ignore directories that do not exist and the
+                             ;; copy of the package that we are currently in.
+                             (and (f-dir-p dir)
+                                  (not (f-same-p dir path))
+                                  (not (f-ancestor-of-p (f-canonical dir) path))))
+                           (append (and .remote (list .remote))
+                                   .other-remotes
+                                   (list (f-slash (f-join stp-read-remote-default-directory pkg-name))
+                                         (stp-absolute-path pkg-name))))))
+        (setq dirs (cl-remove-duplicates dirs :test #'equal))
         (if dirs
             (let ((dir (f-canonical (if (cdr dirs)
                                         (rem-comp-read "Directory: " dirs :require-match t)

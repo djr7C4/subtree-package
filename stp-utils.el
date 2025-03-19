@@ -64,17 +64,21 @@ each type per interactive command."
                                             (f-slash path)))
                                 load-path)))
 
-(defun stp-absolute-path (pkg-path)
-  "Return the absolute path to pkg-path. pkg-path can be either an absolute path
-or relative from `stp-source-directory'. The return value always ends
-with a slash."
-  (f-slash (f-canonical (if (f-absolute-p pkg-path)
-                            pkg-path
-                          (f-join stp-source-directory pkg-path)))))
+(defun stp-absolute-path (pkg-name)
+  "Return the absolute path to pkg-name. The return value always
+ends with a slash."
+  (f-slash (f-canonical (if (f-absolute-p pkg-name)
+                            pkg-name
+                          (f-join stp-source-directory pkg-name)))))
+
+(defun stp-relative-path (pkg-name)
+  "Return the path to pkg-name relative to `stp-source-directory'.
+The return value always ends with a slash."
+  (rem-slash pkg-name))
 
 (defun stp-name (pkg-path)
   "Returns the name of the package. Unlike `stp-relative-path', this
-  never ends with a slash (nor does it contain any slashes)."
+never ends with a slash (nor does it contain any slashes)."
   (f-filename pkg-path))
 
 (defun stp-main-package-file (pkg-path)
@@ -91,18 +95,20 @@ with a slash."
     (or path pkg-path)))
 
 (defun stp-split-current-package ()
-  "Return a list containing the name of the current package and the
- relative path to the current file or directory within that
- package."
-  (let* ((relative-path (s-chop-prefix (f-canonical stp-source-directory)
-                                       (f-canonical (or buffer-file-name default-directory))))
-         (split (f-split relative-path)))
-    (when (string= (car split) "/")
-      (error "Not in %s"  stp-source-directory))
-    (list (car split)
-          (if (cdr split)
-              (apply #'f-join (cdr split))
-            "."))))
+  "Return a list containing the name of the package for the current
+file and the relative path to the current file or directory
+within that package."
+  (let ((path (or buffer-file-name default-directory)))
+    (db (pkg-name k)
+        (->> (stp-info-names)
+             (mapcar (lambda (pkg-name)
+                       (list pkg-name
+                             (->> path
+                                  (s-matched-positions-all (regexp-quote (concat "/" (stp-relative-path pkg-name))))
+                                  last
+                                  caar))))
+             (cl-find-if #'cadr))
+      (list pkg-name (apply #'f-join (cddr (f-split (substring path k))))))))
 
 (defmacro stp-with-package-source-directory (&rest body)
   (declare (indent 0))
@@ -163,7 +169,7 @@ with a slash."
 (defun stp-normalize-remote (remote)
   ;; Use absolute paths for local repositories.
   (if (f-dir-p remote)
-      (setq remote (f-full remote))
+      (setq remote (f-slash (f-full remote)))
     remote))
 
 (defvar stp-read-remote-default-directory nil)
