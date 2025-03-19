@@ -21,8 +21,6 @@
 (require 'rem-abbrev)
 (require 's)
 
-(defvar stp-cache-directory (f-join user-emacs-directory "stp" "cache"))
-
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
 (defvar stp-memoized-functions '(stp-read-info stp-git-remote-hash-alist stp-elpa-version-url-alist))

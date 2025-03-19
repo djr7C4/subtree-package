@@ -932,29 +932,32 @@ that many packages."
   (setq n (or n 1))
   (stp-list-next-repair (- n)))
 
-(defun stp-latest-versions ()
+(defun stp-latest-version (pkg-name pkg-alist)
+  (let-alist pkg-alist
+    (cl-ecase .method
+      (git
+       (let ((latest (stp-git-latest-version .remote .update .branch)))
+         (list pkg-name
+               latest
+               (stp-git-count-commits .remote .version latest .branch))))
+      (elpa
+       (let ((latest (stp-elpa-latest-version pkg-name .remote)))
+         (list pkg-name
+               latest
+               (stp-elpa-count-versions pkg-name .remote .version latest))))
+      (url
+       (list pkg-name
+             nil
+             nil)))))
+
+(cl-defun stp-latest-versions (&key (quiet t))
   (let ((pkg-info (stp-read-info)))
     (mapcar (lambda (pkg)
               (db (pkg-name . pkg-alist)
                   pkg
-                (let-alist pkg-alist
-                  (cl-ecase .method
-                    (git
-                     (let* ((path (stp-git-cached-path .remote))
-                            (exists (f-dir-p path))
-                            (latest (and exists (stp-git-latest-version pkg-name path .update .branch))))
-                       (list pkg-name
-                             latest
-                             (and exists (stp-git-count-commits path .version latest)))))
-                    (elpa
-                     (let ((latest (stp-elpa-latest-version pkg-name .remote)))
-                       (list pkg-name
-                             latest
-                             (stp-elpa-count-versions pkg-name .remote .version latest))))
-                    (url
-                     (list pkg-name
-                           nil
-                           nil))))))
+                (unless quiet
+                  (message "Checking the latest version of %s" pkg-name))
+                (stp-latest-version pkg-name pkg-alist)))
             pkg-info)))
 
 (defvar stp-latest-versions-cache nil)
@@ -965,8 +968,7 @@ see which packages can be upgraded. This is an expensive
 operation."
   (interactive)
   (stp-with-memoization
-    (stp-git-update-cached-repositories)
-    (setq stp-latest-versions-cache (stp-latest-versions))
+    (setq stp-latest-versions-cache (stp-latest-versions :quiet nil))
     (stp-list-refresh (stp-list-package-on-line) t)))
 
 (rem-set-keys stp-list-mode-map

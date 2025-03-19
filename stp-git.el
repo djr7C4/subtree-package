@@ -373,53 +373,35 @@ are converted to hashes before they are returned."
 (defun stp-git-remote-latest-tag (remote)
   (car (stp-git-remote-tags-sorted remote)))
 
-(defvar stp-git-repository-cache-directory (f-join stp-cache-directory "repositories"))
-
-(defun stp-git-cached-path (remote)
-  (f-join stp-git-repository-cache-directory (s-replace-all '(("/" . "_") (":" . "_")) remote)))
-
-(defun stp-git-update-cached-repository (pkg-name remote)
-  (let ((path (stp-git-cached-path remote)))
-    (if (f-dir-p path)
-        (db (exit-code output)
-            (let ((default-directory path))
-              (rem-call-process-shell-command "git remote update"))
-          (unless (= exit-code 0)
-            (error "Failed to update the cached repository for %s: %s" pkg-name (s-trim output))))
-      (f-mkdir-full-path path)
-      (db (exit-code output)
-          (let ((default-directory stp-git-repository-cache-directory))
-            (rem-call-process-shell-command (format "git clone %s" remote)))
-        (unless (= exit-code 0)
-          (error "Failed to clone the repository for %s to the cache: %s" pkg-name (s-trim output)))))))
-
-(defun stp-git-update-cached-repositories ()
-  (mapc (lambda (pkg)
-          (db (pkg-name . pkg-alist)
-              pkg
-            (let-alist pkg-alist
-              (when (eq .method 'git)
-                (stp-git-update-cached-repository pkg-name .remote)))))
-        (stp-read-info)))
-
-(defun stp-git-count-commits (repository ref ref2)
+(defun stp-git-count-commits (remote ref ref2 &optional branch)
   "Count the number of commits that have been made after REF but
-before REF2."
-  (db (exit-code output)
-      (let ((default-directory repository))
-        (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2)))
-    (if (= exit-code 0)
-        (string-to-number (s-trim output))
-      (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output)))))
+before REF2. If BRANCH is non-nil, only refs from that branch
+will be considered which may improve efficiency."
+  (let ((path (make-temp-file "repo-clone" t)))
+    (unwind-protect
+        (progn
+          (db (exit-code output)
+              ;; Make the call to git clone as lightweight as possible.
+              (rem-call-process-shell-command (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
+                                                      (if branch
+                                                          (format " --single-branch --branch '%s'" branch)
+                                                        "")
+                                                      remote
+                                                      path))
+            (unless (= exit-code 0)
+              (error "Failed to clone %s: %s" remote output)))
+          (db (exit-code output)
+              (let ((default-directory path))
+                (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2)))
+            (if (= exit-code 0)
+                (string-to-number (s-trim output))
+              (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output)))))
+      (delete-directory path t))))
 
-(defun stp-git-latest-version (pkg-name remote update branch)
-  (let* ((path (stp-git-cached-path remote))
-         (pkg-info (stp-read-info)))
-    ;; Stable versions can get newer tags from the remote without updating the
-    ;; local cache. Unstable version require the local cache.
-    (if (eq update 'stable)
-        (stp-git-remote-latest-tag path)
-      (car (rassoc branch (stp-git-remote-hash-head-alist path))))))
+(defun stp-git-latest-version (remote update branch)
+  (if (eq update 'stable)
+      (stp-git-remote-latest-tag remote)
+    (car (rassoc branch (stp-git-remote-hash-head-alist remote)))))
 
 (defun stp-git-commit (&optional msg)
   (setq msg (or msg ""))
