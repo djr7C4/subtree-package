@@ -22,7 +22,9 @@
 (require 'stp-elpa)
 (require 'stp-git)
 (require 'stp-url)
-(require 'queue)
+(with-demoted-errors
+    "Loading queue failed. Some non-essential commands may not work"
+  (require 'queue))
 (require 'text-property-search)
 (require 'url-handlers)
 (require 'xml)
