@@ -556,7 +556,7 @@ from remote."
                          ;; command).
                          (stp-uninstall pkg-name :do-commit t :refresh nil)
                          (let ((pkg-alist (stp-get-alist pkg-info pkg-name)))
-                           (setf (alist-get 'version pkg-alist) version)
+                           (setf (map-elt pkg-alist 'version) version)
                            (stp-install pkg-name pkg-alist :refresh nil)
                            t))))
               (progn

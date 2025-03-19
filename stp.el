@@ -17,7 +17,6 @@
 
 (require 'find-lisp)
 (require 'info)
-(require 'map)
 (require 'stp-bootstrap)
 (require 'stp-utils)
 (require 'stp-elpa)
@@ -58,7 +57,7 @@
       stp-normalize-remote))
 
 (cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") (_line-pkg t))
-  (let* ((remote (stp-read-remote (stp-prefix-prompt prompt-prefix "Remote: ") (alist-get 'remote pkg-alist)))
+  (let* ((remote (stp-read-remote (stp-prefix-prompt prompt-prefix "Remote: ") (map-elt pkg-alist 'remote)))
          (pkg-name (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote))))
          (method (stp-remote-method remote))
          version
@@ -69,12 +68,12 @@
        (unless (stp-git-valid-remote-p remote)
          (user-error (stp-prefix-prompt prompt-prefix "Invalid git repository (or host is down): %s") remote))
        (unless update
-         (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (alist-get 'update pkg-alist))))
+         (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (map-elt pkg-alist 'update))))
        (when (and (eq update 'unstable)
                   (not branch))
-         (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (alist-get 'branch pkg-alist))))
+         (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))
        (unless version
-         (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (alist-get 'version pkg-alist) branch) :default (alist-get 'version pkg-alist)))))
+         (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (map-elt pkg-alist 'version) branch) :default (map-elt pkg-alist 'version)))))
       ((elpa url)
        (when (or (not (string-match-p rem-strict-url-regexp remote))
                  (not (url-file-exists-p remote)))
@@ -405,11 +404,11 @@ active."
 
 (defun stp-update-cached-latest (pkg-name method version)
   (when stp-latest-versions-cache
-    (setq stp-latest-versions-cache (map-put stp-latest-versions-cache
-                                             pkg-name
-                                             (list version (cl-ecase method
-                                                             (git 0)
-                                                             (elpa nil)))))))
+    (setf (map-elt stp-latest-versions-cache pkg-name)
+          (list version
+                (cl-ecase method
+                  (git 0)
+                  (elpa nil))))))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
@@ -1074,7 +1073,7 @@ for `stp-git-latest-update'."
                           (or (stp-list-abbreviate-version .method .version)
                               stp-list-missing-field-string)
                           (if stp-latest-versions-cache
-                              (or (awhen (alist-get pkg-name stp-latest-versions-cache nil nil #'equal)
+                              (or (awhen (map-elt stp-latest-versions-cache pkg-name)
                                     (db (latest count)
                                         it
                                       (and latest

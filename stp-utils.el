@@ -16,6 +16,7 @@
 
 (require 'cl-lib)
 (require 'f)
+(require 'map)
 (require 'memoize)
 (require 'rem)
 (require 'rem-abbrev)
@@ -134,7 +135,7 @@ within that package."
                 (-filter (lambda (pkg)
                            (or (not method)
                                (let ((pkg-alist (cdr pkg)))
-                                 (eq (alist-get 'method pkg-alist nil nil #'equal) method))))
+                                 (eq (map-elt pkg-alist 'method) method))))
                          (stp-read-info)))
         'string<))
 
@@ -265,16 +266,16 @@ and \\='branch attributes should not be present.")
   "Get the attribute attr in the alist with the key corresponding to
 pkg-name."
   (let ((pkg-name (stp-name pkg-name)))
-    (alist-get attr (alist-get pkg-name pkg-info nil nil 'equal))))
+    (map-elt (map-elt pkg-info pkg-name) attr)))
 
 (defun stp-set-attribute (pkg-info pkg-name attr val)
   "Set the attribute attr to val in the alist with the key
 corresponding to pkg-name."
   (let* ((pkg-name (stp-name pkg-name))
-         (alist (alist-get pkg-name pkg-info nil nil 'equal)))
+         (alist (map-elt pkg-info pkg-name)))
     (if alist
-        (setf (alist-get attr alist) val
-              (alist-get pkg-name pkg-info nil nil 'equal) alist)
+        (setf (map-elt alist attr) val
+              (map-elt pkg-info pkg-name) alist)
       (setq pkg-info (cons `(,pkg-name . ((,attr . ,val))) pkg-info))))
   pkg-info)
 
@@ -287,12 +288,12 @@ pkg-name."
 (defun stp-get-alist (pkg-info pkg-name)
   "Get the alist the contains information corresponding to pkg-name."
   (let ((pkg-name (stp-name pkg-name)))
-    (alist-get pkg-name pkg-info nil nil 'equal)))
+    (map-elt pkg-info pkg-name)))
 
 (defun stp-set-alist (pkg-info pkg-name alist)
   "Set the alist the contains information corresponding to pkg-name to alist."
   (let ((pkg-name (stp-name pkg-name)))
-    (setf (alist-get pkg-name pkg-info nil nil 'equal) alist))
+    (setf (map-elt pkg-info pkg-name) alist))
   pkg-info)
 
 (defvar stp-version-regexp "\\`\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?[-_./]?\\)*\\)\\'")
