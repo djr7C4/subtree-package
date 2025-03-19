@@ -402,14 +402,13 @@ will be considered which may improve efficiency."
               (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output)))))
       (delete-directory path t))))
 
-(defun stp-git-latest-version (remote update branch)
-  (cond
-   ((eq update 'stable)
-    (stp-git-remote-latest-tag remote))
-   ((not (string= branch "HEAD"))
-    (car (rassoc branch (stp-git-remote-hash-head-alist remote))))
-   (t
-    (stp-git-remote-head remote))))
+(defun stp-git-latest-stable-version (remote)
+  (stp-git-remote-latest-tag remote))
+
+(defun stp-git-latest-unstable-version (remote ref)
+  (or (car (rassoc ref (stp-git-remote-hash-head-alist remote)))
+      (and (string= ref "HEAD")
+           (stp-git-remote-head remote))))
 
 (defun stp-git-commit (&optional msg)
   (setq msg (or msg ""))

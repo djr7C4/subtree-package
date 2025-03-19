@@ -404,13 +404,10 @@ active."
               (list pkg-alist))
             args)))
 
-(defun stp-update-cached-latest (pkg-name method version)
-  (when stp-latest-versions-cache
-    (setf (map-elt stp-latest-versions-cache pkg-name)
-          (list version
-                (cl-ecase method
-                  (git 0)
-                  (elpa nil))))))
+(defvar stp-latest-versions-cache nil)
+
+(defun stp-update-cached-latest (pkg-name)
+  (stp-list-update-latest-version pkg-name))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
@@ -458,7 +455,7 @@ negated relative to the default."
                   (when do-actions
                     (stp-post-actions pkg-name))
                   (when refresh
-                    (stp-update-cached-latest pkg-name .method .version)
+                    (stp-update-cached-latest pkg-name)
                     (stp-list-refresh pkg-name t)))))))))))
 
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
@@ -530,7 +527,7 @@ do-push and proceed arguments are as in `stp-install'."
                     (when do-actions
                       (stp-post-actions pkg-name))
                     (when refresh
-                      (stp-update-cached-latest pkg-name .method new-version)
+                      (stp-update-cached-latest pkg-name)
                       (stp-list-refresh pkg-name t))))))))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
@@ -945,30 +942,33 @@ that many packages."
   (setq n (or n 1))
   (stp-list-next-repair (- n)))
 
-(defvar stp-git-latest-update nil
-  "When this is non-nil, always use that value for the update
-parameter of `stp-git-latest-version' when computing the latest
-version.")
-
 (defun stp-latest-version (pkg-name pkg-alist)
   (let-alist pkg-alist
     (cl-ecase .method
       (git
-       (let ((latest (stp-git-latest-version .remote
-                                             (or stp-git-latest-update .update)
-                                             (or .branch "HEAD"))))
-         (list pkg-name
-               latest
-               (stp-git-count-commits .remote .version latest .branch))))
+       (let* ((latest-stable (stp-git-latest-stable-version .remote))
+              (latest-unstable (stp-git-latest-unstable-version .remote (or .branch "HEAD")))
+              (commits-to-stable (and latest-stable
+                                      (stp-git-count-commits .remote .version latest-stable .branch)))
+              (commits-to-unstable (and latest-unstable
+                                        (stp-git-count-commits .remote .version latest-unstable .branch))))
+         (append (list pkg-name)
+                 (and latest-stable (list `(latest-stable . ,latest-stable)))
+                 (and latest-unstable (list `(latest-unstable . ,latest-unstable)))
+                 (and commits-to-stable (list `(count-to-stable . ,commits-to-stable)))
+                 (and commits-to-unstable (list `(count-to-unstable . ,commits-to-unstable))))))
       (elpa
-       (let ((latest (stp-elpa-latest-version pkg-name .remote)))
-         (list pkg-name
-               latest
-               (stp-elpa-count-versions pkg-name .remote .version latest))))
+       (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))
+              (versions-to-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable)))
+         (unless latest-stable
+           (error "Failed to get the latest stable version for %s" pkg-name))
+         (unless versions-to-stable
+           (error "Failed to count the number of stable versions since %s for %s" .version pkg-name))
+         `(,pkg-name
+           (latest-stable . ,latest-stable)
+           (count-to-stable . ,versions-to-stable))))
       (url
-       (list pkg-name
-             nil
-             nil)))))
+       nil))))
 
 (defvar stp-latest-retries 3
   "Retry computing the latest version for a package up to this many
@@ -997,40 +997,44 @@ packages. This is intended to help with rate limiting issues.")
         (sit-for stp-latest-delay))
       (db (pkg-name pkg-alist tries)
           (queue-dequeue queue)
-        (condition-case nil
-            (progn
-              (unless quiet
-                (message "Checking the latest version of %s" pkg-name))
-              (push (stp-latest-version pkg-name pkg-alist) latest-versions))
-          (error (if (>= tries stp-latest-retries)
-                     (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries)
-                   (cl-incf tries)
-                   (message "Getting the latest version of %s failed (%d/%d)" pkg-name tries stp-latest-retries)
-                   (queue-enqueue queue (list pkg-name pkg-alist tries)))))))
+        (condition-case err
+            (push (stp-latest-version pkg-name pkg-alist) latest-versions)
+          (error
+           (if (>= tries stp-latest-retries)
+               (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries)
+             (cl-incf tries)
+             (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err))
+             (queue-enqueue queue (list pkg-name pkg-alist tries))))
+          (:success
+           (unless quiet
+             (message "Checking the latest version of %s" pkg-name))))))
     latest-versions))
 
-(defvar stp-latest-versions-cache nil)
-
-(defun stp-list-update-latest-version (pkg-name &optional arg)
+(defun stp-list-update-latest-version (pkg-name)
   "Compute the latest field for the current package in
-`stp-list-mode'. With a prefix argument, use \\='unstable as the
-value for `stp-git-latest-update'."
-  (interactive (list (stp-list-package-on-line) current-prefix-arg))
+`stp-list-mode'."
+  (interactive (list (stp-list-package-on-line)))
   (when pkg-name
-    (stp-list-update-latest-versions (list pkg-name) arg)))
+    (stp-list-update-latest-versions (list pkg-name))))
 
-(cl-defun stp-list-update-latest-versions (&optional (pkg-names t) arg)
+(cl-defun stp-list-update-latest-versions (&optional (pkg-names t))
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
-installed. With a prefix argument, use \\='unstable as the value
-for `stp-git-latest-update'."
-  (interactive)
+installed.
+
+By default, only compute the latest field for packages that are
+not already in the cache. With a prefix argument, recompute it
+for all packages."
+  (interactive (list (if current-prefix-arg
+                         t
+                       (cl-set-difference (stp-info-names)
+                                          (mapcar #'car stp-latest-versions-cache)
+                                          :test #'equal))))
   (stp-with-memoization
     (setq stp-latest-versions-cache (map-merge 'alist
                                                stp-latest-versions-cache
-                                               (let ((stp-git-latest-update (if arg 'unstable stp-git-latest-update)))
-                                                 (stp-latest-versions :quiet nil :pkg-names pkg-names))))
+                                               (stp-latest-versions :quiet nil :pkg-names pkg-names)))
     (stp-list-refresh (stp-list-package-on-line) t)))
 
 (rem-set-keys stp-list-mode-map
@@ -1059,6 +1063,26 @@ for `stp-git-latest-update'."
               "V" #'stp-list-update-latest-versions
               "RET" #'stp-find-package)
 
+(defun stp-list-version-with-count (method version count)
+  (and version
+       (concat (stp-list-abbreviate-version method version)
+               (if (and count (/= count 0))
+                   (format "(%d)" count)
+                 ""))))
+
+(defun stp-list-latest-field (method version-alist)
+  (when version-alist
+    (let-alist version-alist
+      (let ((stable-version-string (stp-list-version-with-count method .latest-stable .count-to-stable))
+            (unstable-version-string (stp-list-version-with-count method .latest-unstable .count-to-unstable)))
+        (cond
+         ((and .latest-stable .latest-unstable)
+          (format "%s/%s" stable-version-string unstable-version-string))
+         ((or .latest-stable .latest-unstable)
+          (or stable-version-string unstable-version-string))
+         (t
+          "\t"))))))
+
 (cl-defun stp-list-refresh (&optional refresh-pkg-name quiet)
   (interactive (list (stp-list-package-on-line)))
   (when (derived-mode-p 'stp-list-mode)
@@ -1071,7 +1095,7 @@ for `stp-git-latest-update'."
       (erase-buffer)
       (insert (format "Package Version%s Method Update Branch Remote\n"
                       (if stp-latest-versions-cache
-                          " Latest(newer)"
+                          " Latest"
                         "")))
       (dolist (pkg-name (stp-info-names))
         (let-alist (stp-get-alist pkg-info pkg-name)
@@ -1079,17 +1103,11 @@ for `stp-git-latest-update'."
                           (stp-name pkg-name)
                           (or (stp-list-abbreviate-version .method .version)
                               stp-list-missing-field-string)
-                          (if stp-latest-versions-cache
-                              (or (awhen (map-elt stp-latest-versions-cache pkg-name)
-                                    (db (latest count)
-                                        it
-                                      (and latest
-                                           (concat (stp-list-abbreviate-version .method latest)
-                                                   (if (and count (/= count 0))
-                                                       (format "(%d)" count)
-                                                     "")))))
-                                  "\t")
-                            "")
+                          (or (when stp-latest-versions-cache
+                                (or (awhen (map-elt stp-latest-versions-cache pkg-name)
+                                      (stp-list-latest-field .method it))
+                                    "\t"))
+                              "")
                           (if .method
                               (symbol-name .method)
                             stp-list-missing-field-string)
