@@ -17,6 +17,7 @@
 
 (require 'find-lisp)
 (require 'info)
+(require 'map)
 (require 'stp-bootstrap)
 (require 'stp-utils)
 (require 'stp-elpa)
@@ -403,10 +404,12 @@ active."
             args)))
 
 (defun stp-update-cached-latest (pkg-name method version)
-  (when-let ((entry (alist-get pkg-name stp-latest-versions-cache nil nil #'equal)))
-    (setf (cdr entry) (list version (cl-ecase method
-                                      (git 0)
-                                      (elpa nil))))))
+  (when stp-latest-versions-cache
+    (setq stp-latest-versions-cache (map-put stp-latest-versions-cache
+                                             pkg-name
+                                             (list version (cl-ecase method
+                                                             (git 0)
+                                                             (elpa nil)))))))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
