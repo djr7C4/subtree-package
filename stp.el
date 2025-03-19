@@ -776,20 +776,20 @@ there were no errors."
                 (rem-with-directory (f-dirname source)
                   (setq attempted t)
                   (message "texi source file found at %s. Attempting to compile it with makeinfo..." source)
-                  (cond
-                   (;; Don't build texi files unless they have changed since the info
-                    ;; manual was last built.
-                    (f-newer-p (f-swap-ext source "info") source)
-                    (message "The info manual for %s is up to date" pkg-name)
-                    (cl-return t))
-                   ((let ((cmd (format "makeinfo --no-split %s" texi-target)))
-                      (progn
+                  (let ((cmd (format "makeinfo --no-split %s" texi-target)))
+                    (cond
+                     (;; Don't build texi files unless they have changed since the info
+                      ;; manual was last built.
+                      (f-newer-p (f-swap-ext source "info") source)
+                      (message "The info manual for %s is up to date" pkg-name)
+                      (cl-return t))
+                     ((progn
                         (stp-before-build-command cmd output-buffer)
-                        (= (call-process-shell-command cmd nil output-buffer) 0)))
-                    (message "Built the info manual for %s using makeinfo" pkg-name)
-                    (cl-return t))
-                   (t
-                    (message "'%s' failed" cmd))))))))
+                        (= (call-process-shell-command cmd nil output-buffer) 0))
+                      (message "Built the info manual for %s using makeinfo" pkg-name)
+                      (cl-return t))
+                     (t
+                      (message "'%s' failed" cmd)))))))))
     (unless attempted
       (message "No makefiles or texi source files found for the %s info manual" pkg-name))
     success))
