@@ -402,6 +402,12 @@ active."
               (list pkg-alist))
             args)))
 
+(defun stp-update-cached-latest (pkg-name method version)
+  (when-let ((entry (alist-get pkg-name stp-latest-versions-cache nil nil #'equal)))
+    (setf (cdr entry) (list version (cl-ecase method
+                                      (git 0)
+                                      (elpa nil))))))
+
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
 do-commit is non-nil, then automatically commit to the Git
@@ -448,6 +454,7 @@ negated relative to the default."
                   (when do-actions
                     (stp-post-actions pkg-name))
                   (when refresh
+                    (stp-update-cached-latest pkg-name .method .version)
                     (stp-list-refresh pkg-name t)))))))))))
 
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
@@ -488,9 +495,9 @@ do-push and proceed arguments are as in `stp-install'."
           (stp-with-memoization
             (let-alist (stp-get-alist pkg-info pkg-name)
               (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
-                     (extra-versions (and (or stp-git-upgrade-always-offer-remote-heads
-                                              (eq .method 'git))
-                                          (eq .update 'unstable)
+                     (extra-versions (and (eq .method 'git)
+                                          (or stp-git-upgrade-always-offer-remote-heads
+                                              (eq .update 'unstable))
                                           (stp-git-remote-heads-sorted chosen-remote)))
                      (prompt (format "Upgrade from %s to version: " (stp-abbreviate-remote-version .method chosen-remote .version))))
                 (when (stp-url-safe-remote-p chosen-remote)
@@ -519,6 +526,7 @@ do-push and proceed arguments are as in `stp-install'."
                     (when do-actions
                       (stp-post-actions pkg-name))
                     (when refresh
+                      (stp-update-cached-latest pkg-name .method new-version)
                       (stp-list-refresh pkg-name t))))))))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
