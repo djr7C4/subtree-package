@@ -138,7 +138,8 @@ Alternatively, you can manually install each of the dependencies using
 for each dependency.
 
 STP also requires that you install =atool= if you wish to install ELPA and
-compressed URL packages.
+compressed URL packages. Additionally, to support certain non-essential
+commands, the ELPA queue package is required.
 * Recommended bindings
 #+begin_src emacs-lisp
   (keymap-global-set "C-c O" #'stp-find-package)

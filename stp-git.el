@@ -202,6 +202,10 @@ kept. By default all refs are returned."
   "Return an alist that maps hashes to heads."
   (stp-git-remote-hash-alist remote :prefixes '("refs/heads/")))
 
+(defun stp-git-remote-head (remote)
+  "Return HEAD for REMOTE."
+  (car (rassoc "HEAD" (stp-git-remote-hash-alist remote))))
+
 (defun stp-git-remote-heads (remote)
   (mapcar 'cdr (stp-git-remote-hash-head-alist remote)))
 
@@ -399,9 +403,13 @@ will be considered which may improve efficiency."
       (delete-directory path t))))
 
 (defun stp-git-latest-version (remote update branch)
-  (if (eq update 'stable)
-      (stp-git-remote-latest-tag remote)
-    (car (rassoc branch (stp-git-remote-hash-head-alist remote)))))
+  (cond
+   ((eq update 'stable)
+    (stp-git-remote-latest-tag remote))
+   ((not (string= branch "HEAD"))
+    (car (rassoc branch (stp-git-remote-hash-head-alist remote))))
+   (t
+    (stp-git-remote-head remote))))
 
 (defun stp-git-commit (&optional msg)
   (setq msg (or msg ""))

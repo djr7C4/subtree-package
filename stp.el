@@ -22,6 +22,7 @@
 (require 'stp-elpa)
 (require 'stp-git)
 (require 'stp-url)
+(require 'queue)
 (require 'text-property-search)
 (require 'url-handlers)
 (require 'xml)
@@ -932,11 +933,18 @@ that many packages."
   (setq n (or n 1))
   (stp-list-next-repair (- n)))
 
+(defvar stp-git-latest-update nil
+  "When this is non-nil, always use that value for the update
+parameter of `stp-git-latest-version' when computing the latest
+version.")
+
 (defun stp-latest-version (pkg-name pkg-alist)
   (let-alist pkg-alist
     (cl-ecase .method
       (git
-       (let ((latest (stp-git-latest-version .remote .update .branch)))
+       (let ((latest (stp-git-latest-version .remote
+                                             (or stp-git-latest-update .update)
+                                             (or .branch "HEAD"))))
          (list pkg-name
                latest
                (stp-git-count-commits .remote .version latest .branch))))
@@ -950,25 +958,62 @@ that many packages."
              nil
              nil)))))
 
-(cl-defun stp-latest-versions (&key (quiet t))
-  (let ((pkg-info (stp-read-info)))
-    (mapcar (lambda (pkg)
-              (db (pkg-name . pkg-alist)
-                  pkg
-                (unless quiet
-                  (message "Checking the latest version of %s" pkg-name))
-                (stp-latest-version pkg-name pkg-alist)))
-            pkg-info)))
+(defvar stp-latest-retries 3)
+(defvar stp-latest-delay 5)
+
+(cl-defun stp-latest-versions (&key (quiet t) (pkg-names t))
+  (let (latest-versions
+        (first t)
+        (queue (make-queue))
+        (pkg-info (stp-read-info)))
+    (dolist (pkg (if (eq pkg-names t)
+                     pkg-info
+                   (-filter (lambda (pkg)
+                              (member (car pkg) pkg-names))
+                            pkg-info)))
+      (db (pkg-name . pkg-alist)
+          pkg
+        (queue-enqueue queue (list pkg-name pkg-alist 0))))
+    (while (not (queue-empty queue))
+      (if first
+          (setq first nil)
+        (sit-for stp-latest-delay))
+      (db (pkg-name pkg-alist tries)
+          (queue-dequeue queue)
+        (condition-case nil
+            (progn
+              (unless quiet
+                (message "Checking the latest version of %s" pkg-name))
+              (push (stp-latest-version pkg-name pkg-alist) latest-versions))
+          (error (if (>= tries stp-latest-retries)
+                     (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries)
+                   (cl-incf tries)
+                   (message "Getting the latest version of %s failed (%d/%d)" pkg-name tries stp-latest-retries)
+                   (queue-enqueue queue (list pkg-name pkg-alist tries)))))))
+    latest-versions))
 
 (defvar stp-latest-versions-cache nil)
 
-(defun stp-list-update-latest-versions ()
+(defun stp-list-update-latest-version (pkg-name &optional arg)
+  "Compute the latest field for the current package in
+`stp-list-mode'. With a prefix argument, use \\='unstable as the
+value for `stp-git-latest-update'."
+  (interactive (list (stp-list-package-on-line) current-prefix-arg))
+  (when pkg-name
+    (stp-list-update-latest-versions (list pkg-name) arg)))
+
+(cl-defun stp-list-update-latest-versions (&optional (pkg-names t) arg)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
-operation."
+operation that may take several minutes if many packages are
+installed. With a prefix argument, use \\='unstable as the value
+for `stp-git-latest-update'."
   (interactive)
   (stp-with-memoization
-    (setq stp-latest-versions-cache (stp-latest-versions :quiet nil))
+    (setq stp-latest-versions-cache (map-merge 'alist
+                                               stp-latest-versions-cache
+                                               (let ((stp-git-latest-update (if arg 'unstable stp-git-latest-update)))
+                                                 (stp-latest-versions :quiet nil :pkg-names pkg-names))))
     (stp-list-refresh (stp-list-package-on-line) t)))
 
 (rem-set-keys stp-list-mode-map
@@ -993,6 +1038,8 @@ operation."
               "R" #'stp-repair-all
               "t" #'stp-toggle-update
               "u" #'stp-upgrade
+              "v" #'stp-list-update-latest-version
+              "V" #'stp-list-update-latest-versions
               "RET" #'stp-find-package)
 
 (cl-defun stp-list-refresh (&optional refresh-pkg-name quiet)
@@ -1020,7 +1067,7 @@ operation."
                                     (db (latest count)
                                         it
                                       (and latest
-                                           (concat latest
+                                           (concat (stp-list-abbreviate-version .method latest)
                                                    (if (and count (/= count 0))
                                                        (format "(%d)" count)
                                                      "")))))
