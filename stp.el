@@ -970,8 +970,13 @@ version.")
              nil
              nil)))))
 
-(defvar stp-latest-retries 3)
-(defvar stp-latest-delay 5)
+(defvar stp-latest-retries 3
+  "Retry computing the latest version for a package up to this many
+times if failures occur.")
+
+(defvar stp-latest-delay 0
+  "Wait this long in between computing the latest versions for
+packages. This is intended to help with rate limiting issues.")
 
 (cl-defun stp-latest-versions (&key (quiet t) (pkg-names t))
   (let (latest-versions
