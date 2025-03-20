@@ -407,7 +407,8 @@ active."
 (defvar stp-latest-versions-cache nil)
 
 (defun stp-update-cached-latest (pkg-name)
-  (stp-list-update-latest-version pkg-name :quiet t))
+  (when stp-latest-versions-cache
+    (stp-list-update-latest-version pkg-name :quiet t)))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
