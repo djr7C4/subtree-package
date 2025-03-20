@@ -979,7 +979,7 @@ times if failures occur.")
   "Wait this long in between computing the latest versions for
 packages. This is intended to help with rate limiting issues.")
 
-(cl-defun stp-latest-versions (&key (quiet t) (pkg-names t))
+(cl-defun stp-latest-versions (&key (pkg-names t) (quiet t))
   (let (latest-versions
         (first t)
         (queue (make-queue))
@@ -1002,9 +1002,11 @@ packages. This is intended to help with rate limiting issues.")
             (push (stp-latest-version pkg-name pkg-alist) latest-versions)
           (error
            (if (>= tries stp-latest-retries)
-               (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries)
+               (unless quiet
+                 (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries))
              (cl-incf tries)
-             (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err))
+             (unless quiet
+               (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
              (queue-enqueue queue (list pkg-name pkg-alist tries))))
           (:success
            (unless quiet
@@ -1039,9 +1041,10 @@ for all packages."
       (setq stp-latest-versions-cache (map-merge 'alist
                                                  stp-latest-versions-cache
                                                  (stp-latest-versions :pkg-names pkg-names :quiet quiet)))
-      (if plural
-          (message "Finished updating the latest versions")
-        (message "Updated the latest version for %s" (car pkg-names)))
+      (unless quiet
+        (if plural
+            (message "Finished updating the latest versions")
+          (message "Updated the latest version for %s" (car pkg-names))))
       (stp-list-refresh (stp-list-package-on-line) t))))
 
 (rem-set-keys stp-list-mode-map
