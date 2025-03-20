@@ -1024,7 +1024,7 @@ packages. This is intended to help with rate limiting issues.")
   (when pkg-name
     (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet)))
 
-(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet)
+(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet focus)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
@@ -1033,12 +1033,12 @@ installed.
 By default, only compute the latest field for packages that are
 not already in the cache. With a prefix argument, recompute it
 for all packages."
-  (interactive (list :pkg-names
-                     (if current-prefix-arg
-                         t
-                       (cl-set-difference (stp-info-names)
-                                          (mapcar #'car stp-latest-versions-cache)
-                                          :test #'equal))))
+  (interactive (list :pkg-names (if current-prefix-arg
+                                    t
+                                  (cl-set-difference (stp-info-names)
+                                                     (mapcar #'car stp-latest-versions-cache)
+                                                     :test #'equal))
+                     :focus t))
   (let ((plural (or (eq pkg-names t)
                     (not (= (length pkg-names) 1)))))
     (stp-with-memoization
@@ -1048,7 +1048,10 @@ for all packages."
                                        (db (pkg-name . version-data)
                                            latest-version
                                          (setf (map-elt stp-latest-versions-cache pkg-name) version-data)
-                                         (stp-list-refresh (stp-list-package-on-line) t))))
+                                         (when (derived-mode-p 'stp-list-mode)
+                                           (when focus
+                                             (stp-list-focus-package pkg-name))
+                                           (stp-list-refresh (stp-list-package-on-line) t)))))
       (unless quiet
         (if plural
             (message "Finished updating the latest versions")
