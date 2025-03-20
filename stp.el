@@ -980,7 +980,7 @@ times if failures occur.")
   "Wait this long in between computing the latest versions for
 packages. This is intended to help with rate limiting issues.")
 
-(cl-defun stp-latest-versions (&key (pkg-names t) (quiet t))
+(cl-defun stp-latest-versions (&key (pkg-names t) quiet callback)
   (let (latest-versions
         (first t)
         (queue (make-queue))
@@ -1000,7 +1000,10 @@ packages. This is intended to help with rate limiting issues.")
       (db (pkg-name pkg-alist tries)
           (queue-dequeue queue)
         (condition-case err
-            (push (stp-latest-version pkg-name pkg-alist) latest-versions)
+            (when-let ((latest-version (stp-latest-version pkg-name pkg-alist)))
+              (push latest-version latest-versions)
+              (when callback
+                (funcall callback latest-version)))
           (error
            (if (>= tries stp-latest-retries)
                (unless quiet
@@ -1039,14 +1042,17 @@ for all packages."
   (let ((plural (or (eq pkg-names t)
                     (not (= (length pkg-names) 1)))))
     (stp-with-memoization
-      (setq stp-latest-versions-cache (map-merge 'alist
-                                                 stp-latest-versions-cache
-                                                 (stp-latest-versions :pkg-names pkg-names :quiet quiet)))
+      (stp-latest-versions :pkg-names pkg-names
+                           :quiet quiet
+                           :callback (lambda (latest-version)
+                                       (db (pkg-name . version-data)
+                                           latest-version
+                                         (setf (map-elt stp-latest-versions-cache pkg-name) version-data)
+                                         (stp-list-refresh (stp-list-package-on-line) t))))
       (unless quiet
         (if plural
             (message "Finished updating the latest versions")
-          (message "Updated the latest version for %s" (car pkg-names))))
-      (stp-list-refresh (stp-list-package-on-line) t))))
+          (message "Updated the latest version for %s" (car pkg-names)))))))
 
 (rem-set-keys stp-list-mode-map
               "b" #'stp-build
