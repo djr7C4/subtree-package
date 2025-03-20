@@ -33,8 +33,11 @@ using =stp-list-mode= and has convenience bindings for
 - building info (=m=),
 - editing remotes (=e=),
 - uninstalling (=x=),
-- repairing (=r=) and
 - toggling between stable and unstable (=t=),
+- find the latest stable and unstable versions for
+  + the current package (=v=) or
+  + all packages (=V=),
+- repairing (=r=) and
 - editing available remotes (=e=),
 - reloading (=G=),
 - adding to the load path (=l=) and
@@ -54,6 +57,18 @@ releases. Stable packages are only upgraded to other stable releases by default.
 
 Packages can also be marked as unstable which allows them to installed
 and upgraded to any hash, branch or tag.
+** Find upgradable packages
+Use =v= in =stp-list-mode= to find the latest stable and unstable versions for
+the current package and display this information in a latest field.
+
+Only git packages have unstable versions so this information is omitted for ELPA
+packages. There is no way to retrieve any version information at all for URL
+packages so the latest version is omitted entirely.
+
+For git packages, the number of commits required to reach the latest version
+from the currently installed version is shown in parentheses. For ELPA packages,
+the number in parentheses is the number of stable versions since the currently
+installed version.
 ** Choose between multiple remotes
 STP remembers all remotes that the user has entered when upgrading a package.
 These are available for the user to choose for future upgrades using completion.
