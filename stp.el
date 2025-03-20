@@ -963,11 +963,12 @@ that many packages."
               (versions-to-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable)))
          (unless latest-stable
            (error "Failed to get the latest stable version for %s" pkg-name))
-         (unless versions-to-stable
-           (error "Failed to count the number of stable versions since %s for %s" .version pkg-name))
-         `(,pkg-name
-           (latest-stable . ,latest-stable)
-           (count-to-stable . ,versions-to-stable))))
+         ;; Occasionally, it is possible we may run into a package when
+         ;; versions-to-stable is nil because the current version is invalid and
+         ;; does not appear in the list of versions on ELPA.
+         (append `(,pkg-name
+                   (latest-stable . ,latest-stable))
+                 (and versions-to-stable (list `(count-to-stable . ,versions-to-stable))))))
       (url
        nil))))
 
