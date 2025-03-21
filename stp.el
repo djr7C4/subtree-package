@@ -917,6 +917,13 @@ that many packages."
   (setq n (or n 1))
   (forward-line (- n)))
 
+(defun stp-list-open-current-remote (pkg-name)
+  "Open the remote for PKG-NAME in the default browser."
+  (interactive (list (stp-list-package-on-line)))
+  (let ((pkg-info (stp-read-info)))
+    (when pkg-name
+      (browse-url (stp-get-attribute pkg-info pkg-name 'remote)))))
+
 (defun stp-list-next-repair (&optional n)
   "Go to the next package that needs to be repaired. With a prefix argument, go
 forward that many packages. With a negative prefix argument, go backward that
@@ -1073,6 +1080,7 @@ for all packages."
               "L" #'stp-update-load-paths
               "n" #'stp-list-next-package
               "p" #'stp-list-previous-package
+              "O" #'stp-list-open-current-remote
               "M-n" #'stp-list-next-repair
               "M-p" #'stp-list-previous-repair
               "r" #'stp-repair
