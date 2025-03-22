@@ -339,7 +339,7 @@ performed.")
            ;; it is not likely). It is also possible for a branch or tag to
            ;; match this regexp. However, this is much faster than using
            ;; `stp-git-valid-remote-ref-p' to check
-           (string-match-p "^[a-f]*[0-9][a-f]$*" version))
+           (string-match-p "^[a-f]*[0-9][a-f]*$" version))
       (stp-git-abbreviate-hash version)
     (if (> (length version) stp-list-version-length)
         (concat (s-left stp-list-version-length version) stp-ellipsis)
