@@ -1057,7 +1057,7 @@ for all packages."
                                          (setf (map-elt stp-latest-versions-cache pkg-name) version-data)
                                          (when (derived-mode-p 'stp-list-mode)
                                            (when focus
-                                             (stp-list-focus-package pkg-name))
+                                             (stp-list-focus-package pkg-name :recenter-arg -1))
                                            (stp-list-refresh (stp-list-package-on-line) t)))))
       (unless quiet
         (if plural
@@ -1159,11 +1159,12 @@ for all packages."
       (unless quiet
         (message "Refreshed packages")))))
 
-(defun stp-list-focus-package (pkg-name)
+(cl-defun stp-list-focus-package (pkg-name &key (recenter t) (recenter-arg nil))
   (save-match-data
     (re-search-forward (concat "^" (regexp-quote pkg-name)))
     (beginning-of-line)
-    (recenter)))
+    (when recenter
+      (recenter recenter-arg))))
 
 (defun stp-list ()
   "List the packages installed in `stp-source-directory'."
