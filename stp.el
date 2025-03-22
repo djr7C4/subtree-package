@@ -967,7 +967,7 @@ that many packages."
                  (and commits-to-unstable (list `(count-to-unstable . ,commits-to-unstable))))))
       (elpa
        (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))
-              (versions-to-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable)))
+              (versions-to-stable (and latest-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable))))
          (unless latest-stable
            (error "Failed to get the latest stable version for %s" pkg-name))
          ;; Occasionally, it is possible we may run into a package when
