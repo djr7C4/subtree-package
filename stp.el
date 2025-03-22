@@ -1021,7 +1021,7 @@ packages. This is intended to help with rate limiting issues.")
              (queue-enqueue queue (list pkg-name pkg-alist tries))))
           (:success
            (unless quiet
-             (message "Checking the latest version of %s" pkg-name))))))
+             (message "Updated the latest version of %s" pkg-name))))))
     latest-versions))
 
 (cl-defun stp-list-update-latest-version (pkg-name &key quiet)
