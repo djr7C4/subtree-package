@@ -1270,7 +1270,7 @@ development or for opening packages from `stp-list-mode'."
                     (default-directory dir))
                 (find-file (if arg
                                dir
-                             (or file-found (stp-main-package-file dir))))
+                             (or (setq file-found file) (stp-main-package-file dir))))
                 ;; Go to the corresponding line in the file if possible.
                 (when (and file-found (<= (point-min) pt (point-max)))
                   (goto-char pt)
