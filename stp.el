@@ -1265,12 +1265,13 @@ development or for opening packages from `stp-list-mode'."
             (let ((dir (f-canonical (if (cdr dirs)
                                         (rem-comp-read "Directory: " dirs :require-match t)
                                       (car dirs)))))
-              (let ((default-directory dir))
+              (let (file-found
+                    (default-directory dir))
                 (find-file (if arg
                                dir
-                             (or file (stp-main-package-file dir))))
+                             (or file-found (stp-main-package-file dir))))
                 ;; Go to the corresponding line in the file if possible.
-                (when (and file (<= (point-min) pt (point-max)))
+                (when (and file-found (<= (point-min) pt (point-max)))
                   (goto-char pt)
                   (rem-move-current-window-line-to-pos window-line-num))))
           (message "%s was not found in the local filesystem" pkg-name))))))
