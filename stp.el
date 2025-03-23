@@ -29,13 +29,21 @@
 (require 'url-handlers)
 (require 'xml)
 
+(defvar stp-normalize-versions nil
+  "Indicates if versions should be printed in the same format by STP
+commands regardless of the specific format used for versions by
+the project.")
+
 (defun stp-abbreviate-remote-version (method remote version)
   "Abbreviate long hashes to make them more readable. Other versions
 are not abbreviated."
-  (if (and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
-      (stp-git-abbreviate-hash version)
-    ;; (stp-normalize-version version)
-    version))
+  (cond
+   ((and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
+    (stp-git-abbreviate-hash version))
+   (stp-normalize-versions
+    (stp-normalize-version version))
+   (t
+    version)))
 
 (defun stp-remote-method (remote)
   "Determine the method for the remote."
@@ -346,7 +354,8 @@ performed.")
            ;; (string-match-p "^[a-f]*[0-9][a-f]*[a-f0-9]*$" version)
            )
       (stp-git-abbreviate-hash version)
-    ;; (setq version (stp-normalize-version version))
+    (when stp-normalize-versions
+      (setq version (stp-normalize-version version)))
     (if (> (length version) stp-list-version-length)
         (concat (s-left stp-list-version-length version) stp-ellipsis)
       version)))
