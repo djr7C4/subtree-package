@@ -329,8 +329,10 @@ pkg-name."
                              (match-string 2 v-last)
                              (match-string 3 v-last))
                      (list v-last))))))))
-  "An list of regexps to match to package versions and functions to extract a
-  key to compare.")
+  "An list of regexps to match to package versions and functions to
+extract a key to compare. The key should be a list of strings
+which are the components of the version string. For example, for
+v1.2.3a the key would be (\"1\" \"2\" \"3\" \"a\").")
 
 (defun stp-version-extract (version)
   (dolist (cell stp-version-extractor-alist)
