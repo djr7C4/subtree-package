@@ -408,7 +408,13 @@ active."
               (list pkg-alist))
             args)))
 
-(defvar stp-latest-versions-cache nil)
+(defvar stp-latest-versions-stale-interval (* 24 60 60)
+  "The number of seconds until the cached latest versions in
+`stp-latest-versions-cache' are considered stale.")
+
+(if (require 'persist nil t)
+    (persist-defvar stp-latest-versions-cache nil nil)
+  (defvar stp-latest-versions-cache nil))
 
 (defun stp-update-cached-latest (pkg-name)
   (when stp-latest-versions-cache
@@ -963,15 +969,19 @@ that many packages."
               (commits-to-stable (and latest-stable
                                       (stp-git-count-commits .remote .version latest-stable .branch)))
               (commits-to-unstable (and latest-unstable
-                                        (stp-git-count-commits .remote .version latest-unstable .branch))))
+                                        (stp-git-count-commits .remote .version latest-unstable .branch)))
+              (time (rem-seconds)))
          (append (list pkg-name)
                  (and latest-stable (list `(latest-stable . ,latest-stable)))
                  (and latest-unstable (list `(latest-unstable . ,latest-unstable)))
                  (and commits-to-stable (list `(count-to-stable . ,commits-to-stable)))
-                 (and commits-to-unstable (list `(count-to-unstable . ,commits-to-unstable))))))
+                 (and commits-to-unstable (list `(count-to-unstable . ,commits-to-unstable)))
+                 (and (or latest-stable latest-unstable commits-to-stable commits-to-unstable)
+                      (list `(updated . ,time))))))
       (elpa
        (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))
-              (versions-to-stable (and latest-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable))))
+              (versions-to-stable (and latest-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable)))
+              (time (rem-seconds)))
          (unless latest-stable
            (error "Failed to get the latest stable version for %s" pkg-name))
          ;; Occasionally, it is possible we may run into a package when
@@ -979,7 +989,8 @@ that many packages."
          ;; does not appear in the list of versions on ELPA.
          (append `(,pkg-name
                    (latest-stable . ,latest-stable))
-                 (and versions-to-stable (list `(count-to-stable . ,versions-to-stable))))))
+                 (and versions-to-stable (list `(count-to-stable . ,versions-to-stable)))
+                 (list `(updated . ,time)))))
       (url
        nil))))
 
@@ -1102,24 +1113,28 @@ for all packages."
                    (format "(%d)" count)
                  ""))))
 
-(defun stp-list-latest-field (method version-alist)
+(defun stp-list-latest-field (method version-alist seconds)
   (when version-alist
     (let-alist version-alist
-      (let ((stable-version-string (stp-list-version-with-count method .latest-stable .count-to-stable))
-            (unstable-version-string (stp-list-version-with-count method .latest-unstable .count-to-unstable)))
+      (let* ((stale (and .updated (> (- seconds .updated) stp-latest-versions-stale-interval)))
+             (stale-string (if stale "?" ""))
+             (stable-version-string (stp-list-version-with-count method .latest-stable .count-to-stable))
+             (unstable-version-string (stp-list-version-with-count method .latest-unstable .count-to-unstable)))
         (cond
          ((and .latest-stable .latest-unstable)
-          (format "%s/%s" stable-version-string unstable-version-string))
+          (format "%s/%s%s" stable-version-string unstable-version-string stale-string))
          ((or .latest-stable .latest-unstable)
-          (or stable-version-string unstable-version-string))
+          (concat (or stable-version-string unstable-version-string)
+                  stale-string))
          (t
           "\t"))))))
 
 (cl-defun stp-list-refresh (&optional refresh-pkg-name quiet)
   (interactive (list (stp-list-package-on-line)))
   (when (derived-mode-p 'stp-list-mode)
-    (let ((pkg-info (stp-read-info))
-          (column (current-column))
+    (let ((column (current-column))
+          (pkg-info (stp-read-info))
+          (seconds (rem-seconds))
           (window-line-num (progn
                              (beginning-of-line)
                              (rem-window-line-number-at-pos))))
@@ -1137,7 +1152,7 @@ for all packages."
                               stp-list-missing-field-string)
                           (or (when stp-latest-versions-cache
                                 (or (awhen (map-elt stp-latest-versions-cache pkg-name)
-                                      (stp-list-latest-field .method it))
+                                      (stp-list-latest-field .method it seconds))
                                     "\t"))
                               "")
                           (if .method
