@@ -30,8 +30,10 @@
 (require 'xml)
 
 (defun stp-abbreviate-remote-version (method remote version)
-  (if (eq method 'git)
-      (stp-git-abbreviate-remote-version remote version)
+  "Abbreviate long hashes to make them more readable. Other versions
+are not abbreviated."
+  (if (and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
+      (stp-git-abbreviate-hash version)
     version))
 
 (defun stp-remote-method (remote)
@@ -330,8 +332,8 @@ performed.")
 
 (defvar stp-list-version-length 16)
 
-;; `stp-git-abbreviate-remote-version' is too slow to used in `stp-list-mode' so
-;; a faster but less careful variant is used.
+;; `stp-abbreviate-remote-version' is too slow to used in `stp-list-mode' so a
+;; faster but less careful variant is used.
 (defun stp-list-abbreviate-version (method version)
   (if (and (eq method 'git)
            ;; This is a crude test to determine if version is a git hash and it

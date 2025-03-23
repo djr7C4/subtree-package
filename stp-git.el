@@ -132,11 +132,6 @@
 (defun stp-git-abbreviate-hash (hash)
   (s-left stp-git-abbreviated-hash-length hash))
 
-(defun stp-git-abbreviate-remote-version (remote version)
-  (if (stp-git-valid-remote-ref-p remote version)
-      version
-    (stp-git-abbreviate-hash version)))
-
 (defun stp-git-subtree-hash (pkg-name)
   "Determine the hash that was last merged into the subtree at pkg-name from the
 remote repository."
