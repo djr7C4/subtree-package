@@ -886,18 +886,12 @@ info files in the directory for that package."
   '((t (:inherit font-lock-warning-face)))
   "Face for packages with errors")
 
-(defvar stp-list-font-lock-keywords '((("^.*\\?.*" . stp-list-error-face))))
-
 (defvar stp-list-buffer-name "*STP Package List*")
 
-(defvar stp-list-missing-field-string "???")
+(defvar stp-list-missing-field-string (propertize "???" 'face 'stp-list-error-face))
 
 (define-derived-mode stp-list-mode special-mode "STP"
   "Major mode for managing source packages. \\{stp-list-mode-map}"
-  (setq-local font-lock-defaults stp-list-font-lock-keywords)
-  ;; Without this, fontification will not be done on parts of the buffer that
-  ;; are not visible which will break `stp-list-next-repair'.
-  (font-lock-ensure)
   (visual-line-mode 0)
   ;; Line wrapping isn't appropriate for `stp-list-mode' as it just makes a
   ;; mess.
