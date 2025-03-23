@@ -883,12 +883,18 @@ info files in the directory for that package."
 (defvar stp-list-error-face 'stp-list-error-face)
 
 (defface stp-list-error-face
-  '((t (:inherit font-lock-warning-face)))
+  '((t (:inherit error)))
+  "Face for packages with errors")
+
+(defface stp-list-stale-face
+  '((t (:inherit warning)))
   "Face for packages with errors")
 
 (defvar stp-list-buffer-name "*STP Package List*")
 
 (defvar stp-list-missing-field-string (propertize "???" 'face 'stp-list-error-face))
+
+(defvar stp-list-stale-version-string "?")
 
 (define-derived-mode stp-list-mode special-mode "STP"
   "Major mode for managing source packages. \\{stp-list-mode-map}"
@@ -1111,17 +1117,20 @@ for all packages."
   (when version-alist
     (let-alist version-alist
       (let* ((stale (and .updated (> (- seconds .updated) stp-latest-versions-stale-interval)))
-             (stale-string (if stale "?" ""))
+             (stale-string (if stale stp-list-stale-version-string ""))
              (stable-version-string (stp-list-version-with-count method .latest-stable .count-to-stable))
-             (unstable-version-string (stp-list-version-with-count method .latest-unstable .count-to-unstable)))
-        (cond
-         ((and .latest-stable .latest-unstable)
-          (format "%s/%s%s" stable-version-string unstable-version-string stale-string))
-         ((or .latest-stable .latest-unstable)
-          (concat (or stable-version-string unstable-version-string)
-                  stale-string))
-         (t
-          "\t"))))))
+             (unstable-version-string (stp-list-version-with-count method .latest-unstable .count-to-unstable))
+             (version-string
+              (cond
+               ((and .latest-stable .latest-unstable)
+                (format "%s/%s" stable-version-string unstable-version-string stale-string))
+               ((or .latest-stable .latest-unstable)
+                (or stable-version-string unstable-version-string))
+               (t
+                "\t"))))
+        (when stale
+          (setq version-string (propertize (concat version-string stale-string) 'face 'stp-list-stale-face)))
+        version-string))))
 
 (cl-defun stp-list-refresh (&optional refresh-pkg-name quiet)
   (interactive (list (stp-list-package-on-line)))
