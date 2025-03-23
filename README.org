@@ -54,6 +54,11 @@ For git packages, the number of commits required to reach the latest version
 from the currently installed version is shown in parentheses. For ELPA packages,
 the number in parentheses is the number of stable versions since the currently
 installed version.
+
+If the ELPA =persist= package is installed, the latest versions will be saved
+between sessions. Latest versions are considered stale when they haven't been
+updated for more than =stp-latest-versions-stale-interval= seconds and are
+highlighted in =stp-list-mode=.
 ** Choose between multiple remotes
 STP remembers all remotes that the user has entered when upgrading a package.
 These are available for the user to choose for future upgrades using completion.
@@ -139,7 +144,7 @@ for each dependency.
 
 STP also requires that you install =atool= if you wish to install ELPA and
 compressed URL packages. Additionally, to support certain non-essential
-commands, the ELPA queue package is required.
+features, the ELPA persist and queue packages are required.
 * Recommended bindings
 #+begin_src emacs-lisp
   (keymap-global-set "C-c O" #'stp-find-package)
