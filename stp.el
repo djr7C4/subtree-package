@@ -34,6 +34,7 @@
 are not abbreviated."
   (if (and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
       (stp-git-abbreviate-hash version)
+    ;; (stp-normalize-version version)
     version))
 
 (defun stp-remote-method (remote)
@@ -345,6 +346,7 @@ performed.")
            ;; (string-match-p "^[a-f]*[0-9][a-f]*[a-f0-9]*$" version)
            )
       (stp-git-abbreviate-hash version)
+    ;; (setq version (stp-normalize-version version))
     (if (> (length version) stp-list-version-length)
         (concat (s-left stp-list-version-length version) stp-ellipsis)
       version)))
@@ -896,6 +898,8 @@ info files in the directory for that package."
 
 (defvar stp-list-stale-version-string "?")
 
+(defvar stp-list-latest-version-separator (propertize "/" 'face 'bold))
+
 (define-derived-mode stp-list-mode special-mode "STP"
   "Major mode for managing source packages. \\{stp-list-mode-map}"
   (visual-line-mode 0)
@@ -1123,7 +1127,7 @@ for all packages."
              (version-string
               (cond
                ((and .latest-stable .latest-unstable)
-                (format "%s/%s" stable-version-string unstable-version-string stale-string))
+                (format "%s%s%s" stable-version-string stp-list-latest-version-separator unstable-version-string stale-string))
                ((or .latest-stable .latest-unstable)
                 (or stable-version-string unstable-version-string))
                (t

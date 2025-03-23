@@ -313,7 +313,7 @@ pkg-name."
      (lambda (v)
        (s-split "-" (s-chop-prefix "haskell-mode-" v))))
     ;; auctex
-    ("\\`\\(?:auctex_release\\|auctex\\|release\\|rel\\)[-_./]\\([0-9]+\\([-_.][0-9]+\\)*[a-zA-Z]?\\+?\\)\\'" .
+    ("\\`\\(?:auctex_release\\|auctex\\|release\\|rel\\)\\(?:[-_./]\\)\\([0-9]+\\([-_.][0-9]+\\)*[a-zA-Z]?\\+?\\)\\'" .
      (lambda (v)
        (let* ((vs (s-split "_\\|-" v))
               (v-butlast (butlast vs))
@@ -330,9 +330,10 @@ pkg-name."
                              (match-string 3 v-last))
                      (list v-last))))))))
   "An list of regexps to match to package versions and functions to
-extract a key to compare. The key should be a list of strings
-which are the components of the version string. For example, for
-v1.2.3a the key would be (\"1\" \"2\" \"3\" \"a\").")
+extract a key from the text that matches the first group of the
+regexp. The key should be a list of strings which are the
+components of the version string. For example, for v1.2.3a the
+key would be (\"1\" \"2\" \"3\" \"a\").")
 
 (defun stp-version-extract (version)
   (dolist (cell stp-version-extractor-alist)
@@ -341,6 +342,9 @@ v1.2.3a the key would be (\"1\" \"2\" \"3\" \"a\").")
       (save-match-data
         (when (string-match regexp version)
           (cl-return (funcall extractor (match-string 1 version))))))))
+
+(defun stp-normalize-version (version)
+  (s-join "." (stp-version-extract version)))
 
 (defun stp-download-elisp (pkg-name remote)
   "Download the elisp file or archive at url and copy it to pkg-name. pkg-name
