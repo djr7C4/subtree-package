@@ -1057,7 +1057,8 @@ packages. This is intended to help with rate limiting issues.")
 `stp-list-mode'."
   (interactive (list (stp-list-package-on-line) :quiet t))
   (when pkg-name
-    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet)))
+    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet)
+    (stp-list-next-package)))
 
 (cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet focus)
   "Compute the latest field in `stp-list-mode' so that the user can
