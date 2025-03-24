@@ -1208,6 +1208,7 @@ argument, recompute the latest versions for all packages."
 
 (cl-defun stp-list-focus-package (pkg-name &key (recenter t) (recenter-arg nil))
   (save-match-data
+    (beginning-of-buffer)
     (re-search-forward (concat "^" (regexp-quote pkg-name)))
     (beginning-of-line)
     (when recenter
