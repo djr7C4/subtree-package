@@ -1078,7 +1078,7 @@ argument, recompute the latest versions for all packages."
                                     (--> stp-latest-versions-cache
                                          (-filter (lambda (latest-version)
                                                     (let-alist (cdr latest-version)
-                                                      (not (stp-stale-p seconds .updated))))
+                                                      (not (stp-latest-stale-p seconds .updated))))
                                                   it)
                                          (mapcar #'car it)
                                          (cl-set-difference (stp-info-names)
@@ -1137,13 +1137,13 @@ argument, recompute the latest versions for all packages."
                    (format "(%d)" count)
                  ""))))
 
-(defun stp-stale-p (seconds updated)
+(defun stp-latest-stale-p (seconds updated)
   (and updated (> (- seconds updated) stp-latest-versions-stale-interval)))
 
 (defun stp-list-latest-field (method version-alist seconds)
   (when version-alist
     (let-alist version-alist
-      (let* ((stale (stp-stale-p seconds .updated))
+      (let* ((stale (stp-latest-stale-p seconds .updated))
              (stale-string (if stale stp-list-stale-version-string ""))
              (stable-version-string (stp-list-version-with-count method .latest-stable .count-to-stable))
              (unstable-version-string (stp-list-version-with-count method .latest-unstable .count-to-unstable))
