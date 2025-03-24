@@ -275,6 +275,8 @@ the \\='git method."
                       (stp-git-abbreviate-hash (stp-git-ref-to-hash remote version))))
             versions)))
 
+(defvar stp-git-warn-unknown-version nil)
+
 (defvar stp-git-version-history nil)
 
 (cl-defun stp-git-read-version (prompt remote &key (extra-versions-position 'first) extra-versions default (branch-to-hash t))
@@ -293,7 +295,7 @@ are converted to hashes before they are returned."
                                (when (eq extra-versions-position 'last)
                                  extra-versions))
                        (stp-git-versions-with-hashes remote))))
-    (while (or (not version) (not (stp-git-valid-remote-ref-p remote version t)))
+    (while (or (not version) (not (stp-git-valid-remote-ref-p remote version stp-git-warn-unknown-version)))
       (setq version (->> (rem-comp-read prompt
                                         versions
                                         :default default
