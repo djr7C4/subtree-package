@@ -947,11 +947,7 @@ that many packages."
     (when pkg-name
       (browse-url (stp-get-attribute pkg-info pkg-name 'remote)))))
 
-(defun stp-list-next-repair (&optional n)
-  "Go to the next package that needs to be repaired. With a prefix argument, go
-forward that many packages. With a negative prefix argument, go backward that
-many packages."
-  (interactive "p")
+(defun stp-list-next-face (face &optional n)
   (setq n (or n 1))
   (db (line-move-fun search-fun)
       (if (>= n 0)
@@ -961,9 +957,16 @@ many packages."
     (while (and (> n 0)
                 (prog2
                     (funcall line-move-fun)
-                    (funcall search-fun 'face 'stp-list-error-face)
+                    (funcall search-fun 'face face)
                   (beginning-of-line)))
       (cl-decf n))))
+
+(defun stp-list-next-repair (&optional n)
+  "Go to the next package that needs to be repaired. With a prefix argument, go
+forward that many packages. With a negative prefix argument, go backward that
+many packages."
+  (interactive "p")
+  (stp-list-next-face 'stp-list-error-face))
 
 (defun stp-list-previous-repair (&optional n)
   "Go to the previous package that needs to be repaired. With a prefix argument,
