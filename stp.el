@@ -1067,13 +1067,21 @@ operation that may take several minutes if many packages are
 installed.
 
 By default, only compute the latest field for packages that are
-not already in the cache. With a prefix argument, recompute it
-for all packages."
+not already in the cache or were last updated more than
+`stp-latest-versions-stale-interval' seconds ago. With a prefix
+argument, recompute the latest versions for all packages."
   (interactive (list :pkg-names (if current-prefix-arg
                                     t
-                                  (cl-set-difference (stp-info-names)
-                                                     (mapcar #'car stp-latest-versions-cache)
-                                                     :test #'equal))
+                                  (let ((seconds (rem-seconds)))
+                                    (--> stp-latest-versions-cache
+                                         (-filter (lambda (latest-version)
+                                                    (let-alist (cdr latest-version)
+                                                      (not (stp-stale-p seconds .updated))))
+                                                  it)
+                                         (mapcar #'car it)
+                                         (cl-set-difference (stp-info-names)
+                                                            it
+                                                            :test #'equal))))
                      :focus t))
   (let ((plural (or (eq pkg-names t)
                     (not (= (length pkg-names) 1)))))
@@ -1127,10 +1135,13 @@ for all packages."
                    (format "(%d)" count)
                  ""))))
 
+(defun stp-stale-p (seconds updated)
+  (and updated (> (- seconds updated) stp-latest-versions-stale-interval)))
+
 (defun stp-list-latest-field (method version-alist seconds)
   (when version-alist
     (let-alist version-alist
-      (let* ((stale (and .updated (> (- seconds .updated) stp-latest-versions-stale-interval)))
+      (let* ((stale (stp-stale-p seconds .updated))
              (stale-string (if stale stp-list-stale-version-string ""))
              (stable-version-string (stp-list-version-with-count method .latest-stable .count-to-stable))
              (unstable-version-string (stp-list-version-with-count method .latest-unstable .count-to-unstable))
