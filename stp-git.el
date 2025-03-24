@@ -434,10 +434,10 @@ will be considered which may improve efficiency."
       (error "git fetch failed: %s" (s-trim output)))))
 
 (defun stp-git-maybe-fetch (remote version)
-  (when stp-subtree-fetch
-    (unless (stp-git-valid-remote-ref-p remote version)
-      (stp-git-fetch remote)
-      t)))
+  (when (and stp-subtree-fetch
+             (not (stp-git-valid-remote-ref-p remote version)))
+    (stp-git-fetch remote)
+    t))
 
 (cl-defun stp-git-install (pkg-info pkg-name remote version update &key branch (squash t))
   "Install the specified version of pkg-name from remote in
