@@ -379,14 +379,6 @@ are converted to hashes before they are returned."
 (defun stp-git-remote-latest-tag (remote)
   (car (stp-git-remote-tags-sorted remote)))
 
-(defun stp-git-count-commits-forward (path ref ref2)
-  (db (exit-code output)
-      (let ((default-directory path))
-        (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2)))
-    (if (= exit-code 0)
-        (string-to-number (s-trim output))
-      (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output)))))
-
 (cl-defun stp-git-count-commits (path ref ref2 &key both)
   "Count the number of commits that have been made after REF but
 before REF2 for the local git repository at PATH. If BOTH is
@@ -396,10 +388,17 @@ number of commits n in REF2..REF and return -n."
     (error "%s is not a valid ref for %s" ref remote))
   (unless (stp-git-valid-ref-p path ref2)
     (error "%s is not a valid ref for %s" ref2 remote))
-  (or (--first (/= it 0)
-               (append (list (stp-git-count-commits-forward path ref ref2))
-                       (and both (list (- (stp-git-count-commits-forward path ref2 ref))))))
-      0))
+  (cl-flet ((stp-git-count-commits-forward (path ref ref2)
+              (db (exit-code output)
+                  (let ((default-directory path))
+                    (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2)))
+                (if (= exit-code 0)
+                    (string-to-number (s-trim output))
+                  (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output))))))
+    (or (--first (/= it 0)
+                 (append (list (stp-git-count-commits-forward path ref ref2))
+                         (and both (list (- (stp-git-count-commits-forward path ref2 ref))))))
+        0)))
 
 (cl-defun stp-git-count-remote-commits (remote ref ref2 &key branch both)
   "This is similar to `stp-git-count-commits' except that it counts
