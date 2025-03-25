@@ -1076,9 +1076,9 @@ prefix argument, go forward that many packages."
        (let* ((latest-stable (stp-git-latest-stable-version .remote))
               (latest-unstable (stp-git-latest-unstable-version .remote (or .branch "HEAD")))
               (commits-to-stable (and latest-stable
-                                      (stp-git-count-commits .remote .version latest-stable .branch)))
+                                      (stp-git-count-remote-commits .remote .version latest-stable :branch .branch :both t)))
               (commits-to-unstable (and latest-unstable
-                                        (stp-git-count-commits .remote .version latest-unstable .branch)))
+                                        (stp-git-count-remote-commits .remote .version latest-unstable :branch .branch :both t)))
               (time (rem-seconds)))
          (append (list pkg-name)
                  (and latest-stable (list `(latest-stable . ,latest-stable)))
