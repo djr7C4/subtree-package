@@ -955,7 +955,8 @@ directory for the current package."
   (when (stp-info-names)
     (beginning-of-buffer)
     (forward-line)
-    (beginning-of-line)))
+    (beginning-of-line)
+    (recenter 1)))
 
 (defun stp-list-last-package ()
   "Go to the line for the last package."
@@ -963,7 +964,8 @@ directory for the current package."
   (when (stp-info-names)
     (end-of-buffer)
     (forward-line -1)
-    (beginning-of-line)))
+    (beginning-of-line)
+    (recenter -1)))
 
 (defun stp-list-next-package-with-predicate (predicate &optional n)
   "Go forward to the Nth line from point where predicate is non-nil
