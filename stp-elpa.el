@@ -89,6 +89,9 @@ package at remote to the URL where it can be downloaded."
 (defun stp-elpa-latest-version (pkg-name remote)
   (car (stp-elpa-versions-sorted pkg-name remote)))
 
+(defun stp-elpa-version-upgradable-p (count-to-stable)
+  (and count-to-stable (> count-to-stable 0) t))
+
 (cl-defun stp-elpa-install-or-upgrade (pkg-info pkg-name remote version &key (type 'install))
   "Install or upgrade to the specified version of pkg-name from remote into
 `stp-source-directory'. If the file fetched from remote is an

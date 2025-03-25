@@ -895,15 +895,23 @@ info files in the directory for that package."
 
 (defface stp-list-error-face
   '((t (:inherit error)))
-  "Face for packages with errors")
+  "Face for packages with errors.")
+
+(defvar stp-list-stale-face 'stp-list-stale-face)
 
 (defface stp-list-stale-face
-  '((t (:inherit warning)))
-  "Face for packages with errors")
+  '((t (:foreground "DarkOrange")))
+  "Face for stale latest versions.")
+
+(defvar stp-list-upgradable-face 'stp-list-upgradable-face)
+
+(defface stp-list-upgradable-face
+  '((t (:foreground "blue")))
+  "Face for versions that can be upgraded.")
 
 (defvar stp-list-buffer-name "*STP Package List*")
 
-(defvar stp-list-missing-field-string (propertize "???" 'face 'stp-list-error-face))
+(defvar stp-list-missing-field-string "???")
 
 (defvar stp-list-stale-version-string "?")
 
@@ -1091,9 +1099,9 @@ argument, recompute the latest versions for all packages."
       (stp-latest-versions :pkg-names pkg-names
                            :quiet quiet
                            :callback (lambda (latest-version)
-                                       (db (pkg-name . version-data)
+                                       (db (pkg-name . version-alist)
                                            latest-version
-                                         (setf (map-elt stp-latest-versions-cache pkg-name) version-data)
+                                         (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
                                          (when (derived-mode-p 'stp-list-mode)
                                            (when focus
                                              (stp-list-focus-package pkg-name :recenter-arg -1))
@@ -1140,6 +1148,12 @@ argument, recompute the latest versions for all packages."
 (defun stp-latest-stale-p (seconds updated)
   (and updated (> (- seconds updated) stp-latest-versions-stale-interval)))
 
+(defun stp-list-version-field (method version count-to-stable count-to-unstable update)
+  (let ((version-string (stp-list-abbreviate-version method version)))
+    (if (stp-version-upgradable-p method count-to-stable count-to-unstable update)
+        (propertize version-string 'face stp-list-upgradable-face)
+      version-string)))
+
 (defun stp-list-latest-field (method version-alist seconds)
   (when version-alist
     (let-alist version-alist
@@ -1156,7 +1170,7 @@ argument, recompute the latest versions for all packages."
                (t
                 "\t"))))
         (when stale
-          (setq version-string (propertize (concat version-string stale-string) 'face 'stp-list-stale-face)))
+          (setq version-string (propertize (concat version-string stale-string) 'face stp-list-stale-face)))
         version-string))))
 
 (cl-defun stp-list-refresh (&optional refresh-pkg-name quiet)
@@ -1175,25 +1189,28 @@ argument, recompute the latest versions for all packages."
                           " Latest"
                         "")))
       (dolist (pkg-name (stp-info-names))
-        (let-alist (stp-get-alist pkg-info pkg-name)
-          (insert (format "%s %s %s %s %s %s %s\n"
-                          (stp-name pkg-name)
-                          (or (stp-list-abbreviate-version .method .version)
+        (let ((version-alist (map-elt stp-latest-versions-cache pkg-name)))
+          ;; Nesting `let-alist' doesn't work nicely so we merge the alists
+          ;; instead.
+          (let-alist (map-merge 'alist version-alist (stp-get-alist pkg-info pkg-name))
+            (insert (format "%s %s %s %s %s %s %s\n"
+                            (stp-name pkg-name)
+                            (or (stp-list-version-field .method .version .count-to-stable .count-to-unstable .update)
+                                (propertize stp-list-missing-field-string 'face stp-list-error-face))
+                            (or (when stp-latest-versions-cache
+                                  (or (when version-alist
+                                        (stp-list-latest-field .method version-alist seconds))
+                                      "\t"))
+                                "")
+                            (if .method
+                                (symbol-name .method)
                               stp-list-missing-field-string)
-                          (or (when stp-latest-versions-cache
-                                (or (awhen (map-elt stp-latest-versions-cache pkg-name)
-                                      (stp-list-latest-field .method it seconds))
-                                    "\t"))
-                              "")
-                          (if .method
-                              (symbol-name .method)
-                            stp-list-missing-field-string)
-                          ;; Instead of using
-                          ;; `stp-list-missing-field-string' when the
-                          ;; update or branch is missing, simply omit it.
-                          (or .update "\t")
-                          (or .branch "\t")
-                          (or .remote stp-list-missing-field-string)))))
+                            ;; Instead of using
+                            ;; `stp-list-missing-field-string' when the
+                            ;; update or branch is missing, simply omit it.
+                            (or .update "\t")
+                            (or .branch "\t")
+                            (or .remote stp-list-missing-field-string))))))
       ;; Align columns. We explicitly use a space so that tab characters will
       ;; count as a column (see how branches are handled above).
       (let ((align-large-region nil))

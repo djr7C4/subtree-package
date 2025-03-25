@@ -407,6 +407,11 @@ will be considered which may improve efficiency."
       (and (string= ref "HEAD")
            (stp-git-remote-head remote))))
 
+(defun stp-git-version-upgradable-p (count-to-stable count-to-unstable update)
+  (if (eq update 'stable)
+      (and count-to-stable (> count-to-stable 0) t)
+    (and count-to-unstable (> count-to-unstable 0) t)))
+
 (defun stp-git-commit (&optional msg)
   (setq msg (or msg ""))
   (if (stp-git-clean-p)
