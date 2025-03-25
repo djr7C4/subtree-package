@@ -361,14 +361,22 @@ performed.")
       version)))
 
 (defun stp-list-package-on-line (&optional offset)
+  "Return the name of the package on the line OFFSET lines from
+point or nil if no package corresponds to that line."
   (when (derived-mode-p 'stp-list-mode)
     (setq offset (or offset 0))
     (let ((line-num (line-number-at-pos)))
       (save-excursion
         (forward-line offset)
         (when (= (line-number-at-pos) (+ line-num offset))
-          (let ((pkg-name (rem-plain-symbol-at-point)))
-            (and (not (string= pkg-name ""))
+          (when-let ((pkg-name (rem-plain-symbol-at-point)))
+            (and (not (save-excursion
+                        (beginning-of-line)
+                        (bobp)))
+                 (not (save-excursion
+                        (end-of-line)
+                        (eobp)))
+                 (not (string= pkg-name ""))
                  (member pkg-name (stp-info-names))
                  pkg-name)))))))
 
@@ -924,12 +932,6 @@ info files in the directory for that package."
   ;; mess.
   (setq-local truncate-lines t))
 
-(defun stp-list-next-package (&optional n)
-  "Go to the next package. With a prefix argument, go forward that many packages.
-With a negative prefix argument, go backward that many packages."
-  (interactive "p")
-  (forward-line n))
-
 (defun stp-list-goto-package ()
   "In `stp-list-mode', open the source file that shares the same
 name as the package on the current line if such a file exists.
@@ -940,14 +942,6 @@ directory for the current package."
          (path (stp-main-package-file (stp-canonical-path pkg-name))))
     (find-file path)))
 
-(defun stp-list-previous-package (&optional n)
-  "Go to the previous package. With a prefix argument, go backward
-that many packages. With a negative prefix argument, go forward
-that many packages."
-  (interactive "p")
-  (setq n (or n 1))
-  (forward-line (- n)))
-
 (defun stp-list-open-current-remote (pkg-name)
   "Open the remote for PKG-NAME in the default browser."
   (interactive (list (stp-list-package-on-line)))
@@ -955,33 +949,122 @@ that many packages."
     (when pkg-name
       (browse-url (stp-get-attribute pkg-info pkg-name 'remote)))))
 
-(defun stp-list-next-face (face &optional n)
+(defun stp-list-first-package ()
+  "Go to the line for the first package."
+  (interactive)
+  (when (stp-info-names)
+    (beginning-of-buffer)
+    (forward-line)
+    (beginning-of-line)))
+
+(defun stp-list-last-package ()
+  "Go to the line for the last package."
+  (interactive)
+  (when (stp-info-names)
+    (end-of-buffer)
+    (forward-line -1)
+    (beginning-of-line)))
+
+(defun stp-list-next-package-with-predicate (predicate &optional n)
+  "Go forward to the Nth line from point where predicate is non-nil
+and the line corresponds to a package. If the beginning or end of
+the buffer is reached before then, go as far forward as possible."
   (setq n (or n 1))
-  (db (line-move-fun search-fun)
-      (if (>= n 0)
-          (list #'end-of-line #'text-property-search-forward)
-        (list #'beginning-of-line #'text-property-search-backward))
+  (let (pt
+        valid
+        (valid-pt (point))
+        (next-line-fun
+         (if (>= n 0)
+             (lambda ()
+               (unless (save-excursion
+                         (end-of-line)
+                         (eobp))
+                 (forward-line)))
+           (lambda ()
+             (unless (save-excursion
+                       (beginning-of-line)
+                       (bobp))
+               (previous-line))))))
     (setq n (abs n))
+    (beginning-of-line)
     (while (and (> n 0)
-                (prog2
-                    (funcall line-move-fun)
-                    (funcall search-fun 'face face)
-                  (beginning-of-line)))
-      (cl-decf n))))
+                (not (eql pt (point))))
+      (setq pt (point))
+      (funcall next-line-fun)
+      (while (and (not (setq valid (funcall predicate)))
+                  (not (eql pt (point))))
+        (setq pt (point))
+        (funcall next-line-fun))
+      (beginning-of-line)
+      (when valid
+        (setq valid-pt (point)))
+      (cl-decf n))
+    (unless valid
+      (goto-char valid-pt))))
 
-(defun stp-list-next-repair (&optional n)
-  "Go to the next package that needs to be repaired. With a prefix argument, go
-forward that many packages. With a negative prefix argument, go backward that
-many packages."
+(defun stp-list-next-package (&optional n)
+  "Go to the next package. With a prefix argument, go forward that many packages.
+With a negative prefix argument, go backward that many packages."
   (interactive "p")
-  (stp-list-next-face 'stp-list-error-face))
+  (stp-list-next-package-with-predicate #'always n))
 
-(defun stp-list-previous-repair (&optional n)
-  "Go to the previous package that needs to be repaired. With a prefix argument,
-go backward that many packages. With a negative prefix argument, go forward
+(defun stp-list-previous-package (&optional n)
+  "Go to the previous package. With a prefix argument, go backward
+that many packages. With a negative prefix argument, go forward
 that many packages."
   (interactive "p")
-  (setq n (or n 1))
+  (stp-list-next-package (- n)))
+
+(defun stp-package-upgradable-p (pkg-name)
+  (let ((pkg-info (stp-read-info)))
+    (let-alist (map-merge 'alist
+                          (map-elt stp-latest-versions-cache pkg-name)
+                          (stp-get-alist pkg-info pkg-name))
+      (stp-version-upgradable-p .method .count-to-stable .count-to-unstable .update))))
+
+(defun stp-list-next-upgradable (&optional n)
+  "Go to the next package that can be repaired. With a prefix
+argument, go forward that many packages. With a negative prefix
+argument, go backward that many packages."
+  (interactive "p")
+  (stp-list-next-package-with-predicate (lambda ()
+                                          (aand (stp-list-package-on-line)
+                                                (stp-package-upgradable-p it)))
+                                        n))
+
+(defun stp-list-previous-upgradable (&optional n)
+  "Go to the previous package that needs to be repaired. With a
+prefix argument, go forward that many packages. With a negative
+prefix argument, go backward that many packages."
+  (interactive "p")
+  (stp-list-next-upgradable (- n)))
+
+(defun stp-package-missing-data-p (pkg-name)
+  (let ((pkg-info (stp-read-info)))
+    (let-alist (stp-get-alist pkg-info pkg-name)
+      (not (and .method
+                .remote
+                .version
+                (or (not (eq .method 'git))
+                    (and .update
+                         (or (not (eq .update 'unstable))
+                             .branch))))))))
+
+(defun stp-list-next-repair (&optional n)
+  "Go to the next package that needs to be repaired. With a prefix
+argument, go forward that many packages. With a negative prefix
+argument, go backward that many packages."
+  (interactive "p")
+  (stp-list-next-package-with-predicate (lambda ()
+                                          (aand (stp-list-package-on-line)
+                                                (stp-package-missing-data-p it)))
+                                        n))
+
+(defun stp-list-previous-repair (&optional n)
+  "Go to the previous package that needs to be repaired. With a
+prefix argument, go backward that many packages. With a negative
+prefix argument, go forward that many packages."
+  (interactive "p")
   (stp-list-next-repair (- n)))
 
 (defun stp-latest-version (pkg-name pkg-alist)
@@ -1125,11 +1208,17 @@ argument, recompute the latest versions for all packages."
               "k" #'stp-uninstall
               "l" #'stp-update-load-path
               "L" #'stp-update-load-paths
-              "n" #'stp-list-next-package
-              "p" #'stp-list-previous-package
               "O" #'stp-list-open-current-remote
+              "n" #'stp-list-next-upgradable
+              "p" #'stp-list-previous-upgradable
+              "C-n" #'stp-list-next-package
+              "C-p" #'stp-list-previous-package
               "M-n" #'stp-list-next-repair
               "M-p" #'stp-list-previous-repair
+              "<home>" #'stp-list-first-package
+              "<end>" #'stp-list-last-package
+              "M-<" #'stp-list-first-package
+              "M->" #'stp-list-last-package
               "r" #'stp-repair
               "R" #'stp-repair-all
               "t" #'stp-toggle-update
@@ -1147,6 +1236,17 @@ argument, recompute the latest versions for all packages."
 
 (defun stp-latest-stale-p (seconds updated)
   (and updated (> (- seconds updated) stp-latest-versions-stale-interval)))
+
+(defun stp-version-upgradable-p (method count-to-stable count-to-unstable update)
+  "Check if the package can be upgraded to a newer version."
+  (cl-ecase method
+    (git
+     (stp-git-version-upgradable-p count-to-stable count-to-unstable update))
+    (elpa
+     (stp-elpa-version-upgradable-p count-to-stable))
+    ;; URL packages are treated as never being upgradable but this isn't
+    ;; reliable since they have no version information available.
+    (url)))
 
 (defun stp-list-version-field (method version count-to-stable count-to-unstable update)
   (let ((version-string (stp-list-abbreviate-version method version)))
