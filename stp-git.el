@@ -212,6 +212,30 @@ kept. By default all refs are returned."
 (defun stp-git-remote-head-p (remote ref)
   (member ref (stp-git-remote-heads remote)))
 
+;; Note that this will not work will minimal copies of a repositories created
+;; using CLI options such as those used in `stp-git-count-remote-commits'.
+(cl-defun stp-git-hashes (path ref &key max)
+  "Return a list of the hashes starting with the most recent that
+are reachable from REF for the local git repository at PATH. If
+REF is nil then HEAD will be used. If REF is t then all hashes
+will be returned. If MAX is non-nil then no more than MAX hashes
+will be returned."
+  (setq ref (cond
+             ((null ref)
+              "HEAD")
+             ((eq ref t)
+              "--all")
+             (t
+              ref)))
+  (let ((default-directory path))
+    (db (exit-code output)
+        (rem-call-process-shell-command (format "git reflog show %s%s --pretty='%%H'"
+                                                ref
+                                                (if max (format " -n %d" max) "")))
+      (if (= exit-code 0)
+          (s-split "\n" output t)
+        (error "Failed to get the hashes that are reachable from %s at %s" ref path)))))
+
 (defun stp-git-ref-to-hash (remote ref-or-hash)
   "Convert REF-OR-HASH to a hash if it isn't one already."
   (or (car (or (rassoc ref-or-hash (stp-git-remote-hash-head-alist remote))
