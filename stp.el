@@ -1148,7 +1148,7 @@ packages. This is intended to help with rate limiting issues.")
                (unless quiet
                  (message "Updated the latest version of %s" pkg-name))))))
         latest-versions)
-    (user-error "Updating the latest versions requires the ELPA queue package")))
+    (display-warning 'STP "Updating the latest versions requires the ELPA queue package")))
 
 (cl-defun stp-list-update-latest-version (pkg-name &key quiet)
   "Compute the latest field for the current package in
