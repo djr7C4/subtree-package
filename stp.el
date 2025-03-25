@@ -1112,41 +1112,43 @@ times if failures occur.")
 packages. This is intended to help with rate limiting issues.")
 
 (cl-defun stp-latest-versions (&key (pkg-names t) quiet callback)
-  (let (latest-versions
-        (first t)
-        (queue (make-queue))
-        (pkg-info (stp-read-info)))
-    (dolist (pkg (if (eq pkg-names t)
-                     pkg-info
-                   (-filter (lambda (pkg)
-                              (member (car pkg) pkg-names))
-                            pkg-info)))
-      (db (pkg-name . pkg-alist)
-          pkg
-        (queue-enqueue queue (list pkg-name pkg-alist 0))))
-    (while (not (queue-empty queue))
-      (if first
-          (setq first nil)
-        (sit-for stp-latest-delay))
-      (db (pkg-name pkg-alist tries)
-          (queue-dequeue queue)
-        (condition-case err
-            (when-let ((latest-version (stp-latest-version pkg-name pkg-alist)))
-              (push latest-version latest-versions)
-              (when callback
-                (funcall callback latest-version)))
-          (error
-           (if (>= tries stp-latest-retries)
+  (if (featurep 'queue)
+      (let (latest-versions
+            (first t)
+            (queue (make-queue))
+            (pkg-info (stp-read-info)))
+        (dolist (pkg (if (eq pkg-names t)
+                         pkg-info
+                       (-filter (lambda (pkg)
+                                  (member (car pkg) pkg-names))
+                                pkg-info)))
+          (db (pkg-name . pkg-alist)
+              pkg
+            (queue-enqueue queue (list pkg-name pkg-alist 0))))
+        (while (not (queue-empty queue))
+          (if first
+              (setq first nil)
+            (sit-for stp-latest-delay))
+          (db (pkg-name pkg-alist tries)
+              (queue-dequeue queue)
+            (condition-case err
+                (when-let ((latest-version (stp-latest-version pkg-name pkg-alist)))
+                  (push latest-version latest-versions)
+                  (when callback
+                    (funcall callback latest-version)))
+              (error
+               (if (>= tries stp-latest-retries)
+                   (unless quiet
+                     (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries))
+                 (cl-incf tries)
+                 (unless quiet
+                   (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
+                 (queue-enqueue queue (list pkg-name pkg-alist tries))))
+              (:success
                (unless quiet
-                 (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries))
-             (cl-incf tries)
-             (unless quiet
-               (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
-             (queue-enqueue queue (list pkg-name pkg-alist tries))))
-          (:success
-           (unless quiet
-             (message "Updated the latest version of %s" pkg-name))))))
-    latest-versions))
+                 (message "Updated the latest version of %s" pkg-name))))))
+        latest-versions)
+    (user-error "Updating the latest versions requires the ELPA queue package")))
 
 (cl-defun stp-list-update-latest-version (pkg-name &key quiet)
   "Compute the latest field for the current package in
