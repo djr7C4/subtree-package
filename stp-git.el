@@ -73,6 +73,11 @@
       (and ask-p
            (yes-or-no-p (format "%s was not found in %s (this is normal for hashes). Continue?" ref-or-hash remote)))))
 
+(cl-defun stp-git-valid-ref-p (path ref)
+  "Check if REF is a valid ref for the git repository at PATH."
+  (let ((default-directory path))
+    (= (call-process-shell-command (format "git rev-parse --verify '%s'" ref)) 0)))
+
 (cl-defun stp-git-add (path &optional (relative t))
   "Run \"git add\" on path. If relative is non-nil, then path will be
   calculated relative to `stp-source-directory'."
@@ -391,6 +396,10 @@ will be considered which may improve efficiency."
                                                       path))
             (unless (= exit-code 0)
               (error "Failed to clone %s: %s" remote output)))
+          (unless (stp-git-valid-ref-p path ref)
+            (error "%s is not a valid ref for %s" ref remote))
+          (unless (stp-git-valid-ref-p path ref2)
+            (error "%s is not a valid ref for %s" ref2 remote))
           (db (exit-code output)
               (let ((default-directory path))
                 (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2)))
