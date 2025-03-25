@@ -44,21 +44,23 @@ Packages can also be marked as unstable which allows them to installed
 and upgraded to any hash, branch or tag.
 ** Find upgradable packages
 Use =v= in =stp-list-mode= to find the latest stable and unstable versions for
-the current package and display this information in a latest field.
+the current package and display this information in a latest field. Packages
+that can be upgraded are highlighted in blue.
 
 Only git packages have unstable versions so this information is omitted for ELPA
 packages. There is no way to retrieve any version information at all for URL
 packages so the latest version is omitted entirely.
 
 For git packages, the number of commits required to reach the latest version
-from the currently installed version is shown in parentheses. For ELPA packages,
-the number in parentheses is the number of stable versions since the currently
-installed version.
+from the currently installed version is shown in parentheses. Negative numbers
+mean that the currently installed version is newer by that many commits. For
+ELPA packages, the number in parentheses is the number of stable versions since
+the currently installed version.
 
 If the ELPA =persist= package is installed, the latest versions will be saved
 between sessions. Latest versions are considered stale when they haven't been
 updated for more than =stp-latest-versions-stale-interval= seconds and are
-highlighted in =stp-list-mode=.
+highlighted in orange.
 ** Choose between multiple remotes
 STP remembers all remotes that the user has entered when upgrading a package.
 These are available for the user to choose for future upgrades using completion.
