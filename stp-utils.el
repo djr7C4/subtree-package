@@ -199,6 +199,57 @@ within that package."
                   stp-normalize-remote))))
     remote))
 
+(defvar stp-use-other-remotes t
+  "If this variable is non-nil, allow the user to choose from the
+other-remotes attribute in `stp-info-file' when a remote needs to
+be selected.")
+
+(defvar stp-remote-history nil)
+
+(defun stp-comp-read-remote (prompt remote known-remotes &optional multiple)
+  (let* ((default-directory (or stp-read-remote-default-directory
+                                default-directory))
+         (new-remotes (rem-comp-read prompt
+                                     (completion-table-in-turn known-remotes
+                                                               #'completion-file-name-table)
+                                     :predicate (lambda (candidate)
+                                                  (or (member candidate known-remotes)
+                                                      (f-dir-p candidate)))
+                                     :default remote
+                                     :history 'stp-remote-history
+                                     :sort-fun #'identity
+                                     ;; Disable the category. By default, it
+                                     ;; will be 'file which will cause https://
+                                     ;; to be replaced with / during completion.
+                                     :metadata '((category . nil))
+                                     :multiple multiple)))
+    ;; When multiple is nil, new-remotes will just be a single remote rather
+    ;; than a list.
+    (if multiple
+        (mapcar #'stp-normalize-remote new-remotes)
+      (stp-normalize-remote new-remotes))))
+
+(defun stp-choose-remote (prompt remote &optional other-remotes)
+  (if stp-use-other-remotes
+      ;; A match is not required. This way, a new remote can be added
+      ;; interactively by the user. Type ./ to complete in the current
+      ;; directory.
+      (stp-comp-read-remote prompt remote (cons remote other-remotes))
+    remote))
+
+(defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
+  ;; Remote should always be chosen-remote since that is where the package was
+  ;; just installed or upgraded from. (See the documentation of
+  ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
+  ;; not chosen.
+  (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote chosen-remote))
+  (when (or other-remotes (not (string= chosen-remote remote)))
+    (->> (cons remote other-remotes)
+         (remove chosen-remote)
+         (stp-set-attribute pkg-info pkg-name 'other-remotes)
+         (setq pkg-info) ))
+  pkg-info)
+
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
   (rem-version< (stp-version-extract v1)
@@ -424,6 +475,22 @@ should already exist."
     (insert "\n\n")
     (insert (format "Current directory: %s\n" default-directory))
     (insert cmd)))
+
+(defun stp-reload-once (pkg-name)
+  (let* ((pkg-path (stp-canonical-path pkg-name))
+         ;; Reload those features that were already loaded and correspond to
+         ;; files in the package.
+         (reload-features (->> (directory-files-recursively pkg-path
+                                                            (concat "\\.\\("
+                                                                    rem-elisp-file-regexp
+                                                                    "\\)$"))
+                               (mapcar (lambda (path)
+                                         (intern (car (last (f-split (f-base path)))))))
+                               cl-remove-duplicates
+                               (cl-intersection features))))
+    (setq features (cl-set-difference features reload-features))
+    (dolist (f reload-features)
+      (require f))))
 
 (provide 'stp-utils)
 ;;; stp-utils.el ends here
