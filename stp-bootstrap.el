@@ -11,7 +11,7 @@ from source are stored")
 (defun stp-bootstrap ()
   ;; We need dash, f and s because they are used by stp.
   (setq load-path (append (mapcar (lambda (dir)
-                                    (expand-file-name dir stp-source-directory))
+                                    (expand-file-name (concat dir "/") stp-source-directory))
                                   '("dash"
                                     "f"
                                     "s" ;; s needs to be here because it is
