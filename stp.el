@@ -1092,7 +1092,6 @@ packages. This is intended to help with rate limiting issues.")
   "This is similar to `stp-list-update-latest-versions' but for a
 single package."
   (interactive (list (stp-list-package-on-line)
-                     :quiet t
                      :async (xor stp-update-latest-version-async current-prefix-arg)))
   (when pkg-name
     (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async)))
@@ -1145,13 +1144,14 @@ argument, recompute the latest versions for all packages."
             (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
         (stp-with-memoization
           (stp-latest-versions :pkg-names pkg-names
-                               :quiet quiet
+                               :quiet (or quiet (cdr pkg-names))
                                :callback (lambda (latest-version)
                                            (db (pkg-name . version-alist)
                                                latest-version
                                              (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
                                              (refresh-and-focus pkg-name))))
-          (finish-message))))))
+          (finish-message)))
+      )))
 
 (rem-set-keys stp-list-mode-map
               "b" #'stp-build
