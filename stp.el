@@ -17,14 +17,15 @@
 
 (require 'find-lisp)
 (require 'info)
+(unless (require 'persist nil t)
+  "Loading persist failed. Some non-essential commands may not work")
+(unless (require 'queue nil t)
+  "Loading queue failed. Some non-essential commands may not work")
 (require 'stp-bootstrap)
 (require 'stp-utils)
 (require 'stp-elpa)
 (require 'stp-git)
 (require 'stp-url)
-(with-demoted-errors
-    "Loading queue failed. Some non-essential commands may not work"
-  (require 'queue))
 (require 'text-property-search)
 (require 'url-handlers)
 (require 'xml)
@@ -380,7 +381,7 @@ active."
   "The number of seconds until the cached latest versions in
 `stp-latest-versions-cache' are considered stale.")
 
-(if (require 'persist nil t)
+(if (featurep 'persist)
     (persist-defvar stp-latest-versions-cache nil nil)
   (defvar stp-latest-versions-cache nil))
 
