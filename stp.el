@@ -15,6 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+(unless (require 'async nil t)
+  "Loading async failed. Some non-essential commands may not work")
 (require 'find-lisp)
 (require 'info)
 (unless (require 'persist nil t)
@@ -1084,53 +1086,72 @@ packages. This is intended to help with rate limiting issues.")
         latest-versions)
     (display-warning 'STP "Updating the latest versions requires the ELPA queue package")))
 
-(cl-defun stp-list-update-latest-version (pkg-name &key quiet)
-  "Compute the latest field for the current package in
-`stp-list-mode'."
-  (interactive (list (stp-list-package-on-line) :quiet t))
-  (when pkg-name
-    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet)))
+(defvar stp-update-latest-version-async t)
 
-(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet focus)
+(cl-defun stp-list-update-latest-version (pkg-name &key quiet async)
+  "This is similar to `stp-list-update-latest-versions' but for a
+single package."
+  (interactive (list (stp-list-package-on-line)
+                     :quiet t
+                     :async (xor stp-update-latest-version-async current-prefix-arg)))
+  (when pkg-name
+    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async)))
+
+(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet async focus)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
 installed.
 
+It is done synchronously if `stp-update-latest-version-async' is
+nil and otherwise is done asynchronously. With a prefix argument,
+the meaning of `stp-update-latest-version-async' is inverted.
+
 By default, only compute the latest field for packages that are
 not already in the cache or were last updated more than
 `stp-latest-versions-stale-interval' seconds ago. With a prefix
 argument, recompute the latest versions for all packages."
-  (interactive (list :pkg-names (if current-prefix-arg
-                                    t
-                                  (let ((seconds (rem-seconds)))
-                                    (--> stp-latest-versions-cache
-                                         (-filter (lambda (latest-version)
-                                                    (let-alist (cdr latest-version)
-                                                      (not (stp-latest-stale-p seconds .updated))))
-                                                  it)
-                                         (mapcar #'car it)
-                                         (cl-set-difference (stp-info-names)
-                                                            it
-                                                            :test #'equal))))
+  (interactive (list :pkg-names (if current-prefix-arg t (stp-stale-packages))
+                     :async (xor stp-update-latest-version-async current-prefix-arg)
                      :focus t))
   (let ((plural (or (eq pkg-names t)
                     (not (= (length pkg-names) 1)))))
-    (stp-with-memoization
-      (stp-latest-versions :pkg-names pkg-names
-                           :quiet quiet
-                           :callback (lambda (latest-version)
-                                       (db (pkg-name . version-alist)
-                                           latest-version
-                                         (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
-                                         (when (derived-mode-p 'stp-list-mode)
-                                           (when focus
-                                             (stp-list-focus-package pkg-name :recenter-arg -1))
-                                           (stp-list-refresh (stp-list-package-on-line) t)))))
-      (unless quiet
-        (if plural
-            (message "Finished updating the latest versions")
-          (message "Updated the latest version for %s" (car pkg-names)))))))
+    (cl-flet ((finish-message ()
+                (unless quiet
+                  (if plural
+                      (message "Finished updating the latest versions")
+                    (message "Updated the latest version for %s" (car pkg-names)))))
+              (refresh-and-focus (pkg-name)
+                (when (derived-mode-p 'stp-list-mode)
+                  (when focus
+                    (stp-list-focus-package pkg-name :recenter-arg -1))
+                  (stp-list-refresh (stp-list-package-on-line) t))))
+      (if async
+          (if (featurep 'async)
+              (async-start `(lambda ()
+                              ;; Inject the STP variables and the caller's load
+                              ;; path into the asynchronous process.
+                              ,(async-inject-variables "^stp-")
+                              (setq load-path ',load-path)
+                              (require 'stp)
+                              (stp-with-memoization
+                                (stp-latest-versions :pkg-names ',pkg-names :quiet t)))
+                           (lambda (latest-versions)
+                             (message "received: %S" latest-versions)
+                             (setq stp-latest-versions-cache (map-merge 'alist stp-latest-versions-cache latest-versions))
+                             (with-current-buffer stp-list-buffer-name
+                               (stp-list-refresh (car (last pkg-names))))
+                             (finish-message)))
+            (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
+        (stp-with-memoization
+          (stp-latest-versions :pkg-names pkg-names
+                               :quiet quiet
+                               :callback (lambda (latest-version)
+                                           (db (pkg-name . version-alist)
+                                               latest-version
+                                             (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
+                                             (refresh-and-focus pkg-name))))
+          (finish-message))))))
 
 (rem-set-keys stp-list-mode-map
               "b" #'stp-build
@@ -1174,6 +1195,18 @@ argument, recompute the latest versions for all packages."
 
 (defun stp-latest-stale-p (seconds updated)
   (and updated (> (- seconds updated) stp-latest-versions-stale-interval)))
+
+(defun stp-stale-packages (&optional seconds)
+  (setq seconds (or seconds (rem-seconds)))
+  (--> stp-latest-versions-cache
+       (-filter (lambda (latest-version)
+                  (let-alist (cdr latest-version)
+                    (not (stp-latest-stale-p seconds .updated))))
+                it)
+       (mapcar #'car it)
+       (cl-set-difference (stp-info-names)
+                          it
+                          :test #'equal)))
 
 (defun stp-version-upgradable-p (method count-to-stable count-to-unstable update)
   "Check if the package can be upgraded to a newer version."
