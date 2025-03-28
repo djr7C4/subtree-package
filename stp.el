@@ -1119,22 +1119,25 @@ to TRIES times."
                (db (pkg-name pkg-alist tries)
                    (queue-dequeue queue)
                  (if async
-                     (async-start `(lambda ()
-                                     ;; Inject the STP variables and the
-                                     ;; caller's load path into the
-                                     ;; asynchronous process.
-                                     ,(async-inject-variables "^stp-")
-                                     (setq load-path ',load-path)
-                                     (require 'stp)
-                                     (stp-with-memoization
-                                       (let (latest-version)
-                                         (condition-case err
-                                             (setq latest-version (stp-latest-version ,pkg-name ',pkg-alist))
-                                           (error
-                                            (list ,pkg-name ',pkg-alist ,tries nil (error-message-string err)))
-                                           (:success
-                                            (list ,pkg-name ',pkg-alist ,tries latest-version nil))))))
-                                  #'process-latest-version)
+                     ;; Binding `async-prompt-for-password' to nil avoids a bug
+                     ;; on certain packages (in particular password-store).
+                     (let ((async-prompt-for-password nil))
+                       (async-start `(lambda ()
+                                       ;; Inject the STP variables and the
+                                       ;; caller's load path into the
+                                       ;; asynchronous process.
+                                       ,(async-inject-variables "^stp-")
+                                       (setq load-path ',load-path)
+                                       (require 'stp)
+                                       (stp-with-memoization
+                                         (let (latest-version)
+                                           (condition-case err
+                                               (setq latest-version (stp-latest-version ,pkg-name ',pkg-alist))
+                                             (error
+                                              (list ,pkg-name ',pkg-alist ,tries nil (error-message-string err)))
+                                             (:success
+                                              (list ,pkg-name ',pkg-alist ,tries latest-version nil))))))
+                                    #'process-latest-version))
                    (let (latest-version)
                      (condition-case err
                          (setq latest-version (stp-latest-version pkg-name pkg-alist))
