@@ -349,37 +349,40 @@ pkg-name."
 
 (defvar stp-version-regexp "\\`\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?[-_./]?\\)*\\)\\'")
 
+(defun stp-default-extractor (v)
+  (mapcan (lambda (s)
+            (save-match-data
+              (if (string-match "\\`\\([0-9]+\\)\\([A-Za-z]+\\)\\'" s)
+                  (list (match-string 1 s) (match-string 2 s))
+                (list s))))
+          (s-split "[-_.]" v)))
+
+(defun stp-haskell-extractor (v)
+  (s-split "-" (s-chop-prefix "haskell-mode-" v)))
+
+(defun stp-auctex-extractor (v)
+  (let* ((vs (s-split "_\\|-" v))
+         (v-butlast (butlast vs))
+         (v-last (car (last vs))))
+    ;; Any trailing letters or +'s need to be separate elements of the list
+    ;; for the version comparison to work correctly. This is because
+    ;; otherwise, for example, 6+ would be treated as newer than 10.
+    (append v-butlast
+            (save-match-data
+              (if (string-match "\\`\\([0-9]+\\)\\([a-zA-Z]?\\)\\(\\+?\\)\\'"
+                                v-last)
+                  (list (match-string 1 v-last)
+                        (match-string 2 v-last)
+                        (match-string 3 v-last))
+                (list v-last))))))
+
 (defvar stp-version-extractor-alist
   ;; This matches the versions for most emacs packages.
-  `((,stp-version-regexp .
-                         (lambda (v)
-                           (mapcan (lambda (s)
-                                     (save-match-data
-                                       (if (string-match "\\`\\([0-9]+\\)\\([A-Za-z]+\\)\\'" s)
-                                           (list (match-string 1 s) (match-string 2 s))
-                                         (list s))))
-                                   (s-split "[-_.]" v))))
+  `((,stp-version-regexp . stp-default-extractor)
     ;; haskell-mode
-    ("\\`\\(?:haskell-mode-\\)\\(1-44_\\|1-45_\\)\\'" .
-     (lambda (v)
-       (s-split "-" (s-chop-prefix "haskell-mode-" v))))
+    ("\\`\\(?:haskell-mode-\\)\\(1-44_\\|1-45_\\)\\'" . stp-haskell-extractor)
     ;; auctex
-    ("\\`\\(?:auctex_release\\|auctex\\|release\\|rel\\)\\(?:[-_./]\\)\\([0-9]+\\([-_.][0-9]+\\)*[a-zA-Z]?\\+?\\)\\'" .
-     (lambda (v)
-       (let* ((vs (s-split "_\\|-" v))
-              (v-butlast (butlast vs))
-              (v-last (car (last vs))))
-         ;; Any trailing letters or +'s need to be separate elements of the list
-         ;; for the version comparison to work correctly. This is because
-         ;; otherwise, for example, 6+ would be treated as newer than 10.
-         (append v-butlast
-                 (save-match-data
-                   (if (string-match "\\`\\([0-9]+\\)\\([a-zA-Z]?\\)\\(\\+?\\)\\'"
-                                     v-last)
-                       (list (match-string 1 v-last)
-                             (match-string 2 v-last)
-                             (match-string 3 v-last))
-                     (list v-last))))))))
+    ("\\`\\(?:auctex_release\\|auctex\\|release\\|rel\\)\\(?:[-_./]\\)\\([0-9]+\\([-_.][0-9]+\\)*[a-zA-Z]?\\+?\\)\\'" . stp-auctex-extractor))
   "An list of regexps to match to package versions and functions to
 extract a key from the text that matches the first group of the
 regexp. The key should be a list of strings which are the

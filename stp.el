@@ -15,6 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+(unless (require 'async nil t)
+  "Loading async failed. Some non-essential commands may not work")
 (require 'find-lisp)
 (require 'info)
 (unless (require 'persist nil t)
@@ -436,7 +438,7 @@ negated relative to the default."
                     (stp-post-actions pkg-name))
                   (when refresh
                     (stp-update-cached-latest pkg-name)
-                    (stp-list-refresh pkg-name t)))))))))))
+                    (stp-list-refresh :quiet t)))))))))))
 
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
   "Uninstall the package named pkg-name. The do-commit and do-push arguments are
@@ -459,8 +461,7 @@ as in `stp-install'."
                                                  pkg-name)
                                          do-commit do-push)
                     (when refresh
-                      (let ((other-pkg-name (stp-list-other-package)))
-                        (stp-list-refresh other-pkg-name t))))
+                      (stp-list-refresh t)))
                 (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
@@ -508,7 +509,7 @@ do-push and proceed arguments are as in `stp-install'."
                       (stp-post-actions pkg-name))
                     (when refresh
                       (stp-update-cached-latest pkg-name)
-                      (stp-list-refresh pkg-name t))))))))))))
+                      (stp-list-refresh :quiet t))))))))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
   "Repair the package named pkg-name. The do-commit, do-push and proceed
@@ -522,7 +523,7 @@ arguments are as in `stp-install'."
             (stp-write-info (stp-repair-info pkg-info :quiet nil :pkg-names (list pkg-name)))
             (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
             (when refresh
-              (stp-list-refresh pkg-name t))))))))
+              (stp-list-refresh :quiet t))))))))
 
 (cl-defun stp-repair-all (&key do-commit do-push (refresh t) interactive-p)
   "Run `stp-repair-info' and write the repaired package info to
@@ -537,7 +538,7 @@ arguments are as in `stp-install'."
             (stp-write-info (stp-repair-info (stp-read-info) :quiet nil))
             (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
             (when refresh
-              (stp-list-refresh refresh-pkg-name t))))))))
+              (stp-list-refresh :quiet t))))))))
 
 (cl-defun stp-edit-remotes (pkg-name &key do-commit do-push (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME using
@@ -570,7 +571,7 @@ the rest will be other-remotes."
                                  do-commit
                                  do-push)
             (when refresh
-              (stp-list-refresh pkg-name t))))))))
+              (stp-list-refresh :quiet t))))))))
 
 (cl-defun stp-toggle-update (pkg-name &key do-commit do-push (refresh t))
   "Toggle the update attribute for the package named pkg-name between stable and
@@ -595,7 +596,7 @@ unstable."
                                      do-commit
                                      do-push)
                 (when refresh
-                  (stp-list-refresh pkg-name t)))
+                  (stp-list-refresh :quiet t)))
             (user-error "The update attribute can only be toggled for git packages.")))))))
 
 (defun stp-post-actions (pkg-name)
@@ -1084,53 +1085,70 @@ packages. This is intended to help with rate limiting issues.")
         latest-versions)
     (display-warning 'STP "Updating the latest versions requires the ELPA queue package")))
 
-(cl-defun stp-list-update-latest-version (pkg-name &key quiet)
-  "Compute the latest field for the current package in
-`stp-list-mode'."
-  (interactive (list (stp-list-package-on-line) :quiet t))
-  (when pkg-name
-    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet)))
+(defvar stp-update-latest-version-async t)
 
-(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet focus)
+(cl-defun stp-list-update-latest-version (pkg-name &key quiet async)
+  "This is similar to `stp-list-update-latest-versions' but for a
+single package."
+  (interactive (list (stp-list-package-on-line)
+                     :async (xor stp-update-latest-version-async current-prefix-arg)))
+  (when pkg-name
+    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async)))
+
+(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet async focus)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
 installed.
 
+It is done synchronously if `stp-update-latest-version-async' is
+nil and otherwise is done asynchronously. With a prefix argument,
+the meaning of `stp-update-latest-version-async' is inverted.
+
 By default, only compute the latest field for packages that are
 not already in the cache or were last updated more than
 `stp-latest-versions-stale-interval' seconds ago. With a prefix
 argument, recompute the latest versions for all packages."
-  (interactive (list :pkg-names (if current-prefix-arg
-                                    t
-                                  (let ((seconds (rem-seconds)))
-                                    (--> stp-latest-versions-cache
-                                         (-filter (lambda (latest-version)
-                                                    (let-alist (cdr latest-version)
-                                                      (not (stp-latest-stale-p seconds .updated))))
-                                                  it)
-                                         (mapcar #'car it)
-                                         (cl-set-difference (stp-info-names)
-                                                            it
-                                                            :test #'equal))))
+  (interactive (list :pkg-names (if current-prefix-arg t (stp-stale-packages))
+                     :async (xor stp-update-latest-version-async current-prefix-arg)
                      :focus t))
   (let ((plural (or (eq pkg-names t)
                     (not (= (length pkg-names) 1)))))
-    (stp-with-memoization
-      (stp-latest-versions :pkg-names pkg-names
-                           :quiet quiet
-                           :callback (lambda (latest-version)
-                                       (db (pkg-name . version-alist)
-                                           latest-version
-                                         (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
-                                         (when (derived-mode-p 'stp-list-mode)
-                                           (when focus
-                                             (stp-list-focus-package pkg-name :recenter-arg -1))
-                                           (stp-list-refresh (stp-list-package-on-line) t)))))
-      (unless quiet
-        (if plural
-            (message "Finished updating the latest versions")
-          (message "Updated the latest version for %s" (car pkg-names)))))))
+    (cl-flet ((finish-message ()
+                (unless quiet
+                  (if plural
+                      (message "Finished updating the latest versions")
+                    (message "Updated the latest version for %s" (car pkg-names))))))
+      (if async
+          (if (featurep 'async)
+              (async-start `(lambda ()
+                              ;; Inject the STP variables and the caller's load
+                              ;; path into the asynchronous process.
+                              ,(async-inject-variables "^stp-")
+                              (setq load-path ',load-path)
+                              (require 'stp)
+                              (stp-with-memoization
+                                (stp-latest-versions :pkg-names ',pkg-names :quiet t)))
+                           (lambda (latest-versions)
+                             (setq stp-latest-versions-cache (map-merge 'alist stp-latest-versions-cache latest-versions))
+                             (with-current-buffer stp-list-buffer-name
+                               (with-selected-window (get-buffer-window)
+                                 (stp-list-refresh)))
+                             (finish-message)))
+            (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
+        (stp-with-memoization
+          (stp-latest-versions :pkg-names pkg-names
+                               :quiet (or quiet (cdr pkg-names))
+                               :callback (lambda (latest-version)
+                                           (db (pkg-name . version-alist)
+                                               latest-version
+                                             (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
+                                             (when (derived-mode-p 'stp-list-mode)
+                                               (when focus
+                                                 (stp-list-focus-package pkg-name :recenter-arg -1))
+                                               (stp-list-refresh :quiet t)))))
+          (finish-message)))
+      )))
 
 (rem-set-keys stp-list-mode-map
               "b" #'stp-build
@@ -1175,6 +1193,18 @@ argument, recompute the latest versions for all packages."
 (defun stp-latest-stale-p (seconds updated)
   (and updated (> (- seconds updated) stp-latest-versions-stale-interval)))
 
+(defun stp-stale-packages (&optional seconds)
+  (setq seconds (or seconds (rem-seconds)))
+  (--> stp-latest-versions-cache
+       (-filter (lambda (latest-version)
+                  (let-alist (cdr latest-version)
+                    (not (stp-latest-stale-p seconds .updated))))
+                it)
+       (mapcar #'car it)
+       (cl-set-difference (stp-info-names)
+                          it
+                          :test #'equal)))
+
 (defun stp-version-upgradable-p (method count-to-stable count-to-unstable update)
   "Check if the package can be upgraded to a newer version."
   (cl-ecase method
@@ -1211,13 +1241,14 @@ argument, recompute the latest versions for all packages."
           (setq version-string (propertize (concat version-string stale-string) 'face stp-list-stale-face)))
         version-string))))
 
-(cl-defun stp-list-refresh (&optional refresh-pkg-name quiet)
-  (interactive (list (stp-list-package-on-line)))
+(cl-defun stp-list-refresh (&key (focus-current-pkg t) quiet)
+  (interactive)
   (when (derived-mode-p 'stp-list-mode)
     (let ((column (current-column))
           (pkg-info (stp-read-info))
+          (orig-pkg-name (stp-list-package-on-line))
           (seconds (rem-seconds))
-          (window-line-num (progn
+          (window-line-num (when focus-current-pkg
                              (beginning-of-line)
                              (rem-window-line-number-at-pos))))
       (read-only-mode 0)
@@ -1255,8 +1286,8 @@ argument, recompute the latest versions for all packages."
         (align-regexp (point-min) (point-max) "\\( *\\) +" nil nil t))
       (goto-char (point-min))
       (read-only-mode 1)
-      (when refresh-pkg-name
-        (re-search-forward (concat "^" refresh-pkg-name " "))
+      (when focus-current-pkg
+        (re-search-forward (concat "^" orig-pkg-name " "))
         (rem-move-current-window-line-to-pos window-line-num)
         (beginning-of-line)
         (forward-char column))
@@ -1278,7 +1309,7 @@ argument, recompute the latest versions for all packages."
          (buf (get-buffer-create stp-list-buffer-name)))
     (pop-to-buffer buf)
     (stp-list-mode)
-    (stp-list-refresh (stp-list-package-on-line) t)))
+    (stp-list-refresh :quiet t)))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
   "Remove packages that exist in `stp-info-file' but not on the
