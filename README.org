@@ -46,9 +46,10 @@ and upgraded to any hash, branch or tag.
 Use =v= in =stp-list-mode= to find the latest stable and unstable versions for
 the current package and display this information in a latest field. Packages
 that can be upgraded are highlighted in blue. This is done asynchronously in a
-separate process by default if =stp-update-latest-version-async= is non-nil and
+separate process by default if =stp-latest-version-async= is non-nil and
 otherwise is done synchronously. With a prefix argument, the meaning of
-=stp-update-latest-version-async= is inverted.
+=stp-latest-version-async= is inverted. The updated latest versions are inserted
+into the STP list buffer as they become available.
 
 Only git packages have unstable versions so this information is omitted for ELPA
 packages. There is no way to retrieve any version information at all for URL

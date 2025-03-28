@@ -1059,77 +1059,124 @@ prefix argument, go forward that many packages."
   "Retry computing the latest version for a package up to this many
 times if failures occur.")
 
-(defvar stp-latest-delay 0
-  "Wait this long in between computing the latest versions for
-packages. This is intended to help with rate limiting issues.")
+(cl-defun stp-latest-versions (package-callback final-callback &key (pkg-names t) quiet async (num-processes stp-latest-num-processes) (tries stp-latest-retries))
+  "Compute the latest versions for the packages in PKG-NAMES. Once
+the latest version becomes available for package, call
+PACKAGE-CALLBACK with the latest version alist as the argument.
+Once all latest versions are available, call FINAL-CALLBACK with
+the alist mapping the names of the packages to their latest
+version alists.
 
-(cl-defun stp-latest-versions (&key (pkg-names t) quiet callback)
-  (if (featurep 'queue)
-      (let (latest-versions
-            (first t)
-            (queue (make-queue))
-            (pkg-info (stp-read-info)))
-        (dolist (pkg (if (eq pkg-names t)
-                         pkg-info
-                       (-filter (lambda (pkg)
-                                  (member (car pkg) pkg-names))
-                                pkg-info)))
-          (db (pkg-name . pkg-alist)
-              pkg
-            (queue-enqueue queue (list pkg-name pkg-alist 0))))
-        (while (not (queue-empty queue))
-          (if first
-              (setq first nil)
-            (sit-for stp-latest-delay))
-          (db (pkg-name pkg-alist tries)
-              (queue-dequeue queue)
-            (condition-case err
-                (when-let ((latest-version (stp-latest-version pkg-name pkg-alist)))
-                  (push latest-version latest-versions)
-                  (when callback
-                    (funcall callback latest-version)))
-              (error
-               (if (>= tries stp-latest-retries)
+The latest versions are computed asynchronously using
+NUM-PROCESSES simultaneously. In case an error occurs while
+computing the latest version for a package, it will be retried up
+to TRIES times."
+  (cond
+   ((not (featurep 'queue))
+    (display-warning 'STP "Updating the latest versions requires the ELPA queue package"))
+   ((and async (not (featurep 'async)))
+    (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
+   (t
+    (let (latest-versions
+          (queue (make-queue))
+          (pkg-info (stp-read-info)))
+      (dolist (pkg (if (eq pkg-names t)
+                       pkg-info
+                     (-filter (lambda (pkg)
+                                (member (car pkg) pkg-names))
+                              pkg-info)))
+        (db (pkg-name . pkg-alist)
+            pkg
+          (queue-enqueue queue (list pkg-name pkg-alist 0))))
+      (cl-labels
+          ((process-latest-version (data)
+             ;; Process the result of the last call to `stp-latest-version' and
+             ;; put the package information back into the queue if there was an
+             ;; error.
+             (db (pkg-name pkg-alist tries latest-version error-message)
+                 data
+               (cond
+                (latest-version
+                 (push latest-version latest-versions)
+                 (when package-callback
+                   (funcall package-callback latest-version)))
+                (error-message
+                 (if (>= tries stp-latest-retries)
+                     (unless quiet
+                       (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries))
+                   (cl-incf tries)
                    (unless quiet
-                     (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries))
-                 (cl-incf tries)
-                 (unless quiet
-                   (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
-                 (queue-enqueue queue (list pkg-name pkg-alist tries))))
-              (:success
-               (unless quiet
-                 (message "Updated the latest version of %s" pkg-name))))))
-        latest-versions)
-    (display-warning 'STP "Updating the latest versions requires the ELPA queue package")))
+                     (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
+                   (queue-enqueue queue (list pkg-name pkg-alist tries))))))
+             (compute-next-latest-version))
+           (compute-next-latest-version ()
+             ;; If there are more packages to process in the queue, start fetching
+             ;; the latest version for pkg-name. This is done asynchronously if
+             ;; async is non-nil.
+             (if (queue-empty queue)
+                 (when final-callback
+                   (funcall final-callback latest-versions))
+               (db (pkg-name pkg-alist tries)
+                   (queue-dequeue queue)
+                 (if async
+                     (async-start `(lambda ()
+                                     ;; Inject the STP variables and the
+                                     ;; caller's load path into the
+                                     ;; asynchronous process.
+                                     ,(async-inject-variables "^stp-")
+                                     (setq load-path ',load-path)
+                                     (require 'stp)
+                                     (stp-with-memoization
+                                       (let (latest-version)
+                                         (condition-case err
+                                             (setq latest-version (stp-latest-version ,pkg-name ',pkg-alist))
+                                           (error
+                                            (list ,pkg-name ',pkg-alist ,tries nil (error-message-string err)))
+                                           (:success
+                                            (list ,pkg-name ',pkg-alist ,tries latest-version nil))))))
+                                  #'process-latest-version)
+                   (let (latest-version)
+                     (condition-case err
+                         (setq latest-version (stp-latest-version pkg-name pkg-alist))
+                       (error
+                        (list pkg-name pkg-alist tries nil (error-message-string err)))
+                       (:success
+                        (list pkg-name pkg-alist tries latest-version nil)))))))))
+        (dotimes (_ (if async num-processes 1))
+          (compute-next-latest-version)))))))
 
-(defvar stp-update-latest-version-async t)
+(defvar stp-latest-version-async t
+  "This indicates if latest versions should be computed asynchronously.")
+
+(defvar stp-latest-num-processes 1
+  "The number of processes to use in parallel to compute the latest
+versions. This only has an effect when the latest versions are
+computed asynchronously. See `stp-latest-version-async'.")
 
 (cl-defun stp-list-update-latest-version (pkg-name &key quiet async)
   "This is similar to `stp-list-update-latest-versions' but for a
 single package."
   (interactive (list (stp-list-package-on-line)
-                     :async (xor stp-update-latest-version-async current-prefix-arg)
+                     :async stp-latest-version-async
                      :quiet 'packages))
   (when pkg-name
-    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async)))
+    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus (not async))))
 
 (cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet async focus)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
-installed.
-
-It is done synchronously if `stp-update-latest-version-async' is
-nil and otherwise is done asynchronously. With a prefix argument,
-the meaning of `stp-update-latest-version-async' is inverted.
+installed. This is done synchronously if
+`stp-latest-version-async' is nil and otherwise it is done
+asynchronously.
 
 By default, only compute the latest field for packages that are
 not already in the cache or were last updated more than
 `stp-latest-versions-stale-interval' seconds ago. With a prefix
 argument, recompute the latest versions for all packages."
   (interactive (list :pkg-names (if current-prefix-arg t (stp-stale-packages))
-                     :async (xor stp-update-latest-version-async current-prefix-arg)
-                     :focus t))
+                     :async stp-latest-version-async
+                     :focus (not stp-latest-version-async)))
   (db (quiet-toplevel quiet-packages)
       (cl-case quiet
         (toplevel
@@ -1140,45 +1187,30 @@ argument, recompute the latest versions for all packages."
          (list t t)))
     (let ((plural (or (and (eq pkg-names t) (cdr (stp-info-names)))
                       (not (= (length pkg-names) 1)))))
-      (cl-flet ((finish-message ()
-                  (unless quiet-toplevel
-                    (if plural
-                        (message "Finished updating the latest versions")
-                      (message "Updated the latest version for %s" (car pkg-names))))))
-        (unless quiet-toplevel
-          (message "Updating the latest versions"))
-        (if async
-            (if (featurep 'async)
-                (async-start `(lambda ()
-                                ;; Inject the STP variables and the caller's load
-                                ;; path into the asynchronous process.
-                                ,(async-inject-variables "^stp-")
-                                (setq load-path ',load-path)
-                                (require 'stp)
-                                (stp-with-memoization
-                                  (stp-latest-versions :pkg-names ',pkg-names :quiet t)))
-                             (lambda (latest-versions)
-                               (setq stp-latest-versions-cache (map-merge 'alist stp-latest-versions-cache latest-versions))
-                               (with-current-buffer stp-list-buffer-name
-                                 (if-let ((win (get-buffer-window)))
-                                     (with-selected-window win
-                                       (stp-list-refresh))
-                                   (stp-list-refresh :focus-current-pkg nil)))
-                               (finish-message)))
-              (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
-          (stp-with-memoization
-            (stp-latest-versions :pkg-names pkg-names
-                                 :quiet (or quiet-packages (cdr pkg-names))
-                                 :callback (lambda (latest-version)
-                                             (db (pkg-name . version-alist)
-                                                 latest-version
-                                               (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
-                                               (when (derived-mode-p 'stp-list-mode)
-                                                 (when focus
-                                                   (stp-list-focus-package pkg-name :recenter-arg -1))
-                                                 (stp-list-refresh :quiet t)))))
-            (finish-message)))
-        ))))
+      (unless quiet-toplevel
+        (if plural
+            (message "Updating the latest versions")
+          (message "Updating the latest version for %s" (car pkg-names))))
+      (stp-latest-versions
+       (lambda (latest-version)
+         (db (pkg-name . version-alist)
+             latest-version
+           (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
+           (with-current-buffer stp-list-buffer-name
+             (if-let ((win (get-buffer-window)))
+                 (with-selected-window win
+                   (when focus
+                     (stp-list-focus-package pkg-name :recenter-arg -1))
+                   (stp-list-refresh :focus-current-pkg t :quiet t))
+               (stp-list-refresh :focus-current-pkg nil :quiet t)))))
+       (lambda (_latest-versions)
+         (unless quiet-toplevel
+           (if plural
+               (message "Finished updating the latest versions")
+             (message "Updated the latest version for %s" (car pkg-names)))))
+       :pkg-names pkg-names
+       :quiet quiet-packages
+       :async async))))
 
 (rem-set-keys stp-list-mode-map
               "b" #'stp-build
