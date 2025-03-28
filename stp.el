@@ -1093,21 +1093,22 @@ to TRIES times."
              ;; Process the result of the last call to `stp-latest-version' and
              ;; put the package information back into the queue if there was an
              ;; error.
-             (db (pkg-name pkg-alist tries latest-version error-message)
-                 data
-               (cond
-                (latest-version
-                 (push latest-version latest-versions)
-                 (when package-callback
-                   (funcall package-callback latest-version)))
-                (error-message
-                 (if (>= tries stp-latest-retries)
+             (when data
+               (db (pkg-name pkg-alist tries latest-version error-message)
+                   data
+                 (cond
+                  (latest-version
+                   (push latest-version latest-versions)
+                   (when package-callback
+                     (funcall package-callback latest-version)))
+                  (error-message
+                   (if (>= tries stp-latest-retries)
+                       (unless quiet
+                         (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries))
+                     (cl-incf tries)
                      (unless quiet
-                       (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries))
-                   (cl-incf tries)
-                   (unless quiet
-                     (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
-                   (queue-enqueue queue (list pkg-name pkg-alist tries))))))
+                       (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
+                     (queue-enqueue queue (list pkg-name pkg-alist tries)))))))
              (compute-next-latest-version))
            (compute-next-latest-version ()
              ;; If there are more packages to process in the queue, start fetching
