@@ -884,23 +884,40 @@ directory for the current package."
     (when pkg-name
       (browse-url (stp-get-attribute pkg-info pkg-name 'remote)))))
 
+(cl-defun stp-list-ensure-package-line ()
+  (when (stp-info-names)
+    (cond
+     ((bobp)
+      (forward-line)
+      (recenter 1))
+     ((eobp)
+      (forward-line -1)
+      (recenter -1)))
+    (beginning-of-line)))
+
+(defun stp-list-scroll-up-command ()
+  (interactive)
+  (call-interactively #'scroll-up-command)
+  (stp-list-ensure-package-line))
+
+(defun stp-list-scroll-down-command ()
+  (interactive)
+  (call-interactively #'scroll-down-command)
+  (stp-list-ensure-package-line))
+
 (defun stp-list-first-package ()
   "Go to the line for the first package."
   (interactive)
   (when (stp-info-names)
-    (beginning-of-buffer)
-    (forward-line)
-    (beginning-of-line)
-    (recenter 1)))
+    (goto-char (point-min))
+    (stp-list-ensure-package-line)))
 
 (defun stp-list-last-package ()
   "Go to the line for the last package."
   (interactive)
   (when (stp-info-names)
-    (end-of-buffer)
-    (forward-line -1)
-    (beginning-of-line)
-    (recenter -1)))
+    (goto-char (point-max))
+    (stp-list-ensure-package-line)))
 
 (defun stp-list-next-package-with-predicate (predicate &optional n)
   "Go forward to the Nth line from point where predicate is non-nil
@@ -1173,6 +1190,10 @@ argument, recompute the latest versions for all packages."
               "C-p" #'stp-list-previous-package
               "M-n" #'stp-list-next-repair
               "M-p" #'stp-list-previous-repair
+              "<next>" #'stp-list-scroll-up-command
+              "<prior>" #'stp-list-scroll-down-command
+              "C-v" #'stp-list-scroll-up-command
+              "M-v" #'stp-list-scroll-down-command
               "<home>" #'stp-list-first-package
               "<end>" #'stp-list-last-package
               "M-<" #'stp-list-first-package
