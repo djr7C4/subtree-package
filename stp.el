@@ -1059,8 +1059,8 @@ prefix argument, go forward that many packages."
   "Retry computing the latest version for a package up to this many
 times if failures occur.")
 
-(cl-defun stp-latest-versions (package-callback final-callback &key (pkg-names t) quiet async (num-processes stp-latest-num-processes) (tries stp-latest-retries))
-  "Compute the latest versions for the packages in PKG-NAMES. Once
+(cl-defun stp-latest-versions (package-callback final-callback packages &key quiet async (num-processes stp-latest-num-processes) (tries stp-latest-retries))
+  "Compute the latest versions for the packages in PACKAGES. Once
 the latest version becomes available for package, call
 PACKAGE-CALLBACK with the latest version alist as the argument.
 Once all latest versions are available, call FINAL-CALLBACK with
@@ -1080,13 +1080,9 @@ to TRIES times."
     (let (latest-versions
           (queue (make-queue))
           (pkg-info (stp-read-info)))
-      (dolist (pkg (if (eq pkg-names t)
-                       pkg-info
-                     (-filter (lambda (pkg)
-                                (member (car pkg) pkg-names))
-                              pkg-info)))
+      (dolist (package packages)
         (db (pkg-name . pkg-alist)
-            pkg
+            package
           (queue-enqueue queue (list pkg-name pkg-alist 0))))
       (cl-labels
           ((process-latest-version (data)
@@ -1180,7 +1176,8 @@ not already in the cache or were last updated more than
 argument, recompute the latest versions for all packages."
   (interactive (list :pkg-names (if current-prefix-arg t (stp-stale-packages))
                      :async stp-latest-version-async
-                     :focus (not stp-latest-version-async)))
+                     :focus (not stp-latest-version-async)
+                     :quiet 'packages))
   (db (quiet-toplevel quiet-packages)
       (cl-case quiet
         (toplevel
@@ -1189,11 +1186,17 @@ argument, recompute the latest versions for all packages."
          (list nil t))
         (t
          (list t t)))
-    (let ((plural (or (and (eq pkg-names t) (cdr (stp-info-names)))
-                      (not (= (length pkg-names) 1)))))
+    (let* ((pkg-info (stp-read-info))
+           (packages (if (eq pkg-names t)
+                         pkg-info
+                         (-filter (lambda (pkg)
+                                    (member (car pkg) pkg-names))
+                                  pkg-info)))
+           (plural (not (= (length pkg-names) 1))))
+      (setq pkg-names (mapcar #'car packages))
       (unless quiet-toplevel
         (if plural
-            (message "Updating the latest versions")
+            (message "Updating %d of the latest versions" (length pkg-names))
           (message "Updating the latest version for %s" (car pkg-names))))
       (stp-latest-versions
        (lambda (latest-version)
@@ -1212,7 +1215,7 @@ argument, recompute the latest versions for all packages."
            (if plural
                (message "Finished updating the latest versions")
              (message "Updated the latest version for %s" (car pkg-names)))))
-       :pkg-names pkg-names
+       packages
        :quiet quiet-packages
        :async async))))
 
@@ -1359,7 +1362,8 @@ argument, recompute the latest versions for all packages."
       (when focus-current-pkg
         (goto-char (point-min))
         (forward-line (1- line-num))
-        (rem-move-current-window-line-to-pos window-line-num)
+        (when focus-window-line
+          (rem-move-current-window-line-to-pos window-line-num))
         (beginning-of-line)
         (forward-char column))
       (unless quiet
