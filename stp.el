@@ -1312,8 +1312,8 @@ argument, recompute the latest versions for all packages."
   (when (derived-mode-p 'stp-list-mode)
     (let ((column (current-column))
           (pkg-info (stp-read-info))
-          (orig-pkg-name (stp-list-package-on-line))
           (seconds (rem-seconds))
+          (line-num (line-number-at-pos))
           (window-line-num (when focus-current-pkg
                              (beginning-of-line)
                              (rem-window-line-number-at-pos))))
@@ -1352,8 +1352,9 @@ argument, recompute the latest versions for all packages."
         (align-regexp (point-min) (point-max) "\\( *\\) +" nil nil t))
       (goto-char (point-min))
       (read-only-mode 1)
-      (when (and focus-current-pkg orig-pkg-name)
-        (re-search-forward (concat "^" orig-pkg-name " "))
+      (when focus-current-pkg
+        (goto-char (point-min))
+        (forward-line (1- line-num))
         (rem-move-current-window-line-to-pos window-line-num)
         (beginning-of-line)
         (forward-char column))
@@ -1372,10 +1373,12 @@ argument, recompute the latest versions for all packages."
   "List the packages installed in `stp-source-directory'."
   (interactive)
   (let* ((default-directory stp-source-directory)
+         (exists (get-buffer stp-list-buffer-name))
          (buf (get-buffer-create stp-list-buffer-name)))
     (pop-to-buffer buf)
-    (stp-list-mode)
-    (stp-list-refresh :quiet t)))
+    (unless exists
+      (stp-list-mode)
+      (stp-list-refresh :quiet t))))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
   "Remove packages that exist in `stp-info-file' but not on the
