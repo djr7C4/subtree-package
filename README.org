@@ -45,7 +45,10 @@ and upgraded to any hash, branch or tag.
 ** Find upgradable packages
 Use =v= in =stp-list-mode= to find the latest stable and unstable versions for
 the current package and display this information in a latest field. Packages
-that can be upgraded are highlighted in blue.
+that can be upgraded are highlighted in blue. This is done asynchronously in a
+separate process by default if =stp-update-latest-version-async= is non-nil and
+otherwise is done synchronously. With a prefix argument, the meaning of
+=stp-update-latest-version-async= is inverted.
 
 Only git packages have unstable versions so this information is omitted for ELPA
 packages. There is no way to retrieve any version information at all for URL
@@ -146,7 +149,7 @@ for each dependency.
 
 STP also requires that you install =atool= if you wish to install ELPA and
 compressed URL packages. Additionally, to support certain non-essential
-features, the ELPA async, persist and queue packages are required.
+features, the ELPA =async=, =persist= and =queue= packages are required.
 * Recommended bindings
 #+begin_src emacs-lisp
   (keymap-global-set "C-c O" #'stp-find-package)
