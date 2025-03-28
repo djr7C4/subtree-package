@@ -1206,7 +1206,7 @@ argument, recompute the latest versions for all packages."
                    (when focus
                      (stp-list-focus-package pkg-name :recenter-arg -1))
                    (stp-list-refresh :focus-current-pkg t :quiet t))
-               (stp-list-refresh :focus-current-pkg nil :quiet t)))))
+               (stp-list-refresh :focus-current-pkg t :focus-window-line nil :quiet t)))))
        (lambda (_latest-versions)
          (unless quiet-toplevel
            (if plural
@@ -1311,14 +1311,14 @@ argument, recompute the latest versions for all packages."
           (setq version-string (propertize (concat version-string stale-string) 'face stp-list-stale-face)))
         version-string))))
 
-(cl-defun stp-list-refresh (&key (focus-current-pkg t) quiet)
+(cl-defun stp-list-refresh (&key (focus-current-pkg t) (focus-window-line t) quiet)
   (interactive)
   (when (derived-mode-p 'stp-list-mode)
     (let ((column (current-column))
           (pkg-info (stp-read-info))
           (seconds (rem-seconds))
           (line-num (line-number-at-pos))
-          (window-line-num (when focus-current-pkg
+          (window-line-num (when (and focus-current-pkg focus-window-line)
                              (beginning-of-line)
                              (rem-window-line-number-at-pos))))
       (read-only-mode 0)
