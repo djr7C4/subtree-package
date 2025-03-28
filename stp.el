@@ -1108,7 +1108,8 @@ packages. This is intended to help with rate limiting issues.")
   "This is similar to `stp-list-update-latest-versions' but for a
 single package."
   (interactive (list (stp-list-package-on-line)
-                     :async (xor stp-update-latest-version-async current-prefix-arg)))
+                     :async (xor stp-update-latest-version-async current-prefix-arg)
+                     :quiet 'packages))
   (when pkg-name
     (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async)))
 
@@ -1129,45 +1130,55 @@ argument, recompute the latest versions for all packages."
   (interactive (list :pkg-names (if current-prefix-arg t (stp-stale-packages))
                      :async (xor stp-update-latest-version-async current-prefix-arg)
                      :focus t))
-  (let ((plural (or (eq pkg-names t)
-                    (not (= (length pkg-names) 1)))))
-    (cl-flet ((finish-message ()
-                (unless quiet
-                  (if plural
-                      (message "Finished updating the latest versions")
-                    (message "Updated the latest version for %s" (car pkg-names))))))
-      (if async
-          (if (featurep 'async)
-              (async-start `(lambda ()
-                              ;; Inject the STP variables and the caller's load
-                              ;; path into the asynchronous process.
-                              ,(async-inject-variables "^stp-")
-                              (setq load-path ',load-path)
-                              (require 'stp)
-                              (stp-with-memoization
-                                (stp-latest-versions :pkg-names ',pkg-names :quiet t)))
-                           (lambda (latest-versions)
-                             (setq stp-latest-versions-cache (map-merge 'alist stp-latest-versions-cache latest-versions))
-                             (with-current-buffer stp-list-buffer-name
-                               (if-let ((win (get-buffer-window)))
-                                 (with-selected-window win
-                                   (stp-list-refresh))
-                                 (stp-list-refresh :focus-current-pkg nil)))
-                             (finish-message)))
-            (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
-        (stp-with-memoization
-          (stp-latest-versions :pkg-names pkg-names
-                               :quiet (or quiet (cdr pkg-names))
-                               :callback (lambda (latest-version)
-                                           (db (pkg-name . version-alist)
-                                               latest-version
-                                             (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
-                                             (when (derived-mode-p 'stp-list-mode)
-                                               (when focus
-                                                 (stp-list-focus-package pkg-name :recenter-arg -1))
-                                               (stp-list-refresh :quiet t)))))
-          (finish-message)))
-      )))
+  (db (quiet-toplevel quiet-packages)
+      (cl-case quiet
+        (toplevel
+         (list t nil))
+        (packages
+         (list nil t))
+        (t
+         (list t t)))
+    (let ((plural (or (and (eq pkg-names t) (cdr (stp-info-names)))
+                      (not (= (length pkg-names) 1)))))
+      (cl-flet ((finish-message ()
+                  (unless quiet-toplevel
+                    (if plural
+                        (message "Finished updating the latest versions")
+                      (message "Updated the latest version for %s" (car pkg-names))))))
+        (unless quiet-toplevel
+          (message "Updating the latest versions"))
+        (if async
+            (if (featurep 'async)
+                (async-start `(lambda ()
+                                ;; Inject the STP variables and the caller's load
+                                ;; path into the asynchronous process.
+                                ,(async-inject-variables "^stp-")
+                                (setq load-path ',load-path)
+                                (require 'stp)
+                                (stp-with-memoization
+                                  (stp-latest-versions :pkg-names ',pkg-names :quiet t)))
+                             (lambda (latest-versions)
+                               (setq stp-latest-versions-cache (map-merge 'alist stp-latest-versions-cache latest-versions))
+                               (with-current-buffer stp-list-buffer-name
+                                 (if-let ((win (get-buffer-window)))
+                                     (with-selected-window win
+                                       (stp-list-refresh))
+                                   (stp-list-refresh :focus-current-pkg nil)))
+                               (finish-message)))
+              (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
+          (stp-with-memoization
+            (stp-latest-versions :pkg-names pkg-names
+                                 :quiet (or quiet-packages (cdr pkg-names))
+                                 :callback (lambda (latest-version)
+                                             (db (pkg-name . version-alist)
+                                                 latest-version
+                                               (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
+                                               (when (derived-mode-p 'stp-list-mode)
+                                                 (when focus
+                                                   (stp-list-focus-package pkg-name :recenter-arg -1))
+                                                 (stp-list-refresh :quiet t)))))
+            (finish-message)))
+        ))))
 
 (rem-set-keys stp-list-mode-map
               "b" #'stp-build
