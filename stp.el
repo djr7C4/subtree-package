@@ -1132,8 +1132,10 @@ argument, recompute the latest versions for all packages."
                            (lambda (latest-versions)
                              (setq stp-latest-versions-cache (map-merge 'alist stp-latest-versions-cache latest-versions))
                              (with-current-buffer stp-list-buffer-name
-                               (with-selected-window (get-buffer-window)
-                                 (stp-list-refresh)))
+                               (if-let ((win (get-buffer-window)))
+                                 (with-selected-window win
+                                   (stp-list-refresh))
+                                 (stp-list-refresh :focus-current-pkg nil)))
                              (finish-message)))
             (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
         (stp-with-memoization
@@ -1286,7 +1288,7 @@ argument, recompute the latest versions for all packages."
         (align-regexp (point-min) (point-max) "\\( *\\) +" nil nil t))
       (goto-char (point-min))
       (read-only-mode 1)
-      (when focus-current-pkg
+      (when (and focus-current-pkg orig-pkg-name)
         (re-search-forward (concat "^" orig-pkg-name " "))
         (rem-move-current-window-line-to-pos window-line-num)
         (beginning-of-line)
