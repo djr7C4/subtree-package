@@ -459,6 +459,7 @@ as in `stp-install'."
                                                  pkg-name)
                                          do-commit do-push)
                     (when refresh
+                      (stp-update-cached-latest pkg-name)
                       (stp-list-refresh :quiet t)))
                 (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))))
 
@@ -1084,13 +1085,13 @@ to TRIES times."
              ;; put the package information back into the queue if there was an
              ;; error.
              (when data
-               (db (pkg-name tries latest-version error-message)
+               (db (pkg-name tries latest-version-alist error-message)
                    data
                  (cond
-                  (latest-version
-                   (push latest-version latest-versions)
+                  (latest-version-alist
+                   (push latest-version-alist latest-versions)
                    (when package-callback
-                     (funcall package-callback latest-version)))
+                     (funcall package-callback latest-version-alist)))
                   (error-message
                    (if (>= tries max-tries)
                        (unless quiet
@@ -1121,7 +1122,7 @@ to TRIES times."
                                        (setq load-path ',load-path)
                                        (require 'stp)
                                        (stp-with-memoization
-                                         (let (latest-version
+                                         (let (latest-version-alist
                                                ;; pkg-alist is read from disk
                                                ;; every time rather than stored
                                                ;; in case some other STP command
@@ -1131,20 +1132,20 @@ to TRIES times."
                                                ;; versions were being updated).
                                                (pkg-alist (stp-get-alist (stp-read-info) ,pkg-name)))
                                            (condition-case err
-                                               (setq latest-version (stp-latest-version ,pkg-name pkg-alist))
+                                               (setq latest-version-alist (stp-latest-version ,pkg-name pkg-alist))
                                              (error
                                               (list ,pkg-name ,tries nil (error-message-string err)))
                                              (:success
-                                              (list ,pkg-name ,tries latest-version nil))))))
+                                              (list ,pkg-name ,tries latest-version-alist nil))))))
                                     #'process-latest-version))
-                   (let (latest-version
+                   (let (latest-version-alist
                          (pkg-alist (stp-get-alist (stp-read-info) pkg-name)))
                      (condition-case err
-                         (setq latest-version (stp-latest-version pkg-name pkg-alist))
+                         (setq latest-version-alist (stp-latest-version pkg-name pkg-alist))
                        (error
                         (list pkg-name tries nil (error-message-string err)))
                        (:success
-                        (list pkg-name tries latest-version nil)))))))))
+                        (list pkg-name tries latest-version-alist nil)))))))))
         (dotimes (_ (if async (min num-processes (length pkg-names)) 1))
           (unless (queue-empty queue)
             (compute-next-latest-version))))))))
@@ -1199,9 +1200,9 @@ argument, recompute the latest versions for all packages."
             (message "Updating the latest versions for %d packages" (length pkg-names))
           (message "Updating the latest version for %s" (car pkg-names))))
       (stp-latest-versions
-       (lambda (latest-version)
+       (lambda (latest-version-alist)
          (db (pkg-name . version-alist)
-             latest-version
+             latest-version-alist
            (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
            (with-current-buffer stp-list-buffer-name
              (if-let ((win (get-buffer-window)))
@@ -1273,8 +1274,8 @@ argument, recompute the latest versions for all packages."
 (defun stp-stale-packages (&optional seconds)
   (setq seconds (or seconds (rem-seconds)))
   (--> stp-latest-versions-cache
-       (-filter (lambda (latest-version)
-                  (let-alist (cdr latest-version)
+       (-filter (lambda (latest-version-alist)
+                  (let-alist (cdr latest-version-alist)
                     (not (stp-latest-stale-p seconds .updated))))
                 it)
        (mapcar #'car it)
