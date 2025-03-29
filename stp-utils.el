@@ -432,6 +432,9 @@ should already exist."
                 (dolist (file files)
                   (f-move file temp-pkg-dir))
                 (setq extract-path temp-pkg-dir))
+              ;; Remove the package directory so that subdirectories copy
+              ;; without errors.
+              (delete-directory pkg-path t)
               (copy-directory extract-path pkg-path nil nil t))
           (delete-directory temp-dir t)
           (when (and temp-pkg-dir (f-dir-p temp-pkg-dir))
