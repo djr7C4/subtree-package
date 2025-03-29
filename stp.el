@@ -37,14 +37,14 @@
 commands regardless of the specific format used for versions by
 the project.")
 
-(defun stp-abbreviate-remote-version (method remote version)
+(defun stp-abbreviate-remote-version (pkg-name method remote version)
   "Abbreviate long hashes to make them more readable. Other versions
 are not abbreviated."
   (cond
    ((and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
     (stp-git-abbreviate-hash version))
    (stp-normalize-versions
-    (stp-normalize-version version))
+    (stp-normalize-version pkg-name remote version))
    (t
     version)))
 
@@ -306,8 +306,6 @@ performed.")
            ;; (string-match-p "^[a-f]*[0-9][a-f]*[a-f0-9]*$" version)
            )
       (stp-git-abbreviate-hash version)
-    (when stp-normalize-versions
-      (setq version (stp-normalize-version version)))
     (if (> (length version) stp-list-version-length)
         (concat (s-left stp-list-version-length version) stp-ellipsis)
       version)))
@@ -431,7 +429,7 @@ negated relative to the default."
                         pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                   (stp-write-info pkg-info)
                   (stp-git-commit-push (format "Installed version %s of %s"
-                                               (stp-abbreviate-remote-version .method chosen-remote .version)
+                                               (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
                                                pkg-name)
                                        do-commit do-push)
                   (when do-actions
@@ -457,7 +455,7 @@ as in `stp-install'."
                     (stp-write-info pkg-info)
                     (stp-delete-load-path pkg-name)
                     (stp-git-commit-push (format "Uninstalled version %s of %s"
-                                                 (stp-abbreviate-remote-version .method .remote .version)
+                                                 (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                                  pkg-name)
                                          do-commit do-push)
                     (when refresh
@@ -481,7 +479,7 @@ do-push and proceed arguments are as in `stp-install'."
                                           (or stp-git-upgrade-always-offer-remote-heads
                                               (eq .update 'unstable))
                                           (stp-git-remote-heads-sorted chosen-remote)))
-                     (prompt (format "Upgrade from %s to version: " (stp-abbreviate-remote-version .method chosen-remote .version))))
+                     (prompt (format "Upgrade from %s to version: " (stp-abbreviate-remote-version pkg-name .method chosen-remote .version))))
                 (when (stp-url-safe-remote-p chosen-remote)
                   (when (and .branch (member .branch extra-versions))
                     (setq extra-versions (cons .branch (remove .branch extra-versions))))
@@ -502,7 +500,7 @@ do-push and proceed arguments are as in `stp-install'."
                     (setq pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                     (stp-write-info pkg-info)
                     (stp-git-commit-push (format "Installed version %s of %s"
-                                                 (stp-abbreviate-remote-version .method chosen-remote new-version)
+                                                 (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
                                                  pkg-name)
                                          do-commit do-push)
                     (when do-actions
@@ -937,7 +935,7 @@ the buffer is reached before then, go as far forward as possible."
              (unless (save-excursion
                        (beginning-of-line)
                        (bobp))
-               (previous-line))))))
+               (forward-line -1))))))
     (setq n (abs n))
     (beginning-of-line)
     (while (and (> n 0)
@@ -1058,7 +1056,7 @@ prefix argument, go forward that many packages."
   "Retry computing the latest version for a package up to this many
 times if failures occur.")
 
-(cl-defun stp-latest-versions (package-callback final-callback pkg-names &key quiet async (num-processes stp-latest-num-processes) (tries stp-latest-retries))
+(cl-defun stp-latest-versions (package-callback final-callback pkg-names &key quiet async (num-processes stp-latest-num-processes) (max-tries stp-latest-retries))
   "Compute the latest versions for the packages in PACKAGES. Once
 the latest version becomes available for package, call
 PACKAGE-CALLBACK with the latest version alist as the argument.
@@ -1077,8 +1075,7 @@ to TRIES times."
     (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
    (t
     (let (latest-versions
-          (queue (make-queue))
-          (pkg-info (stp-read-info)))
+          (queue (make-queue)))
       (dolist (pkg-name pkg-names)
         (queue-enqueue queue (list pkg-name 0)))
       (cl-labels
@@ -1095,12 +1092,12 @@ to TRIES times."
                    (when package-callback
                      (funcall package-callback latest-version)))
                   (error-message
-                   (if (>= tries stp-latest-retries)
+                   (if (>= tries max-tries)
                        (unless quiet
-                         (message "Getting the latest version of %s failed %d times: skipping..." pkg-name stp-latest-retries))
+                         (message "Getting the latest version of %s failed %d times: skipping..." pkg-name max-tries))
                      (cl-incf tries)
                      (unless quiet
-                       (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
+                       (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries max-tries error-message))
                      (queue-enqueue queue (list pkg-name tries)))))))
              (compute-next-latest-version))
            (compute-next-latest-version ()
@@ -1312,7 +1309,7 @@ argument, recompute the latest versions for all packages."
              (version-string
               (cond
                ((and .latest-stable .latest-unstable)
-                (format "%s%s%s" stable-version-string stp-list-latest-version-separator unstable-version-string stale-string))
+                (format "%s%s%s%s" stable-version-string stp-list-latest-version-separator unstable-version-string stale-string))
                ((or .latest-stable .latest-unstable)
                 (or stable-version-string unstable-version-string))
                (t
