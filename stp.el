@@ -1189,9 +1189,9 @@ argument, recompute the latest versions for all packages."
     (let* ((pkg-info (stp-read-info))
            (packages (if (eq pkg-names t)
                          pkg-info
-                         (-filter (lambda (pkg)
-                                    (member (car pkg) pkg-names))
-                                  pkg-info)))
+                       (-filter (lambda (pkg)
+                                  (member (car pkg) pkg-names))
+                                pkg-info)))
            (plural (not (= (length pkg-names) 1))))
       (setq pkg-names (mapcar #'car packages))
       (unless quiet-toplevel
@@ -1209,7 +1209,11 @@ argument, recompute the latest versions for all packages."
                    (when focus
                      (stp-list-focus-package pkg-name :recenter-arg -1))
                    (stp-list-refresh :focus-current-pkg t :quiet t))
-               (stp-list-refresh :focus-current-pkg t :focus-window-line nil :quiet t)))))
+               ;; Don't refresh at all when the STP list buffer isn't visible.
+               ;; If the `stp-list' command is used to raise the buffer, it will
+               ;; refresh then anyway without losing the current package.
+               ;; (stp-list-refresh :focus-current-pkg t :focus-window-line nil :quiet t)
+               ))))
        (lambda (_latest-versions)
          (unless quiet-toplevel
            (if plural
