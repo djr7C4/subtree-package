@@ -531,14 +531,13 @@ arguments are as in `stp-install'."
   (interactive (append (stp-commit-push-args) (list :interactive-p t)))
   (when (and interactive-p
              (stp-git-clean-or-ask-p))
-    (let ((refresh-pkg-name :quiet t))
-      (save-window-excursion
-        (stp-with-package-source-directory
-          (stp-with-memoization
-            (stp-write-info (stp-repair-info (stp-read-info) :quiet nil))
-            (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
-            (when refresh
-              (stp-list-refresh :quiet t))))))))
+    (save-window-excursion
+      (stp-with-package-source-directory
+        (stp-with-memoization
+          (stp-write-info (stp-repair-info (stp-read-info) :quiet nil))
+          (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (cl-defun stp-edit-remotes (pkg-name &key do-commit do-push (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME using
