@@ -461,7 +461,7 @@ as in `stp-install'."
                                                  pkg-name)
                                          do-commit do-push)
                     (when refresh
-                      (stp-list-refresh t)))
+                      (stp-list-refresh :quiet t)))
                 (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
@@ -531,7 +531,7 @@ arguments are as in `stp-install'."
   (interactive (append (stp-commit-push-args) (list :interactive-p t)))
   (when (and interactive-p
              (stp-git-clean-or-ask-p))
-    (let ((refresh-pkg-name (stp-list-package-on-line)))
+    (let ((refresh-pkg-name :quiet t))
       (save-window-excursion
         (stp-with-package-source-directory
           (stp-with-memoization
@@ -1059,7 +1059,7 @@ prefix argument, go forward that many packages."
   "Retry computing the latest version for a package up to this many
 times if failures occur.")
 
-(cl-defun stp-latest-versions (package-callback final-callback packages &key quiet async (num-processes stp-latest-num-processes) (tries stp-latest-retries))
+(cl-defun stp-latest-versions (package-callback final-callback pkg-names &key quiet async (num-processes stp-latest-num-processes) (tries stp-latest-retries))
   "Compute the latest versions for the packages in PACKAGES. Once
 the latest version becomes available for package, call
 PACKAGE-CALLBACK with the latest version alist as the argument.
@@ -1080,17 +1080,15 @@ to TRIES times."
     (let (latest-versions
           (queue (make-queue))
           (pkg-info (stp-read-info)))
-      (dolist (package packages)
-        (db (pkg-name . pkg-alist)
-            package
-          (queue-enqueue queue (list pkg-name pkg-alist 0))))
+      (dolist (pkg-name pkg-names)
+        (queue-enqueue queue (list pkg-name 0)))
       (cl-labels
           ((process-latest-version (data)
              ;; Process the result of the last call to `stp-latest-version' and
              ;; put the package information back into the queue if there was an
              ;; error.
              (when data
-               (db (pkg-name pkg-alist tries latest-version error-message)
+               (db (pkg-name tries latest-version error-message)
                    data
                  (cond
                   (latest-version
@@ -1104,7 +1102,7 @@ to TRIES times."
                      (cl-incf tries)
                      (unless quiet
                        (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries stp-latest-retries (error-message-string err)))
-                     (queue-enqueue queue (list pkg-name pkg-alist tries)))))))
+                     (queue-enqueue queue (list pkg-name tries)))))))
              (compute-next-latest-version))
            (compute-next-latest-version ()
              ;; If there are more packages to process in the queue, start fetching
@@ -1113,7 +1111,7 @@ to TRIES times."
              (if (queue-empty queue)
                  (when final-callback
                    (funcall final-callback latest-versions))
-               (db (pkg-name pkg-alist tries)
+               (db (pkg-name tries)
                    (queue-dequeue queue)
                  (if async
                      ;; Binding `async-prompt-for-password' to nil avoids a bug
@@ -1127,21 +1125,30 @@ to TRIES times."
                                        (setq load-path ',load-path)
                                        (require 'stp)
                                        (stp-with-memoization
-                                         (let (latest-version)
+                                         (let (latest-version
+                                               ;; pkg-alist is read from disk
+                                               ;; every time rather than stored
+                                               ;; in case some other STP command
+                                               ;; (such as an upgrade has
+                                               ;; modified the package
+                                               ;; information while the latest
+                                               ;; versions were being updated).
+                                               (pkg-alist (stp-get-alist (stp-read-info) ,pkg-name)))
                                            (condition-case err
-                                               (setq latest-version (stp-latest-version ,pkg-name ',pkg-alist))
+                                               (setq latest-version (stp-latest-version ,pkg-name pkg-alist))
                                              (error
-                                              (list ,pkg-name ',pkg-alist ,tries nil (error-message-string err)))
+                                              (list ,pkg-name ,tries nil (error-message-string err)))
                                              (:success
-                                              (list ,pkg-name ',pkg-alist ,tries latest-version nil))))))
+                                              (list ,pkg-name ,tries latest-version nil))))))
                                     #'process-latest-version))
-                   (let (latest-version)
+                   (let (latest-version
+                         (pkg-alist (stp-get-alist (stp-read-info) pkg-name)))
                      (condition-case err
                          (setq latest-version (stp-latest-version pkg-name pkg-alist))
                        (error
-                        (list pkg-name pkg-alist tries nil (error-message-string err)))
+                        (list pkg-name tries nil (error-message-string err)))
                        (:success
-                        (list pkg-name pkg-alist tries latest-version nil)))))))))
+                        (list pkg-name tries latest-version nil)))))))))
         (dotimes (_ (if async num-processes 1))
           (compute-next-latest-version)))))))
 
@@ -1186,17 +1193,12 @@ argument, recompute the latest versions for all packages."
          (list nil t))
         (t
          (list t t)))
-    (let* ((pkg-info (stp-read-info))
-           (packages (if (eq pkg-names t)
-                         pkg-info
-                       (-filter (lambda (pkg)
-                                  (member (car pkg) pkg-names))
-                                pkg-info)))
+    (let* ((all-pkg-names (stp-info-names))
+           (pkg-names (if (eq pkg-names t) all-pkg-names pkg-names))
            (plural (not (= (length pkg-names) 1))))
-      (setq pkg-names (mapcar #'car packages))
       (unless quiet-toplevel
         (if plural
-            (message "Updating %d of the latest versions" (length pkg-names))
+            (message "Updating the latest versions for %d packages" (length pkg-names))
           (message "Updating the latest version for %s" (car pkg-names))))
       (stp-latest-versions
        (lambda (latest-version)
@@ -1208,18 +1210,18 @@ argument, recompute the latest versions for all packages."
                  (with-selected-window win
                    (when focus
                      (stp-list-focus-package pkg-name :recenter-arg -1))
-                   (stp-list-refresh :focus-current-pkg t :quiet t))
+                   (stp-list-refresh :quiet t))
                ;; Don't refresh at all when the STP list buffer isn't visible.
                ;; If the `stp-list' command is used to raise the buffer, it will
                ;; refresh then anyway without losing the current package.
-               ;; (stp-list-refresh :focus-current-pkg t :focus-window-line nil :quiet t)
+               ;; (stp-list-refresh :focus-window-line nil :quiet t)
                ))))
        (lambda (_latest-versions)
          (unless quiet-toplevel
            (if plural
-               (message "Finished updating the latest versions")
+               (message "Finished updating the latest versions for %d packages" (length pkg-names))
              (message "Updated the latest version for %s" (car pkg-names)))))
-       packages
+       pkg-names
        :quiet quiet-packages
        :async async))))
 
