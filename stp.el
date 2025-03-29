@@ -1149,8 +1149,9 @@ to TRIES times."
                         (list pkg-name tries nil (error-message-string err)))
                        (:success
                         (list pkg-name tries latest-version nil)))))))))
-        (dotimes (_ (if async num-processes 1))
-          (compute-next-latest-version)))))))
+        (dotimes (_ (if async (min num-processes (length pkg-names)) 1))
+          (unless (queue-empty queue)
+            (compute-next-latest-version))))))))
 
 (defvar stp-latest-version-async t
   "This indicates if latest versions should be computed asynchronously.")
