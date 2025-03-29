@@ -601,7 +601,7 @@ unstable."
 such as building, updating info directories and updating the load path."
   (interactive (list (stp-list-read-package "Package name: ")))
   (stp-with-memoization
-    (stp-update-load-path (stp-canonical-path pkg-name))
+    (stp-update-load-path (stp-full-path pkg-name))
     (stp-reload pkg-name)
     (stp-build pkg-name)
     (stp-build-info pkg-name)
