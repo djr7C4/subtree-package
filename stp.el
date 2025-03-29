@@ -1161,14 +1161,15 @@ to TRIES times."
 versions. This only has an effect when the latest versions are
 computed asynchronously. See `stp-latest-version-async'.")
 
-(cl-defun stp-list-update-latest-version (pkg-name &key quiet async)
+(cl-defun stp-list-update-latest-version (pkg-name &key quiet async focus)
   "This is similar to `stp-list-update-latest-versions' but for a
 single package."
   (interactive (list (stp-list-package-on-line)
+                     :quiet 'packages
                      :async stp-latest-version-async
-                     :quiet 'packages))
+                     :focus (not stp-latest-version-async)))
   (when pkg-name
-    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus (not async))))
+    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus focus)))
 
 (cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet async focus)
   "Compute the latest field in `stp-list-mode' so that the user can
