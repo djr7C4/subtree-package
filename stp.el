@@ -817,13 +817,14 @@ there were no errors."
         (message "Failed to build info manuals for: %s" (s-join " " failed))
       (message "Successfully built info manuals for all packages"))))
 
-(defun stp-reload (pkg-name)
+(defun stp-reload (pkg-name &key quiet all)
   "Reload the package."
   (interactive (list (stp-list-read-package "Package name: ")))
   ;; Reload the package twice so that macros are handled properly.
-  (stp-reload-once pkg-name)
-  (stp-reload-once pkg-name)
-  (message "Reloaded %s" pkg-name))
+  (stp-reload-once pkg-name :all all)
+  (stp-reload-once pkg-name :all all)
+  (unless quiet
+    (message "Reloaded %s" pkg-name)))
 
 (defun stp-update-info-directories (pkg-name &optional quiet)
   "By default, detect info files for all source packages in

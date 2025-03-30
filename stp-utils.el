@@ -487,7 +487,10 @@ should already exist."
     (insert (format "Current directory: %s\n" default-directory))
     (insert cmd)))
 
-(defun stp-reload-once (pkg-name)
+(defun stp-reload-once (pkg-name &optional all)
+  "Reload all features for PKG-NAME that have already been loaded
+according to `features'. When ALL is non-nil, load all features
+for PKG-NAME even if they were not previously loaded."
   (let* ((pkg-path (stp-canonical-path pkg-name))
          ;; Reload those features that were already loaded and correspond to
          ;; files in the package.
@@ -497,8 +500,9 @@ should already exist."
                                                                     "\\)$"))
                                (mapcar (lambda (path)
                                          (intern (car (last (f-split (f-base path)))))))
-                               cl-remove-duplicates
-                               (cl-intersection features))))
+                               cl-remove-duplicates)))
+    (unless all
+      (setq reload-features (cl-intersection reload-features features)))
     (setq features (cl-set-difference features reload-features))
     (dolist (f reload-features)
       (require f))))
