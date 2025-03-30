@@ -237,7 +237,8 @@ will be returned."
         (error "Failed to get the hashes that are reachable from %s at %s" ref path)))))
 
 (defun stp-git-ref-to-hash (remote ref-or-hash)
-  "Convert REF-OR-HASH to a hash if it isn't one already."
+  "Convert REF-OR-HASH to a hash if it isn't one already. Refs that
+do not match any hash will remain unchanged."
   (or (car (or (rassoc ref-or-hash (stp-git-remote-hash-head-alist remote))
                (rassoc ref-or-hash (stp-git-remote-hash-tag-alist remote))))
       ref-or-hash))
