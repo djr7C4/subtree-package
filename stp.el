@@ -279,6 +279,12 @@ which actions should be performed after a package is installed or
 upgraded. The value t indicates that all post actions should be
 performed.")
 
+(defvar stp-auto-load t
+  "If this variable is nil, then packages will not be loaded after
+they are installed or upgraded. The value \\='reload means that
+packages will be loaded only if they were already loaded.
+Otherwise, always automatically load newly installed packages.")
+
 (defun stp-commit-push-args ()
   (if current-prefix-arg
       (list :do-commit (not stp-auto-commit)
@@ -626,12 +632,14 @@ unstable."
           (user-error "The update attribute can only be toggled for git packages."))))))
 
 (defun stp-post-actions (pkg-name)
-  "Perform actions that are necessary after a package is installed or upgraded
-such as building, updating info directories and updating the load path."
+  "Perform actions that are necessary after a package is installed
+or upgraded such as building, updating info directories loading
+the package and updating the load path."
   (interactive (list (stp-list-read-package "Package name: ")))
   (stp-with-memoization
     (stp-update-load-path (stp-full-path pkg-name))
-    (stp-reload pkg-name)
+    (when stp-auto-load
+      (stp-reload pkg-name :all (not (eq stp-auto-load 'reload))))
     (stp-build pkg-name)
     (stp-build-info pkg-name)
     (stp-update-info-directories pkg-name)))
