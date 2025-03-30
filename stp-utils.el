@@ -487,7 +487,7 @@ should already exist."
     (insert (format "Current directory: %s\n" default-directory))
     (insert cmd)))
 
-(defun stp-reload-once (pkg-name &key all)
+(cl-defun stp-reload-once (pkg-name &key all)
   "Reload all features for PKG-NAME that have already been loaded
 according to `features'. When ALL is non-nil, load all features
 for PKG-NAME even if they were not previously loaded."

@@ -825,7 +825,7 @@ there were no errors."
         (message "Failed to build info manuals for: %s" (s-join " " failed))
       (message "Successfully built info manuals for all packages"))))
 
-(defun stp-reload (pkg-name &key quiet all)
+(cl-defun stp-reload (pkg-name &key quiet all)
   "Reload the package."
   (interactive (list (stp-list-read-package "Package name: ")))
   ;; Reload the package twice so that macros are handled properly.
