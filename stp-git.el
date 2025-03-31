@@ -124,6 +124,13 @@ the new name."
   "Determine if the git repository is clean (i.e. has no uncommitted changes)."
   (and (remove "??" (stp-git-status)) t))
 
+(defun stp-git-unpushed-p ()
+  (stp-with-git-root
+    (let* ((branch (stp-git-current-branch))
+           (target (stp-git-push-target branch)))
+      (and branch
+           (not (string= (s-trim (cadr (rem-call-process-shell-command (format "git cherry %s %s" target branch)))) ""))))))
+
 (defun stp-git-unmerged-p ()
   "Determine if there are unmerged changes."
   (and (cl-find-if (lambda (status)
@@ -151,12 +158,6 @@ the new name."
       (if (string= push-default "")
           (s-trim (cadr (rem-call-process-shell-command (s-join "." (list "branch" branch "pushRemote")))))
         push-default))))
-
-(defun stp-git-unpushed-p ()
-  (stp-with-git-root
-    (let* ((branch (stp-git-current-branch))
-           (target (stp-git-push-target branch)))
-      (not (string= (s-trim (cadr (rem-call-process-shell-command (format "git cherry %s %s" target branch)))) "")))))
 
 (defvar stp-git-ask-when-unclean-p t)
 
