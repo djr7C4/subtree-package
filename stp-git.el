@@ -99,7 +99,7 @@
       (when do-push
         (stp-git-push)))))
 
-(cl-defun stp-git-status (&key full keep-ignored)
+(cl-defun stp-git-status (&key full keep-ignored keep-untracked)
   "Return a list of the status of each file in the repository. Each
 status is a list containing three or four elements. The first
 element is the character status code for the index used in
@@ -109,19 +109,25 @@ for the worktree. The third is the file name. When a file is
 renamed or copied, there is also a fourth element that indicates
 the new name."
   (stp-with-git-root
-    (remove (and keep-ignored "!!")
-            (mapcar (lambda (line)
-                      ;; The first two characters can be spaces which
-                      ;; have a specific meaning and should not be used
-                      ;; to split the strings.
-                      (cl-list* (substring line 0 1)
-                                (substring line 1 2)
-                                (and full (s-split " " (substring line 2)))))
-                    (s-split "\n" (cadr (rem-call-process-shell-command "git status --porcelain")) t)))))
+    (cl-remove-if (lambda (status)
+                    (db (index-status worktree-status &rest args)
+                        status
+                      (and (string= index-status worktree-status)
+                           (member index-status
+                                   (append (and keep-ignored (list "!"))
+                                           (and keep-untracked (list "?")))))))
+                  (mapcar (lambda (line)
+                            ;; The first two characters can be spaces which have
+                            ;; a specific meaning and should not be used to
+                            ;; split the strings.
+                            (cl-list* (substring line 0 1)
+                                      (substring line 1 2)
+                                      (and full (s-split " " (substring line 2)))))
+                          (s-split "\n" (cadr (rem-call-process-shell-command "git status --porcelain")) t)))))
 
 (defun stp-git-clean-p ()
   "Determine if the git repository is clean (i.e. has no uncommitted changes)."
-  (and (remove "??" (stp-git-status)) t))
+  (and (not (stp-git-status)) t))
 
 (defun stp-git-unpushed-p ()
   (stp-with-git-root
@@ -134,15 +140,14 @@ the new name."
   "Return the list of files with merge conflicts."
   (->> (stp-git-status :full t)
        (-filter (lambda (status)
-                  (db (index-status worktree-status &rest _)
+                  (db (index-status worktree-status &rest args)
                       status
                     ;; See the description of porcelain format version 1 in
                     ;; manual for git-status.
                     (or (string= index-status "U")
                         (string= worktree-status "U")
                         (and (string= index-status worktree-status)
-                             (or (string= index-status "A")
-                                 (string= index-status "D")))))))
+                             (member index-status '("A" "D")))))))
        (mapcar #'caddr)))
 
 (defun stp-git-merge-conflict-p ()
