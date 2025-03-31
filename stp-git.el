@@ -99,10 +99,30 @@
       (when do-push
         (stp-git-push)))))
 
+(cl-defun stp-git-status (&key (status-only t) keep-ignored)
+  "Return a list of the status of each file in the repository. Each
+status is a list containing three or four elements. The first
+element is the character status code for the index used in
+version 1 of the git porcelain format (see the manual for
+git-status) and the second element is the character status code
+for the worktree. The third is the file name. When a file is
+renamed or copied, there is also a fourth element that indicates
+the new name."
+  (stp-with-git-root
+    (remove (and keep-ignored "!!")
+            (mapcar (lambda (line)
+                      ;; The first two characters can be spaces which
+                      ;; have a specific meaning and should not be used
+                      ;; to split the strings.
+                      (cl-list* (substring line 0 1)
+                                (substring line 1 2)
+                                (and (not status-only)
+                                     (s-split " " (substring line 2)))))
+                    (s-split "\n" (cadr (rem-call-process-shell-command "git status --porcelain")) t)))))
+
 (defun stp-git-clean-p ()
   "Determine if the git repository is clean (i.e. has no uncommitted changes)."
-  (stp-with-git-root
-    (string= (s-trim (cadr (rem-call-process-shell-command "git status --porcelain | grep -v '^??'"))) "")))
+  (and (remove "??" (stp-git-status)) t))
 
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
