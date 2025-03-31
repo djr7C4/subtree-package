@@ -99,7 +99,7 @@
       (when do-push
         (stp-git-push)))))
 
-(cl-defun stp-git-status (&key (status-only t) keep-ignored)
+(cl-defun stp-git-status (&key full keep-ignored)
   "Return a list of the status of each file in the repository. Each
 status is a list containing three or four elements. The first
 element is the character status code for the index used in
@@ -116,8 +116,7 @@ the new name."
                       ;; to split the strings.
                       (cl-list* (substring line 0 1)
                                 (substring line 1 2)
-                                (and (not status-only)
-                                     (s-split " " (substring line 2)))))
+                                (and full (s-split " " (substring line 2)))))
                     (s-split "\n" (cadr (rem-call-process-shell-command "git status --porcelain")) t)))))
 
 (defun stp-git-clean-p ()
@@ -131,18 +130,24 @@ the new name."
       (and branch
            (not (string= (s-trim (cadr (rem-call-process-shell-command (format "git cherry %s %s" target branch)))) ""))))))
 
+(defun stp-git-conflicted-files ()
+  "Return the list of files with merge conflicts."
+  (->> (stp-git-status :full t)
+       (-filter (lambda (status)
+                  (db (index-status worktree-status &rest _)
+                      status
+                    ;; See the description of porcelain format version 1 in
+                    ;; manual for git-status.
+                    (or (string= index-status "U")
+                        (string= worktree-status "U")
+                        (and (string= index-status worktree-status)
+                             (or (string= index-status "A")
+                                 (string= index-status "D")))))))
+       (mapcar #'caddr)))
+
 (defun stp-git-unmerged-p ()
   "Determine if there are unmerged changes."
-  (and (cl-find-if (lambda (status)
-                     (db (index-status worktree-status)
-                         status
-                       ;; See the description of porcelain format version 1 in manual
-                       ;; for git-status.
-                       (or (string= index-status "U")
-                           (string= worktree-status "U")
-                           (member status '("AA" "DD")))))
-                   (stp-git-status))
-       t))
+  (and (stp-git-conflicted-files) t))
 
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
@@ -616,55 +621,62 @@ from remote."
                                   (if squash
                                       " --squash"
                                     "")))))
-          (if (or (= exit-code 0)
-                  ;; Sometimes git subtree pull fails. This can happen if the
-                  ;; prefix has been changed since the subtree was created. In
-                  ;; this case, we attempt to uninstall the package and install
-                  ;; the new version instead.
-                  (and (if stp-subtree-pull-fallback
-                           (and (yes-or-no-p (format "git subtree merge/pull failed: %s. Uninstall and reinstall?" output))
-                                (or stp-auto-commit
-                                    (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
-                         (message "git subtree pull failed.")
-                         nil)
-                       (progn
-                         ;; We do not want to commit, push or perform other
-                         ;; actions. Those decisions are normally made in
-                         ;; higher-level code (i.e. `stp-upgrade'). However, git
-                         ;; subtree add will fail if there are uncommitted changes
-                         ;; so we have to auto commit here. Refreshing the
-                         ;; stp-list-buffer-name buffer is suppressed since that
-                         ;; will be done by stp-upgrade (which calls this
-                         ;; command).
-                         (stp-uninstall pkg-name :do-commit t :refresh nil)
-                         (let ((pkg-alist (stp-get-alist pkg-info pkg-name)))
-                           (setf (map-elt pkg-alist 'version) version)
-                           (stp-install pkg-name pkg-alist :refresh nil)
-                           t))))
-              (progn
-                (if (stp-git-remote-head-p remote version)
-                    ;; If we update to a head (i.e. a branch), update the branch
-                    ;; parameter and store the current hash as the version.
-                    ;; Since branches are constantly updated as more commits are
-                    ;; pushed to the remote, storing a branch name does not
-                    ;; make sense.
-                    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version-hash)
-                          pkg-info (stp-set-attribute pkg-info pkg-name 'branch version)
-                          pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable))
-                  ;; For tags or hashes, use the tag or hash.
-                  (setq version (stp-normalize-version pkg-name remote version)
-                        pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
-                  (if (stp-git-remote-tag-p remote version)
-                      ;; Tags do not have a branch to update from and are
-                      ;; considered stable.
-                      (setq pkg-info (stp-delete-attribute pkg-info pkg-name 'branch)
-                            pkg-info (stp-set-attribute pkg-info pkg-name 'update 'stable))
-                    ;; If there is a 'branch attribute when updating to a hash,
-                    ;; leave it as is.
-                    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable)))))
-            ;; This should never be reached since `stp-uninstall' and
-            ;; `stp-install' raise errors when they fail.
-            (error "Uninstalling and reinstalling %s failed: %s" pkg-name (s-trim output))))))
+          (cond
+           ;; Check for merge conflicts. These have to be dealt with manually by
+           ;; the user.
+           ((stp-git-unmerged-p)
+            (message "%s occurred. Please resolve and commit manually."
+                     (if (> (length (stp-git-conflicted-files)) 1)
+                         "Merge conflicts"
+                       "A merge conflict")))
+           ;; Sometimes git subtree merge/pull fails. This can happen if the
+           ;; prefix has been changed since the subtree was created. In this
+           ;; case, we attempt to uninstall the package and install the new
+           ;; version instead.
+           ((or (= exit-code 0)
+                (and (if stp-subtree-pull-fallback
+                         (and (yes-or-no-p (format "git subtree merge/pull failed: %s. Uninstall and reinstall?" output))
+                              (or stp-auto-commit
+                                  (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
+                       (message "git subtree pull failed.")
+                       nil)))
+            ;; We do not want to commit, push or perform other actions. Those
+            ;; decisions are normally made in higher-level code (i.e.
+            ;; `stp-upgrade'). However, git subtree add will fail if there are
+            ;; uncommitted changes so we have to auto commit here. Refreshing
+            ;; the stp-list-buffer-name buffer is suppressed since that will be
+            ;; done by stp-upgrade (which calls this command).
+            (stp-uninstall pkg-name :do-commit t :refresh nil)
+            (let ((pkg-alist (stp-get-alist pkg-info pkg-name)))
+              (setf (map-elt pkg-alist 'version) version)
+              (stp-install pkg-name pkg-alist :refresh nil)
+              t))
+           ;; Handle git subtree merge/pull errors and when the user chose not
+           ;; to proceed with uninstalling and reinstalling the package.
+           (t
+            (error "Uninstalling and reinstalling %s failed: %s" pkg-name (s-trim output))))
+          ;; If we get this far it means that either the merge succeeded or
+          ;; there was a merge conflict which will be resolved manually by the
+          ;; user. Either way, we update the package database.
+          (if (stp-git-remote-head-p remote version)
+              ;; If we update to a head (i.e. a branch), update the branch
+              ;; parameter and store the current hash as the version. Since
+              ;; branches are constantly updated as more commits are pushed to
+              ;; the remote, storing a branch name does not make sense.
+              (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version-hash)
+                    pkg-info (stp-set-attribute pkg-info pkg-name 'branch version)
+                    pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable))
+            ;; For tags or hashes, use the tag or hash.
+            (setq version (stp-normalize-version pkg-name remote version)
+                  pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
+            (if (stp-git-remote-tag-p remote version)
+                ;; Tags do not have a branch to update from and are considered
+                ;; stable.
+                (setq pkg-info (stp-delete-attribute pkg-info pkg-name 'branch)
+                      pkg-info (stp-set-attribute pkg-info pkg-name 'update 'stable))
+              ;; If there is a 'branch attribute when updating to a hash,
+              ;; leave it as is.
+              (setq pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable)))))))
     pkg-info))
 
 (provide 'stp-git)
