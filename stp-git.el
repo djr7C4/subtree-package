@@ -124,6 +124,19 @@ the new name."
   "Determine if the git repository is clean (i.e. has no uncommitted changes)."
   (and (remove "??" (stp-git-status)) t))
 
+(defun stp-git-unmerged-p ()
+  "Determine if there are unmerged changes."
+  (and (cl-find-if (lambda (status)
+                     (db (index-status worktree-status)
+                         status
+                       ;; See the description of porcelain format version 1 in manual
+                       ;; for git-status.
+                       (or (string= index-status "U")
+                           (string= worktree-status "U")
+                           (member status '("AA" "DD")))))
+                   (stp-git-status))
+       t))
+
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
   (stp-with-git-root
