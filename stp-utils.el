@@ -402,9 +402,6 @@ key would be (\"1\" \"2\" \"3\" \"a\").")
         (when (string-match regexp version)
           (cl-return (funcall extractor (match-string 1 version))))))))
 
-(defun stp-normalize-version (version)
-  (s-join "." (stp-version-extract version)))
-
 (defun stp-download-elisp (pkg-name remote)
   "Download the elisp file or archive at url and copy it to pkg-name. pkg-name
 should already exist."
