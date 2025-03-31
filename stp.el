@@ -285,13 +285,19 @@ they are installed or upgraded. The value \\='reload means that
 packages will be loaded only if they were already loaded.
 Otherwise, always automatically load newly installed packages.")
 
+(defun stp-ensure-no-merge-conflicts ()
+  (when (stp-git-merge-conflict-p)
+    (user-error "Merge conflicts must be resolved before running this command")))
+
 (defun stp-commit-push-args ()
+  (stp-ensure-no-merge-conflicts)
   (if current-prefix-arg
       (list :do-commit (not stp-auto-commit)
             :do-push (and (not stp-auto-commit) (not stp-auto-push)))
     (list :do-commit stp-auto-commit :do-push stp-auto-push)))
 
 (defun stp-commit-push-action-args ()
+  (stp-ensure-no-merge-conflicts)
   (append (stp-commit-push-args)
           (list :do-actions (if current-prefix-arg
                                 (not stp-auto-post-actions)
@@ -364,6 +370,7 @@ should be included. When LINE-PKG is non-nil (as it is by
 default), any data that would normally be read from the user will
 be inferred from the cursor position when `stp-list-mode' is
 active."
+  (stp-ensure-no-merge-conflicts)
   (pcase-let* ((args (if actions
                          (stp-commit-push-action-args)
                        (stp-commit-push-args)))
@@ -443,7 +450,8 @@ the package has been installed."
                 (stp-git-commit-push (format "Installed version %s of %s"
                                              (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
                                              pkg-name)
-                                     do-commit do-push)
+                                     do-commit
+                                     do-push)
                 (when do-actions
                   (stp-post-actions pkg-name))
                 (when refresh
@@ -473,7 +481,8 @@ as in `stp-install'."
                   (stp-git-commit-push (format "Uninstalled version %s of %s"
                                                (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                                pkg-name)
-                                       do-commit do-push)
+                                       do-commit
+                                       do-push)
                   (when refresh
                     (stp-update-cached-latest pkg-name)
                     (stp-list-refresh :quiet t)))
@@ -523,7 +532,8 @@ do-push and proceed arguments are as in `stp-install'."
                   (stp-git-commit-push (format "Installed version %s of %s"
                                                (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
                                                pkg-name)
-                                       do-commit do-push)
+                                       do-commit
+                                       do-push)
                   (when do-actions
                     (stp-post-actions pkg-name))
                   (when refresh
@@ -567,6 +577,7 @@ arguments are as in `stp-install'."
 (defun stp-edit-remotes-command ()
   "Edit the remotes of a package interactively."
   (interactive)
+  (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (apply #'stp-edit-remotes (stp-command-args))))
 

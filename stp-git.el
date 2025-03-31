@@ -145,7 +145,7 @@ the new name."
                                  (string= index-status "D")))))))
        (mapcar #'caddr)))
 
-(defun stp-git-unmerged-p ()
+(defun stp-git-merge-conflict-p ()
   "Determine if there are unmerged changes."
   (and (stp-git-conflicted-files) t))
 
@@ -624,7 +624,7 @@ from remote."
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
            ;; the user.
-           ((stp-git-unmerged-p)
+           ((stp-git-merge-conflict-p)
             (message "%s occurred. Please resolve and commit manually."
                      (if (> (length (stp-git-conflicted-files)) 1)
                          "Merge conflicts"
