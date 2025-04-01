@@ -25,7 +25,8 @@ and has convenience bindings for
 - repairing (=r=) and
 - editing available remotes (=e=),
 - reloading (=G=),
-- adding to the load path (=l=) and
+- adding to the load path (=l=),
+- running post actions (=a=) and
 - viewing the source code (=RET=)
 ** Freely edit installed packages
 Packages installed in =stp-source-directory= can be freely modified. If you
