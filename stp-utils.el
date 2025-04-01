@@ -492,18 +492,12 @@ for PKG-NAME even if they were not previously loaded."
   (let* ((pkg-path (stp-canonical-path pkg-name))
          ;; Reload those features that were already loaded and correspond to
          ;; files in the package.
-         (reload-features (->> (directory-files-recursively pkg-path
-                                                            (concat "\\.\\("
-                                                                    rem-elisp-file-regexp
-                                                                    "\\)$"))
-                               (mapcar (lambda (path)
-                                         (intern (car (last (f-split (f-base path)))))))
-                               cl-remove-duplicates)))
-    (unless all
-      (setq reload-features (cl-intersection reload-features features)))
-    (setq features (cl-set-difference features reload-features))
-    (dolist (f reload-features)
-      (require f))))
+         (files (directory-files-recursively pkg-path
+                                             (concat "\\.\\("
+                                                     rem-elisp-file-regexp
+                                                     "\\)$"))))
+    (dolist (f files)
+      (load f))))
 
 (provide 'stp-utils)
 ;;; stp-utils.el ends here
