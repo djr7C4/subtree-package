@@ -596,6 +596,12 @@ from remote."
     (rem-with-directory git-root
       ;; Upgrade package
       (let* ((hash-p (stp-git-maybe-fetch remote version))
+             (action (if hash-p
+                         ;; merging is done instead of pulling for
+                         ;; hashes because git subtree pull does
+                         ;; not work for hashes on remotes.
+                         "merge"
+                       "pull"))
              (version-hash (stp-git-ref-to-hash remote version)))
         (when (stp-git-hash= (stp-git-subtree-hash pkg-name) version-hash)
           (user-error "Commit %s of %s is already installed"
@@ -613,12 +619,7 @@ from remote."
                                 " "
                               "\"%s\" ")
                             "\"%s\"%s")
-                    (append (list (if hash-p
-                                      ;; merging is done instead of pulling for
-                                      ;; hashes because git subtree pull does
-                                      ;; not work for hashes on remotes.
-                                      "merge"
-                                    "pull")
+                    (append (list action
                                   prefix)
                             (unless hash-p
                               (list remote))
@@ -634,17 +635,17 @@ from remote."
                      (if (> (length (stp-git-conflicted-files)) 1)
                          "Merge conflicts"
                        "A merge conflict")))
+           ((= exit-code 0))
            ;; Sometimes git subtree merge/pull fails. This can happen if the
            ;; prefix has been changed since the subtree was created. In this
            ;; case, we attempt to uninstall the package and install the new
            ;; version instead.
-           ((or (= exit-code 0)
-                (and (if stp-subtree-pull-fallback
-                         (and (yes-or-no-p (format "git subtree merge/pull failed: %s. Uninstall and reinstall?" output))
-                              (or stp-auto-commit
-                                  (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
-                       (message "git subtree pull failed.")
-                       nil)))
+           ((if stp-subtree-pull-fallback
+                (and (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
+                     (or stp-auto-commit
+                         (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
+              (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
+              nil)
             ;; We do not want to commit, push or perform other actions. Those
             ;; decisions are normally made in higher-level code (i.e.
             ;; `stp-upgrade'). However, git subtree add will fail if there are
@@ -654,8 +655,7 @@ from remote."
             (stp-uninstall pkg-name :do-commit t :refresh nil)
             (let ((pkg-alist (stp-get-alist pkg-info pkg-name)))
               (setf (map-elt pkg-alist 'version) version)
-              (stp-install pkg-name pkg-alist :refresh nil)
-              t))
+              (stp-install pkg-name pkg-alist :refresh nil)))
            ;; Handle git subtree merge/pull errors and when the user chose not
            ;; to proceed with uninstalling and reinstalling the package.
            (t
