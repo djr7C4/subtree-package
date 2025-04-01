@@ -504,6 +504,11 @@ will be considered which may improve efficiency."
     (and count-to-unstable (> count-to-unstable 0) t)))
 
 (defun stp-git-commit (&optional msg)
+  (when (stp-git-merge-conflict-p)
+    (error "Committing is not possible due to %s."
+           (if (> (length (stp-git-conflicted-files)) 1)
+               "merge conflicts"
+             "a merge conflict")))
   (setq msg (or msg ""))
   (if (stp-git-clean-p)
       (message "There are no changes to commit. Skipping...")

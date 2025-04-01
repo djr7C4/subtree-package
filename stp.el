@@ -529,13 +529,16 @@ do-push and proceed arguments are as in `stp-install'."
                 (let ((new-version (stp-get-attribute pkg-info pkg-name 'version)))
                   (setq pkg-info (stp-update-remotes pkg-info pkg-name chosen-remote .remote .other-remotes))
                   (stp-write-info pkg-info)
-                  (stp-git-commit-push (format "Installed version %s of %s"
-                                               (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
-                                               pkg-name)
-                                       do-commit
-                                       do-push)
-                  (when do-actions
-                    (stp-post-actions pkg-name))
+                  ;; Don't commit, push or perform push actions when there are
+                  ;; merge conflicts.
+                  (unless (stp-git-merge-conflict-p)
+                    (stp-git-commit-push (format "Installed version %s of %s"
+                                                 (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
+                                                 pkg-name)
+                                         do-commit
+                                         do-push)
+                    (when do-actions
+                      (stp-post-actions pkg-name)))
                   (when refresh
                     (stp-update-cached-latest pkg-name)
                     (stp-list-refresh :quiet t)))))))))))
