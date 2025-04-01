@@ -15,6 +15,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (require 'cl-lib)
+(require 'crm)
 (require 'f)
 (require 'map)
 (require 'memoize)
@@ -403,8 +404,8 @@ key would be (\"1\" \"2\" \"3\" \"a\").")
           (cl-return (funcall extractor (match-string 1 version))))))))
 
 (defun stp-download-elisp (pkg-name remote)
-  "Download the elisp file or archive at url and copy it to pkg-name. pkg-name
-should already exist."
+  "Download the elisp file or archive at REMOTE and copy it to
+PKG-NAME. PKG-NAME should already exist."
   (let ((pkg-name (f-filename pkg-name))
         (pkg-path (stp-canonical-path pkg-name)))
     ;; Check for archives

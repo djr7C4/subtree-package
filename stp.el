@@ -15,14 +15,12 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(unless (require 'async nil t)
-  "Loading async failed. Some non-essential commands may not work")
+(require 'align)
+(require 'async nil t)
 (require 'find-lisp)
 (require 'info)
-(unless (require 'persist nil t)
-  "Loading persist failed. Some non-essential commands may not work")
-(unless (require 'queue nil t)
-  "Loading queue failed. Some non-essential commands may not work")
+(require 'persist nil t)
+(require 'queue nil t)
 (require 'stp-bootstrap)
 (require 'stp-utils)
 (require 'stp-elpa)
@@ -394,9 +392,14 @@ active."
   "The number of seconds until the cached latest versions in
 `stp-latest-versions-cache' are considered stale.")
 
-(if (featurep 'persist)
-    (persist-defvar stp-latest-versions-cache nil nil)
-  (defvar stp-latest-versions-cache nil))
+(with-no-warnings
+  (when (featurep 'persist)
+    (persist-defvar stp-latest-versions-cache nil nil)))
+
+(defvar stp-latest-versions-cache nil)
+
+(defvar stp-latest-version-async t
+  "This indicates if latest versions should be computed asynchronously.")
 
 (defun stp-update-cached-latest (pkg-name)
   (when stp-latest-versions-cache
@@ -1105,6 +1108,11 @@ prefix argument, go forward that many packages."
       (url
        nil))))
 
+(defvar stp-latest-num-processes 1
+  "The number of processes to use in parallel to compute the latest
+versions. This only has an effect when the latest versions are
+computed asynchronously. See `stp-latest-version-async'.")
+
 (defvar stp-latest-retries 3
   "Retry computing the latest version for a package up to this many
 times if failures occur.")
@@ -1201,14 +1209,6 @@ to TRIES times."
         (dotimes (_ (if async (min num-processes (length pkg-names)) 1))
           (unless (queue-empty queue)
             (compute-next-latest-version))))))))
-
-(defvar stp-latest-version-async t
-  "This indicates if latest versions should be computed asynchronously.")
-
-(defvar stp-latest-num-processes 1
-  "The number of processes to use in parallel to compute the latest
-versions. This only has an effect when the latest versions are
-computed asynchronously. See `stp-latest-version-async'.")
 
 (cl-defun stp-list-update-latest-version (pkg-name &key quiet async focus)
   "This is similar to `stp-list-update-latest-versions' but for a
@@ -1429,7 +1429,7 @@ argument, recompute the latest versions for all packages."
 
 (cl-defun stp-list-focus-package (pkg-name &key (recenter t) (recenter-arg nil))
   (save-match-data
-    (beginning-of-buffer)
+    (goto-char (point-min))
     (re-search-forward (concat "^" (regexp-quote pkg-name)))
     (beginning-of-line)
     (when recenter

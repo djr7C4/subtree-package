@@ -15,6 +15,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (require 'stp-utils)
+(require 'stp-git-utils)
 (require 'url-parse)
 
 (defun stp-elpa-valid-remote-p (remote)
@@ -105,12 +106,11 @@ be performed."
   (let ((pkg-path (stp-canonical-path pkg-name))
         (elpa-version-url-alist (stp-elpa-version-url-alist pkg-name remote)))
     (if (eq type 'install)
-        (when (f-exists-p pkg-path)
-          (error "%s already exists" pkg-name))
+        (if (f-exists-p pkg-path)
+            (error "%s already exists" pkg-name)
+          (f-mkdir-full-path pkg-path))
       (unless (f-exists-p pkg-path)
         (error "%s does not exist" pkg-name)))
-    (when (eq type 'install)
-      (make-directory pkg-path))
     (aif (assoc version elpa-version-url-alist)
         (stp-download-elisp pkg-name (cdr it))
       (error "Version %s not found" version))

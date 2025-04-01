@@ -15,6 +15,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (require 'url-parse)
+(require 'stp-git-utils)
 (require 'stp-utils)
 
 (defun stp-url-valid-remote-p (remote)
