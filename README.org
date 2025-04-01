@@ -9,9 +9,9 @@ subtrees in the git repository for your Emacs configuration.
 - It is easy to migrate existing configurations that manually use git subtree to
   manage packages
 * Features
-** Manage all installed packages
+** Easily manage packages
 The main entry point to STP is =M-x stp-list= which shows all installed packages
-using =stp-list-mode= and has convenience bindings for
+and has convenience bindings for
 - installing (=i=),
 - upgrading (=u=),
 - building source (=b=),
@@ -27,6 +27,12 @@ using =stp-list-mode= and has convenience bindings for
 - reloading (=G=),
 - adding to the load path (=l=) and
 - viewing the source code (=RET=)
+** Freely edit installed packages
+Packages installed in =stp-source-directory= can be freely modified. If you
+later upgrade the package to a newer version, any conflicts that arise due to
+your changes can be resolved with git as you would for any git repository. STP
+automatically detects merge conflicts and leaves them to the user. This is true
+even when the remote for the package is not a git repository.
 ** Automatically detect stable versions
 Stable versions of packages are automatically inferred from tags in the git
 repository. =stp-version-extractor-alist= can be modified in order to support
