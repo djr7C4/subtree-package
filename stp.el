@@ -567,7 +567,7 @@ arguments are as in `stp-install'."
 
 (cl-defun stp-repair-all (&key do-commit do-push (refresh t) interactive-p)
   "Run `stp-repair-info' and write the repaired package info to
-`stp-info-file'"
+`stp-info-file'."
   (when (and interactive-p
              (stp-git-clean-or-ask-p))
     (save-window-excursion
@@ -578,7 +578,8 @@ arguments are as in `stp-install'."
           (stp-list-refresh :quiet t))))))
 
 (defun stp-edit-remotes-command ()
-  "Edit the remotes of a package interactively."
+  "Edit the remotes of a package interactively and write the new
+package info to `stp-info-file'"
   (interactive)
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
