@@ -197,6 +197,9 @@ remote repository."
              (string-match "\\(?:[0-9a-fA-F]+..\\| \\)\\([0-9a-fA-F]+\\)$" string)
              (match-string 1 string))))))
 
+(defun stp-git-head ()
+  (stp-git-remote-head (stp-git-root stp-source-directory)))
+
 (defun stp-git-subtree-p (pkg-name)
   "Determine if there is a git subtree for this package."
   (stp-git-subtree-hash pkg-name))
