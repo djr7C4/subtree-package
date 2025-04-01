@@ -1277,6 +1277,7 @@ argument, recompute the latest versions for all packages."
        :async async))))
 
 (rem-set-keys stp-list-mode-map
+              "a" #'stp-post-actions
               "b" #'stp-build
               "B" #'stp-build-all
               "m" #'stp-build-info
