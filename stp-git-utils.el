@@ -66,9 +66,14 @@
   (let ((default-directory path))
     (= (call-process-shell-command (format "git rev-parse --verify '%s'" ref)) 0)))
 
+(defun stp-git-init (path)
+  "Run \"git init\" on PATH."
+  (let ((default-directory path))
+    (call-process-shell-command "git init")))
+
 (cl-defun stp-git-add (path &optional (relative t))
-  "Run \"git add\" on path. If relative is non-nil, then path will be
-  calculated relative to `stp-source-directory'."
+  "Run \"git add\" on path. If RELATIVE is non-nil, then path will
+be calculated relative to `stp-source-directory'."
   (when relative
     (setq path (f-join stp-source-directory path)))
   (let ((dir (f-dirname path))
@@ -78,6 +83,21 @@
           (rem-call-process-shell-command (format "git add '%s'" target))
         (unless (= exit-code 0)
           (error "Failed to add %s to the git repository: %s" path (s-trim output)))))))
+
+(defun stp-git-download-as-synthetic-repo (pkg-name remote)
+  "Create a new git repository for PKG-NAME by downloading REMOTE
+and adding it to the repository."
+  (let (success
+        (dir (make-temp-file pkg-name t)))
+    (unwind-protect
+        (progn
+          (stp-download-elisp dir pkg-name remote)
+          (stp-git-init dir)
+          (stp-git-add dir)
+          (setq success t))
+      (unless success
+        (f-delete dir t)))
+    dir))
 
 (defun stp-git-commit (&optional msg)
   (when (stp-git-merge-conflict-p)
@@ -148,7 +168,7 @@ the new name."
                             (cl-list* (substring line 0 1)
                                       (substring line 1 2)
                                       (and full (s-split " " (substring line 2)))))
-                          (s-split "\n" (cadr (rem-call-process-shell-command "git status --porcelain")) t)))))
+                          (s-split "\n" (call-process-shell-command "git status --porcelain") t)))))
 
 (defun stp-git-clean-p ()
   "Determine if the git repository is clean (i.e. has no uncommitted changes)."
@@ -159,7 +179,7 @@ the new name."
     (let* ((branch (stp-git-current-branch))
            (target (stp-git-push-target branch)))
       (and branch
-           (not (string= (s-trim (cadr (rem-call-process-shell-command (format "git cherry %s %s" target branch)))) ""))))))
+           (not (string= (s-trim (call-process-shell-command (format "git cherry %s %s" target branch))) ""))))))
 
 (defun stp-git-conflicted-files ()
   "Return the list of files with merge conflicts."
@@ -182,15 +202,15 @@ the new name."
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
   (stp-with-git-root
-    (s-trim (cadr (rem-call-process-shell-command "git symbolic-ref --short HEAD")))))
+    (s-trim (call-process-shell-command "git symbolic-ref --short HEAD"))))
 
 ;; Based on `magit-get-push-remote'.
 (defun stp-git-push-target (&optional branch)
   (stp-with-git-root
     (setq branch (or branch (stp-git-current-branch)))
-    (let ((push-default (s-trim (cadr (rem-call-process-shell-command "remote.pushDefault")))))
+    (let ((push-default (s-trim (call-process-shell-command "remote.pushDefault"))))
       (if (string= push-default "")
-          (s-trim (cadr (rem-call-process-shell-command (s-join "." (list "branch" branch "pushRemote")))))
+          (s-trim (call-process-shell-command (s-join "." (list "branch" branch "pushRemote"))))
         push-default))))
 
 (defvar stp-git-ask-when-unclean-p t)
