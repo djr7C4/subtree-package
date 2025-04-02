@@ -416,20 +416,30 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
       (url-copy-file remote (f-join dir (f-swap-ext pkg-name "el")))
     ;; Archives are downloaded, extracted and then copied to dir.
     (let* ((temp-dir (make-temp-file pkg-name t))
-           (archive-path (f-join temp-dir (f-filename remote)))
-           (extract-path (f-no-ext archive-path)))
+           (archive-path (f-join temp-dir (f-filename remote))))
       (unwind-protect
           (progn
             (url-copy-file remote archive-path)
-            (rem-extract-archive archive-path)
-            ;; Handle tarbombs and compressed elisp files.
-            (when-let ((files (cl-set-difference (f-entries temp-dir)
-                                                 (list archive-path extract-path)
-                                                 :test #'equal)))
-              (dolist (file files)
-                (f-move file dir)))
-            ;; Handle normal archives.
-            (when (f-dir-p extract-path)
+            (rem-extract-archive archive-path t)
+            (f-delete archive-path)
+            ;; Ignore directories that only contain a single directory.
+            (let (dirs
+                  (extract-path temp-dir))
+              (while (and (setq dirs (-filter #'f-dir-p (f-entries extract-path)))
+                          (= (length dirs) 1))
+                (setq extract-path (car dirs)))
+              ;; Correct the name of the file if necessary. This is needed
+              ;; because sometimes the filename includes the version (for
+              ;; example with some ELPA packages such as older versions of
+              ;; adaptive-wrap).
+              (let* ((files (f-entries extract-path))
+                     (file (car files)))
+                (when (= (length files) 1)
+                  (f-move file (f-join (f-dirname file) (f-swap-ext pkg-name "el")))))
+              ;; We don't need to handle tarbombs and archives that are a single
+              ;; compressed elisp file (e.g. file.el.lz) because
+              ;; `rem-extract-archive' already handles them by creating a
+              ;; subdirectory even if the archive doesn't contain one.
               (dolist (file (f-entries extract-path))
                 (f-move file dir))))
         (f-delete temp-dir t)))))
