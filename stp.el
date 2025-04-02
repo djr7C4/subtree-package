@@ -1538,10 +1538,13 @@ development or for opening packages from `stp-list-mode'."
                                         (rem-comp-read "Directory: " dirs :require-match t)
                                       (car dirs)))))
               (let (file-found
-                    (default-directory dir))
+                    (default-directory dir)
+                    (old-buf (current-buffer)))
                 (find-file (if arg
                                dir
                              (or (setq file-found file) (stp-main-package-file dir))))
+                (unless (rem-buffer-same-p old-buf)
+                  (message "Files differ. Point may not be preserved"))
                 ;; Go to the corresponding line in the file if possible.
                 (when (and file-found (<= (point-min) pt (point-max)))
                   (goto-char pt)
