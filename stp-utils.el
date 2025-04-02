@@ -403,40 +403,36 @@ key would be (\"1\" \"2\" \"3\" \"a\").")
         (when (string-match regexp version)
           (cl-return (funcall extractor (match-string 1 version))))))))
 
-(defun stp-download-elisp (pkg-name remote)
-  "Download the elisp file or archive at REMOTE and copy it to
-PKG-NAME. PKG-NAME should already exist."
-  (let ((pkg-name (f-filename pkg-name))
-        (pkg-path (stp-canonical-path pkg-name)))
-    ;; Check for archives
-    (if (string= (f-ext remote) "el")
-        ;; Ordinary elisp files can simply be downloaded and copied to the
-        ;; package directory.
-        (url-copy-file remote (f-swap-ext (f-join pkg-path pkg-name) "el"))
-      ;; Archives are downloaded, extracted and then copied to pkg-name.
-      (let* (temp-pkg-dir
-             (temp-dir (make-temp-file pkg-name t))
-             (archive-path (f-join temp-dir (f-filename remote)))
-             (extract-path (f-no-ext archive-path)))
-        (unwind-protect
-            (progn
-              (url-copy-file remote archive-path)
-              (rem-extract-archive archive-path)
-              ;; Handle tarbombs and compressed elisp files.
-              (when-let ((files (cl-set-difference (f-entries temp-dir)
-                                                   (list archive-path extract-path)
-                                                   :test #'equal)))
-                (setq temp-pkg-dir (make-temp-file pkg-name t))
-                (dolist (file files)
-                  (f-move file temp-pkg-dir))
-                (setq extract-path temp-pkg-dir))
-              ;; Remove the package directory so that subdirectories copy
-              ;; without errors.
-              (delete-directory pkg-path t)
-              (copy-directory extract-path pkg-path nil nil t))
-          (delete-directory temp-dir t)
-          (when (and temp-pkg-dir (f-dir-p temp-pkg-dir))
-            (delete-directory temp-pkg-dir t)))))))
+(defun stp-download-elisp (dir pkg-name remote)
+  "Download the elisp file or archive at REMOTE and copy it to DIR.
+DIR will be created if it does not already exist. If REMOTE
+contains a single elisp file, it will be renamed as PKG-NAME with a
+.el extension added if necessary."
+  (unless (f-dir-p dir)
+    (f-mkdir-full-path dir))
+  ;; Check for ordinary elisp files.
+  (if (string= (f-ext remote) "el")
+      ;; Ordinary elisp files can simply be downloaded and copied to dir.
+      (url-copy-file remote (f-join dir (f-swap-ext pkg-name "el")))
+    ;; Archives are downloaded, extracted and then copied to dir.
+    (let* ((temp-dir (make-temp-file pkg-name t))
+           (archive-path (f-join temp-dir (f-filename remote)))
+           (extract-path (f-no-ext archive-path)))
+      (unwind-protect
+          (progn
+            (url-copy-file remote archive-path)
+            (rem-extract-archive archive-path)
+            ;; Handle tarbombs and compressed elisp files.
+            (when-let ((files (cl-set-difference (f-entries temp-dir)
+                                                 (list archive-path extract-path)
+                                                 :test #'equal)))
+              (dolist (file files)
+                (f-move file dir)))
+            ;; Handle normal archives.
+            (when (f-dir-p extract-path)
+              (dolist (file (f-entries extract-path))
+                (f-move file dir))))
+        (f-delete temp-dir t)))))
 
 (defvar stp-url-unsafe-regexps '("emacswiki\\.org")
   "The user should be warned before downloading from an unsafe URL.")
