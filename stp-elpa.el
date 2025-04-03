@@ -58,7 +58,7 @@ package at remote to the URL where it can be downloaded."
                              (with-current-buffer elpa-html-buf
                                (libxml-parse-html-region (point-min) (point-max)))
                            (kill-buffer elpa-html-buf)))
-         (elpa-version-url-regexp (concat "^" pkg-name "-\\(\\(?:[0-9]+\\.\\)*\\)\\([0-9]+\\)\\(\\.tar\\|\\.el\\)?\\(\\.lz\\)$" ))
+         (elpa-version-url-regexp (concat "^" pkg-name "-\\(\\(?:[0-9]+\\.\\)*\\)\\([0-9]+\\)\\(\\.tar\\|\\.el\\)?\\(\\.lz\\)?$" ))
          ;; Find href attributes of tags. This will get all the links.
          (elpa-version-urls (mapcar 'cdr
                                     (rem-tree-find-if (lambda (x)
