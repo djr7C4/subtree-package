@@ -202,16 +202,25 @@ the new name."
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
   (stp-with-git-root
-    (s-trim (call-process-shell-command "git symbolic-ref --short HEAD"))))
+    (db (exit-code output)
+        (rem-call-process-shell-command "git symbolic-ref --short HEAD")
+      (unless (= exit-code 0)
+        (error "Failed to get the current branch"))
+      (s-trim output))))
 
 ;; Based on `magit-get-push-remote'.
 (defun stp-git-push-target (&optional branch)
   (stp-with-git-root
     (setq branch (or branch (stp-git-current-branch)))
-    (let ((push-default (s-trim (call-process-shell-command "remote.pushDefault"))))
-      (if (string= push-default "")
-          (s-trim (call-process-shell-command (s-join "." (list "branch" branch "pushRemote"))))
-        push-default))))
+    (let ((push-default (s-trim (cadr (rem-call-process-shell-command "git config --get remote.pushDefault")))))
+      (when (string= push-default "")
+        (setq push-default nil))
+      (or push-default
+          (let ((push-remote (cadr (rem-call-process-shell-command (format "git config --get %s" (s-join "." (list "branch" branch "pushRemote")))))))
+            (setq push-remote (s-trim push-remote))
+            (when (string= push-remote "")
+              (setq push-remote nil))
+            push-remote)))))
 
 (defvar stp-git-ask-when-unclean-p t)
 
