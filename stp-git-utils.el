@@ -89,7 +89,8 @@ be calculated relative to `stp-source-directory'."
 
 (defun stp-git-download-as-synthetic-repo (pkg-name remote)
   "Create a new git repository for PKG-NAME by downloading REMOTE
-and adding it to the repository."
+and adding it to the repository. Return the path to the
+repository."
   (let (success
         (dir (make-temp-file pkg-name t)))
     (unwind-protect

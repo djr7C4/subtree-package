@@ -257,21 +257,21 @@ from remote."
         (db (exit-code output)
             (rem-call-process-shell-command
              (apply #'format
-                    (concat "git subtree %s --prefix \"%s\" "
+                    (concat "git subtree %s --prefix \"%s\"%s "
                             ;; When the version is a hash, don't provide a
                             ;; remote since git subtree merge doesn't need one.
                             (if hash-p
                                 " "
                               "\"%s\" ")
-                            "\"%s\"%s")
+                            "\"%s\"")
                     (append (list action
+                                  (if squash
+                                      " --squash"
+                                    "")
                                   prefix)
                             (unless hash-p
                               (list remote))
-                            (list version
-                                  (if squash
-                                      " --squash"
-                                    "")))))
+                            (list version))))
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
            ;; the user.

@@ -14,9 +14,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(require 'url-parse)
+(require 'stp-git)
 (require 'stp-git-utils)
 (require 'stp-utils)
+(require 'url-parse)
 
 (defun stp-url-valid-remote-p (remote)
   (let ((url (url-generic-parse-url remote)))
@@ -43,14 +44,20 @@ operation should be performed."
   (when (or (stp-url-safe-remote-p remote)
             (yes-or-no-p (format "The remote %s is unsafe. Proceed anyway?" remote)))
     (let ((pkg-path (stp-canonical-path pkg-name)))
-      (if (eq type 'install)
-          (when (f-exists-p pkg-path)
-            (error "%s already exists" pkg-name))
-        (unless (f-exists-p pkg-path)
-          (error "%s does not exist" pkg-name)))
-      (when (eq type 'install)
-        (make-directory pkg-path))
-      (stp-download-elisp pkg-path remote)
+      (cond
+       ((and (eq type 'install) (f-exists-p pkg-path))
+        (error "%s already exists" pkg-name))
+       ((f-exists-p pkg-path)
+        (error "%s does not exist" pkg-name)))
+      (let ((repo (stp-git-download-as-synthetic-repo pkg-name remote)))
+        (unwind-protect
+            ;; We intentionally discard the pkg-info returned by
+            ;; `stp-git-install' and `stp-git-upgrade' as we will handle the
+            ;; pkg-info ourselves below.
+            (if (eq type 'install)
+                (stp-git-install pkg-info pkg-name repo "HEAD" 'unstable)
+              (stp-git-upgrade pkg-info pkg-name repo "HEAD"))
+          (f-delete repo t)))
       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote remote))
       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
       (when (eq type 'install)
