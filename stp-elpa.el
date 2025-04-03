@@ -52,19 +52,20 @@
 (defun stp-elpa-version-url-alist (pkg-name remote)
   "Return an alist that maps each available version for the ELPA
 package at remote to the URL where it can be downloaded."
-  (when-let ((elpa-html-buf (url-retrieve-synchronously remote))
-             (elpa-html-tree (unwind-protect
-                                 (with-current-buffer elpa-html-buf
-                                   (libxml-parse-html-region (point-min) (point-max)))
-                               (kill-buffer elpa-html-buf)))
-             (elpa-version-url-regexp (concat "\\`" pkg-name "-\\(\\(?:[0-9]+\\.\\)*\\)\\([0-9]+\\)\\(\\.tar\\|\\.el\\)?\\(\\.lz\\)?\\'" ))
-             ;; Find href attributes of tags. This will get all the links.
-             (elpa-version-urls (mapcar 'cdr
-                                        (rem-tree-find-if (lambda (x)
-                                                            (and (consp x)
-                                                                 (eq (car x) 'href)
-                                                                 (stringp (cdr x))))
-                                                          elpa-html-tree))))
+  (let* ((elpa-html-buf (or (url-retrieve-synchronously remote)
+                            (error "Failed to retrieve %s" remote)))
+         (elpa-html-tree (unwind-protect
+                             (with-current-buffer elpa-html-buf
+                               (libxml-parse-html-region (point-min) (point-max)))
+                           (kill-buffer elpa-html-buf)))
+         (elpa-version-url-regexp (concat "\\`" pkg-name "-\\(\\(?:[0-9]+\\.\\)*\\)\\([0-9]+\\)\\(\\.tar\\|\\.el\\)?\\(\\.lz\\)?\\'" ))
+         ;; Find href attributes of tags. This will get all the links.
+         (elpa-version-urls (mapcar 'cdr
+                                    (rem-tree-find-if (lambda (x)
+                                                        (and (consp x)
+                                                             (eq (car x) 'href)
+                                                             (stringp (cdr x))))
+                                                      elpa-html-tree))))
     ;; Remove everything that is nil. These correspond to the URLs that did not
     ;; match `elpa-version-url-regexp'.
     (-filter 'identity
