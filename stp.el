@@ -330,10 +330,10 @@ Otherwise, always automatically load newly installed packages.")
 point or nil if no package corresponds to that line."
   (when (derived-mode-p 'stp-list-mode)
     (setq offset (or offset 0))
-    (let ((line-num (line-number-at-pos)))
+    (let ((line (line-number-at-pos)))
       (save-excursion
         (forward-line offset)
-        (when (= (line-number-at-pos) (+ line-num offset))
+        (when (= (line-number-at-pos) (+ line offset))
           (when-let ((pkg-name (rem-plain-symbol-at-point)))
             (and (not (save-excursion
                         (beginning-of-line)
@@ -1401,10 +1401,10 @@ argument, recompute the latest versions for all packages."
     (let ((column (current-column))
           (pkg-info (stp-read-info))
           (seconds (rem-seconds))
-          (line-num (line-number-at-pos))
-          (window-line-num (when (and focus-current-pkg focus-window-line)
-                             (beginning-of-line)
-                             (rem-window-line-number-at-pos))))
+          (line (line-number-at-pos))
+          (window-line (when (and focus-current-pkg focus-window-line)
+                         (beginning-of-line)
+                         (rem-window-line-number-at-pos))))
       (read-only-mode 0)
       (erase-buffer)
       (insert (format "Package Version%s Method Update Branch Remote\n"
@@ -1441,10 +1441,9 @@ argument, recompute the latest versions for all packages."
       (goto-char (point-min))
       (read-only-mode 1)
       (when focus-current-pkg
-        (goto-char (point-min))
-        (forward-line (1- line-num))
+        (rem-goto-line line)
         (when focus-window-line
-          (rem-move-current-window-line-to-pos window-line-num))
+          (rem-move-current-window-line-to-pos window-line))
         (beginning-of-line)
         (forward-char column))
       (unless quiet
@@ -1538,9 +1537,7 @@ development or for opening packages from `stp-list-mode'."
                    (list (stp-list-package-on-line) nil current-prefix-arg)
                  (append (stp-split-current-package) (list current-prefix-arg))))
   (let ((path (f-canonical (or buffer-file-name default-directory)))
-        (pkg-info (stp-read-info))
-        (pt (point))
-        (window-line-num (rem-window-line-number-at-pos)))
+        (pkg-info (stp-read-info)))
     (let-alist (stp-get-alist pkg-info pkg-name)
       ;; Prefer a remote on the local filesystem or
       ;; `stp-read-remote-default-directory'. If neither of these exists,
@@ -1561,14 +1558,20 @@ development or for opening packages from `stp-list-mode'."
                                         (rem-comp-read "Directory: " dirs :require-match t)
                                       (car dirs)))))
               (let (file-found
-                    (default-directory dir))
+                    (default-directory dir)
+                    (line (line-number-at-pos))
+                    (column (current-column))
+                    (window-line (rem-window-line-number-at-pos))
+                    (old-buf (current-buffer)))
                 (find-file (if arg
                                dir
                              (or (setq file-found file) (stp-main-package-file dir))))
+                (unless (rem-buffer-same-p old-buf)
+                  (message "Files differ. Line and column may not be preserved"))
                 ;; Go to the corresponding line in the file if possible.
-                (when (and file-found (<= (point-min) pt (point-max)))
-                  (goto-char pt)
-                  (rem-move-current-window-line-to-pos window-line-num))))
+                (when file-found
+                  (rem-goto-line-column line column t)
+                  (rem-move-current-window-line-to-pos window-line))))
           (message "%s was not found in the local filesystem" pkg-name))))))
 
 (provide 'stp)
