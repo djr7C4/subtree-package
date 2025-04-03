@@ -166,8 +166,8 @@ the new name."
                           status
                         (and (string= index-status worktree-status)
                              (member index-status
-                                     (append (and keep-ignored (list "!"))
-                                             (and keep-untracked (list "?")))))))
+                                     (append (and (not keep-ignored) (list "!"))
+                                             (and (not keep-untracked) (list "?")))))))
                     (mapcar (lambda (line)
                               ;; The first two characters can be spaces which have
                               ;; a specific meaning and should not be used to
