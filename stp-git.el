@@ -33,8 +33,7 @@
 (defun stp-git-subtree-version (pkg-info pkg-name)
   "Determine the version and the update type of the package that was
 installed at the subtree. Use a tag if one is available;
-otherwise, use the hash. This only works for packages that use
-the \\='git method."
+otherwise, use the hash."
   (let* ((pkg-name (stp-name pkg-name)))
     (let-alist (stp-get-alist pkg-info pkg-name)
       (if (stp-git-remote-p .remote)
@@ -300,7 +299,7 @@ from remote."
             (stp-uninstall pkg-name :do-commit t :refresh nil)
             (let ((pkg-alist (stp-get-alist pkg-info pkg-name)))
               (setf (map-elt pkg-alist 'version) version)
-              (stp-install pkg-name pkg-alist :refresh nil)))
+              (stp-install pkg-name pkg-alist :do-commit stp-auto-commit :do-push stp-auto-push :refresh nil)))
            ;; Handle git subtree merge/pull errors and when the user chose not
            ;; to proceed with uninstalling and reinstalling the package.
            (t
