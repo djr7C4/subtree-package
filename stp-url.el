@@ -20,8 +20,9 @@
 (require 'url-parse)
 
 (defun stp-url-valid-remote-p (remote)
-  (let ((url (url-generic-parse-url remote)))
-    (and url remote)))
+  (or (f-exists-p remote)
+      (let ((url (url-generic-parse-url remote)))
+        (and url remote))))
 
 (defvar stp-url-remote-history nil)
 

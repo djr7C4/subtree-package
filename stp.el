@@ -89,8 +89,10 @@ are not abbreviated."
        (unless version
          (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (map-elt pkg-alist 'version) branch) :default (map-elt pkg-alist 'version)))))
       ((elpa url)
-       (when (or (not (string-match-p rem-strict-url-regexp remote))
-                 (not (url-file-exists-p remote)))
+       (unless (or (and (string-match-p rem-strict-url-regexp remote)
+                        (url-file-exists-p remote))
+                   ;; Allow local files too.
+                   (f-exists-p remote))
          (user-error (stp-prefix-prompt prompt-prefix "Invalid URL (or host is down): %s") remote))
        (unless version
          (cl-ecase method
@@ -438,9 +440,9 @@ the package has been installed."
         (stp-with-package-source-directory
           (let-alist pkg-alist
             ;; Don't prompt for the remote when one is already known. This
-            ;; prevents prompting the user twice in `stp-git-upgrade' when pulling
-            ;; the new subtree in fails and the package has to be uninstalled and
-            ;; reinstalled manually.
+            ;; prevents prompting the user twice in `stp-git-upgrade' when
+            ;; pulling the new subtree in fails and the package has to be
+            ;; uninstalled and reinstalled manually.
             (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
                                      (stp-choose-remote "Remote: " .remote .other-remotes))))
               ;; Guess the method if it isn't already known.
@@ -554,7 +556,13 @@ do-push and proceed arguments are as in `stp-install'."
                     (stp-list-refresh :quiet t)))))))))
     pkg-info))
 
-(defun stp-reinstall (pkg-info pkg-name version)
+(cl-defun stp-reinstall-command (pkg-name &key do-commit do-push do-actions (refresh t))
+  "Uninstall and reinstall PKG-NAME as the same version."
+  (interactive (stp-command-args :actions t))
+  (let ((pkg-info (stp-read-info)))
+    (setq pkg-info (stp-reinstall pkg-info pkg-name (stp-get-attribute pkg-info pkg-name 'version) :do-commit do-commit :do-push do-push :do-actions do-actions :refresh refresh))))
+
+(cl-defun stp-reinstall (pkg-info pkg-name version &key do-commit do-push do-actions refresh)
   "Uninstall and reinstall PKG-NAME as VERSION."
   (let ((pkg-alist (stp-get-alist pkg-info pkg-name)))
     ;; We do not want to commit, push or perform other actions. Those decisions
@@ -567,7 +575,7 @@ do-push and proceed arguments are as in `stp-install'."
     ;; The :do-commit argument is not required here. The decisions to
     ;; commit, push or perform post actions will be handled at a
     ;; higher level by `stp-upgrade'.
-    (setq pkg-info (stp-install pkg-name pkg-alist :refresh nil))))
+    (setq pkg-info (stp-install pkg-name pkg-alist :do-commit do-commit :do-push do-push :do-actions do-actions :refresh refresh))))
 
 (defun stp-repair-command ()
   "Repair the stored information for a package interactively."

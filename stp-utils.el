@@ -176,7 +176,7 @@ within that package."
 
 (defun stp-normalize-remote (remote)
   ;; Use absolute paths for local repositories.
-  (if (f-dir-p remote)
+  (if (f-exists-p remote)
       (setq remote (f-slash (f-full remote)))
     remote))
 
@@ -414,14 +414,20 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
   (setq dir (f-slash dir))
   ;; Check for ordinary elisp files.
   (if (string= (f-ext remote) "el")
-      ;; Ordinary elisp files can simply be downloaded and copied to dir.
-      (url-copy-file remote (f-join dir (f-swap-ext pkg-name "el")))
+      ;; Handle local remotes as well.
+      (let ((target (f-join dir (f-swap-ext pkg-name "el"))))
+        (if (f-exists-p remote)
+            (f-copy remote target)
+          ;; Ordinary elisp files can simply be downloaded and copied to dir.
+          (url-copy-file remote (f-join dir (f-swap-ext pkg-name "el")))))
     ;; Archives are downloaded, extracted and then copied to dir.
     (let* ((temp-dir (make-temp-file pkg-name t))
            (archive-path (f-join temp-dir (f-filename remote))))
       (unwind-protect
           (progn
-            (url-copy-file remote archive-path)
+            (if (f-exists-p remote)
+                (f-copy remote archive-path)
+              (url-copy-file remote archive-path))
             (rem-extract-archive archive-path t)
             (f-delete archive-path)
             ;; Ignore directories that only contain a single directory.
@@ -451,7 +457,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
 
 (defun stp-url-safe-remote-p (remote)
   (or (not remote)
-      (let ((domain (if (f-dir-p remote)
+      (let ((domain (if (f-exists-p remote)
                         ;; Handle local paths which cannot be parsed by
                         ;; `url-generic-parse-url'.
                         remote
