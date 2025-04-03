@@ -191,27 +191,26 @@ occurred."
                     (let* ((valid-other-remotes (-filter (-rpartial #'stp-valid-remote-p .method) .other-remotes)))
                       (when valid-other-remotes
                         (setq pkg-info (stp-set-attribute pkg-info pkg-name 'other-remotes valid-other-remotes))))
-                    (cl-case .method
-                      (git
-                       ;; First make sure that the remote is valid. This has to
-                       ;; be done first since `stp-git-subtree-version' needs to
-                       ;; know the remote.
-                       (unless (stp-git-valid-remote-p .remote)
-                         (setq .remote (funcall callback 'invalid-git-remote pkg-info pkg-name)))
-                       (if .remote
-                           (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote .remote))
-                         (unless quiet
-                           (message "Failed to determine the remote of %s" pkg-name)))
-                       (db (version update)
-                           (stp-git-subtree-version pkg-info pkg-name)
-                         ;; Use callback to determine the version if it could
-                         ;; not be deduced above.
+                    (db (version update)
+                        (stp-git-subtree-version pkg-info pkg-name)
+                      (cl-case .method
+                        (git
+                         ;; First make sure that the remote is valid. This has to
+                         ;; be done first since `stp-git-subtree-version' needs to
+                         ;; know the remote.
+                         (unless (stp-git-valid-remote-p .remote)
+                           (setq .remote (funcall callback 'invalid-git-remote pkg-info pkg-name)))
+                         (if .remote
+                             (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote .remote))
+                           (unless quiet
+                             (message "Failed to determine the remote of %s" pkg-name)))
+                         ;; Use callback to determine the version if it could not
+                         ;; be deduced above.
                          (setq version (or version (funcall callback 'unknown-git-version pkg-info pkg-name)))
                          (if version
-                             ;; Only update hashes if they are different.
-                             ;; Shorter versions of hashes are acceptable if
-                             ;; `stp-repair-allow-abbreviated-hashes' is
-                             ;; non-nil.
+                             ;; Only update hashes if they are different. Shorter
+                             ;; versions of hashes are acceptable if
+                             ;; `stp-repair-allow-abbreviated-hashes' is non-nil.
                              (unless (and stp-repair-allow-abbreviated-hashes
                                           (stp-git-hash= version .version))
                                (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version)))
@@ -227,8 +226,8 @@ occurred."
                                  ;; If the 'update attribute is 'unstable, there
                                  ;; should be a 'branch attribute. If it is
                                  ;; missing, we try to get it from the callback
-                                 ;; function. If that doesn't work, we assume
-                                 ;; that it should be the master branch.
+                                 ;; function. If that doesn't work, we assume that
+                                 ;; it should be the master branch.
                                  (setq .branch
                                        (or .branch
                                            (funcall callback 'unknown-git-branch pkg-info pkg-name)))
@@ -236,17 +235,24 @@ occurred."
                                      (progn
                                        (setq pkg-info (stp-set-attribute pkg-info pkg-name 'branch .branch)))
                                    (unless quiet
-                                     (message "Failed to determine the update mechanism for %s" pkg-name))))))))
-                      (elpa
-                       (setq pkg-info (funcall callback 'partial-elpa-package pkg-info pkg-name)))
-                      (url
-                       (setq pkg-info (funcall callback 'partial-url-package pkg-info pkg-name)))
-                      ;; nil means that we were unable to determine the method.
-                      ;; In this case, we obtain the information via callbacks.
-                      ((nil)
-                       (setq pkg-info (funcall callback 'unknown-package pkg-info pkg-name)))))
-                (when (funcall callback 'ghost-package pkg-info pkg-name)
-                  (setq pkg-info (cl-remove-if (lambda (cell) (string= (car cell) pkg-name)) pkg-info))))
+                                     (message "Failed to determine the update mechanism for %s" pkg-name)))))))
+                        (elpa
+                         (setq pkg-info (funcall callback 'partial-elpa-package pkg-info pkg-name)))
+                        (url
+                         (setq pkg-info (funcall callback 'partial-url-package pkg-info pkg-name)))
+                        ;; nil means that we were unable to determine the method.
+                        ;; In this case, we obtain the information via callbacks.
+                        ((nil)
+                         (setq pkg-info (funcall callback 'unknown-package pkg-info pkg-name))))
+                      (when (funcall callback 'ghost-package pkg-info pkg-name)
+                        (setq pkg-info (cl-remove-if (lambda (cell) (string= (car cell) pkg-name)) pkg-info)))
+                      ;; Ensure that the package was installed as a subtree.
+                      (when (and (not version)
+                                 (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
+                                                      pkg-name)))
+                        (stp-uninstall pkg-name :do-commit t :refresh nil)
+                        (let ((pkg-alist (stp-get-alist pkg-info pkg-name)))
+                          (setq pkg-info (stp-install pkg-name pkg-alist :do-commit stp-auto-commit :do-push stp-auto-push :refresh nil)))))))
               (cl-incf i)
               ;; Ensure that the package info file is updated even on a keyboard
               ;; quit or other signal.
@@ -427,8 +433,8 @@ If do-actions is non-nil, `stp-post-actions' will be called after
 the package has been installed."
   ;; pkg-name may be nil in interactive calls when the user answers no when the
   ;; repository is dirty and `stp-git-clean-or-ask-p' is called.
-  (when pkg-name
-    (let ((pkg-info (stp-read-info)))
+  (let ((pkg-info (stp-read-info)))
+    (when pkg-name
       (save-window-excursion
         (stp-with-package-source-directory
           (let-alist pkg-alist
@@ -459,7 +465,8 @@ the package has been installed."
                   (stp-post-actions pkg-name))
                 (when refresh
                   (stp-update-cached-latest pkg-name)
-                  (stp-list-refresh :quiet t))))))))))
+                  (stp-list-refresh :quiet t))))))))
+    pkg-info))
 
 (defun stp-uninstall-command ()
   "Uninstall a package interactively."
@@ -470,8 +477,8 @@ the package has been installed."
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
   "Uninstall the package named pkg-name. The do-commit and do-push arguments are
 as in `stp-install'."
-  (when pkg-name
-    (let ((pkg-info (stp-read-info)))
+  (let ((pkg-info (stp-read-info)))
+    (when pkg-name
       (let-alist (stp-get-alist pkg-info pkg-name)
         (save-window-excursion
           (stp-with-package-source-directory
@@ -489,7 +496,8 @@ as in `stp-install'."
                   (when refresh
                     (stp-update-cached-latest pkg-name)
                     (stp-list-refresh :quiet t)))
-              (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))))
+              (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))
+    pkg-info))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
@@ -502,8 +510,8 @@ as in `stp-install'."
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-actions (refresh t))
   "Change the version of the package named pkg-name. The do-commit,
 do-push and proceed arguments are as in `stp-install'."
-  (when pkg-name
-    (let ((pkg-info (stp-read-info)))
+  (let ((pkg-info (stp-read-info)))
+    (when pkg-name
       (save-window-excursion
         (stp-with-package-source-directory
           (let-alist (stp-get-alist pkg-info pkg-name)
@@ -544,7 +552,8 @@ do-push and proceed arguments are as in `stp-install'."
                       (stp-post-actions pkg-name)))
                   (when refresh
                     (stp-update-cached-latest pkg-name)
-                    (stp-list-refresh :quiet t)))))))))))
+                    (stp-list-refresh :quiet t)))))))))
+    pkg-info))
 
 (defun stp-repair-command ()
   "Repair the stored information for a package interactively."
@@ -554,8 +563,8 @@ do-push and proceed arguments are as in `stp-install'."
 (cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
   "Repair the package named pkg-name. The do-commit, do-push and proceed
 arguments are as in `stp-install'."
-  (when pkg-name
-    (let ((pkg-info (stp-read-info)))
+  (let ((pkg-info (stp-read-info)))
+    (when pkg-name
       (save-window-excursion
         (stp-with-package-source-directory
           (stp-write-info (stp-repair-info pkg-info :quiet nil :pkg-names (list pkg-name)))
