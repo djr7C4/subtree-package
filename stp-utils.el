@@ -130,14 +130,15 @@ within that package."
   (stp-with-package-source-directory
     (-filter 'f-directory-p (directory-files stp-source-directory nil "^[^.]"))))
 
-(defun stp-info-names (&optional method)
+(defun stp-info-names (&optional pkg-info method)
   "Return a list of packages stored in `stp-info-file'."
+  (setq pkg-info (or pkg-info (stp-read-info)))
   (sort (mapcar 'car
                 (-filter (lambda (pkg)
                            (or (not method)
                                (let ((pkg-alist (cdr pkg)))
                                  (eq (map-elt pkg-alist 'method) method))))
-                         (stp-read-info)))
+                         pkg-info))
         'string<))
 
 (defvar stp-methods-order '(git elpa url)
