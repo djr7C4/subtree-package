@@ -224,6 +224,9 @@ the new name."
 (defun stp-git-push-target (&optional branch)
   (stp-with-git-root
     (setq branch (or branch (stp-git-current-branch)))
+    ;; git config --get returns a non-zero exit status and does not print
+    ;; anything when the value does not exist so we do not treat a non-zero exit
+    ;; code as an error.
     (let ((push-default (s-trim (cadr (rem-call-process-shell-command "git config --get remote.pushDefault")))))
       (when (string= push-default "")
         (setq push-default nil))
