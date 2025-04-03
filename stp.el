@@ -1244,10 +1244,11 @@ to TRIES times."
 (cl-defun stp-list-update-latest-version (pkg-name &key quiet async focus)
   "This is similar to `stp-list-update-latest-versions' but for a
 single package."
-  (interactive (list (stp-list-package-on-line)
-                     :quiet 'packages
-                     :async stp-latest-version-async
-                     :focus (not stp-latest-version-async)))
+  (interactive (let ((async (xor current-prefix-arg stp-latest-version-async)))
+                 (list (stp-list-package-on-line)
+                       :quiet 'packages
+                       :async async
+                       :focus (not async))))
   (when pkg-name
     (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus focus)))
 
@@ -1257,16 +1258,23 @@ see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
 installed. This is done synchronously if
 `stp-latest-version-async' is nil and otherwise it is done
-asynchronously.
+asynchronously. A universal prefix argument inverts the meaning
+of this variable.
 
 By default, only compute the latest field for packages that are
 not already in the cache or were last updated more than
-`stp-latest-versions-stale-interval' seconds ago. With a prefix
-argument, recompute the latest versions for all packages."
-  (interactive (list :pkg-names (if current-prefix-arg t (stp-stale-packages))
-                     :async stp-latest-version-async
-                     :focus (not stp-latest-version-async)
-                     :quiet 'packages))
+`stp-latest-versions-stale-interval' seconds ago. With a negative
+prefix argument, recompute the latest versions for all packages.
+
+Multiple instances of this command will not be allowed to run at
+the same time unless PARALLEL is non-nil."
+  (interactive (let ((async (xor (consp current-prefix-arg) stp-latest-version-async)))
+                 (list :pkg-names (if (>= (prefix-numeric-value current-prefix-arg) 0)
+                                      (stp-stale-packages)
+                                    t)
+                       :quiet 'packages
+                       :async async
+                       :focus (not async))))
   (db (quiet-toplevel quiet-packages)
       (cl-case quiet
         (toplevel
@@ -1275,8 +1283,7 @@ argument, recompute the latest versions for all packages."
          (list nil t))
         (t
          (list t t)))
-    (let* ((all-pkg-names (stp-info-names))
-           (pkg-names (if (eq pkg-names t) all-pkg-names pkg-names))
+    (let* ((pkg-names (if (eq pkg-names t) (stp-info-names) pkg-names))
            (plural (not (= (length pkg-names) 1))))
       (unless quiet-toplevel
         (if plural
