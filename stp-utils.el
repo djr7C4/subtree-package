@@ -410,6 +410,8 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
 .el extension added if necessary."
   (unless (f-dir-p dir)
     (f-mkdir-full-path dir))
+  ;; Without this, `f-move' will not work below when dir is the target.
+  (setq dir (f-slash dir))
   ;; Check for ordinary elisp files.
   (if (string= (f-ext remote) "el")
       ;; Ordinary elisp files can simply be downloaded and copied to dir.
