@@ -1139,7 +1139,7 @@ prefix argument, go forward that many packages."
       (url
        nil))))
 
-(defvar stp-latest-num-processes 1
+(defvar stp-latest-num-processes 16
   "The number of processes to use in parallel to compute the latest
 versions. This only has an effect when the latest versions are
 computed asynchronously. See `stp-latest-version-async'.")
@@ -1252,6 +1252,11 @@ single package."
   (when pkg-name
     (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus focus)))
 
+(defvar stp-list-latest-versions-min-refresh-interval 3
+  "This is the minimum number of seconds after which
+`stp-list-refresh' will be called by
+`stp-list-update-latest-versions'.")
+
 (cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet async focus)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
@@ -1283,7 +1288,9 @@ the same time unless PARALLEL is non-nil."
          (list nil t))
         (t
          (list t t)))
-    (let* ((pkg-info (stp-read-info))
+    (let* (skipped-refresh
+           (last-refresh most-negative-fixnum)
+           (pkg-info (stp-read-info))
            (pkg-names (if (eq pkg-names t)
                           (stp-info-names pkg-info)
                         pkg-names))
@@ -1310,15 +1317,27 @@ the same time unless PARALLEL is non-nil."
                  (with-current-buffer stp-list-buffer-name
                    (if-let ((win (get-buffer-window)))
                        (with-selected-window win
-                         (when focus
-                           (stp-list-focus-package pkg-name :recenter-arg -1))
-                         (stp-list-refresh :quiet t))
+                         ;; Don't refresh too often. This prevents the main
+                         ;; process from locking up when there are a large
+                         ;; number of asynchronous processes.
+                         (if (< (- (rem-seconds) last-refresh)
+                                stp-list-latest-versions-min-refresh-interval)
+                             (setq skipped-refresh pkg-name)
+                           (when focus
+                             (stp-list-focus-package pkg-name :recenter-arg -1))
+                           (stp-list-refresh :quiet t)
+                           (setq skipped-refresh nil
+                                 last-refresh (rem-seconds))))
                      ;; Don't refresh at all when the STP list buffer isn't visible.
                      ;; If the `stp-list' command is used to raise the buffer, it
                      ;; will refresh then anyway without losing the current package.
                      ;; (stp-list-refresh :focus-window-line nil :quiet t)
                      ))))
              (lambda (_latest-versions)
+               (when skipped-refresh
+                 (when focus
+                   (stp-list-focus-package skipped-refresh :recenter-arg -1))
+                 (stp-list-refresh :quiet t))
                (unless quiet-toplevel
                  (if plural
                      (message "Finished updating the latest versions for %d packages" (length pkg-names))
