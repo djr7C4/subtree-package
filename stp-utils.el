@@ -419,7 +419,8 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
         (if (f-exists-p remote)
             (f-copy remote target)
           ;; Ordinary elisp files can simply be downloaded and copied to dir.
-          (url-copy-file remote (f-join dir (f-swap-ext pkg-name "el")))))
+          (or (url-copy-file remote (f-join dir (f-swap-ext pkg-name "el")))
+              (error "Failed to download %s" remote))))
     ;; Archives are downloaded, extracted and then copied to dir.
     (let* ((temp-dir (make-temp-file pkg-name t))
            (archive-path (f-join temp-dir (f-filename remote))))
@@ -427,15 +428,16 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
           (progn
             (if (f-exists-p remote)
                 (f-copy remote archive-path)
-              (url-copy-file remote archive-path))
+              (or (url-copy-file remote archive-path)
+                  (error "Failed to download %s" remote)))
             (rem-extract-archive archive-path t)
             (f-delete archive-path)
             ;; Ignore directories that only contain a single directory.
-            (let (dirs
+            (let (files
                   (extract-path temp-dir))
-              (while (and (setq dirs (-filter #'f-dir-p (f-entries extract-path)))
-                          (= (length dirs) 1))
-                (setq extract-path (car dirs)))
+              (while (and (= (length (setq files (f-entries extract-path))) 1)
+                          (f-dir-p (car files)))
+                (setq extract-path (car files)))
               ;; Correct the name of the file if necessary. This is needed
               ;; because sometimes the filename includes the version (for
               ;; example with some ELPA packages such as older versions of
