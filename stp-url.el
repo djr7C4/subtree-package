@@ -47,16 +47,18 @@ operation should be performed."
       (cond
        ((and (eq type 'install) (f-exists-p pkg-path))
         (error "%s already exists" pkg-name))
-       ((f-exists-p pkg-path)
+       ((and (not (eq type 'install)) (not (f-exists-p pkg-path)))
         (error "%s does not exist" pkg-name)))
-      (let ((repo (stp-git-download-as-synthetic-repo pkg-name remote)))
+      (let* ((repo (stp-git-download-as-synthetic-repo pkg-name remote))
+             (branch (let ((default-directory repo))
+                       (stp-git-current-branch))))
         (unwind-protect
             ;; We intentionally discard the pkg-info returned by
             ;; `stp-git-install' and `stp-git-upgrade' as we will handle the
             ;; pkg-info ourselves below.
             (if (eq type 'install)
-                (stp-git-install pkg-info pkg-name repo "HEAD" 'unstable)
-              (stp-git-upgrade pkg-info pkg-name repo "HEAD"))
+                (stp-git-install pkg-info pkg-name repo branch 'unstable)
+              (stp-git-upgrade pkg-info pkg-name repo branch))
           (f-delete repo t)))
       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote remote))
       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version))

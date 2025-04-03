@@ -353,12 +353,12 @@ pkg-name."
     (setf (map-elt pkg-info pkg-name) alist))
   pkg-info)
 
-(defvar stp-version-regexp "\\`\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?[-_./]?\\)*\\)\\'")
+(defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?[-_./]?\\)*\\)$")
 
 (defun stp-default-extractor (v)
   (mapcan (lambda (s)
             (save-match-data
-              (if (string-match "\\`\\([0-9]+\\)\\([A-Za-z]+\\)\\'" s)
+              (if (string-match "^\\([0-9]+\\)\\([A-Za-z]+\\)$" s)
                   (list (match-string 1 s) (match-string 2 s))
                 (list s))))
           (s-split "[-_.]" v)))
@@ -375,7 +375,7 @@ pkg-name."
     ;; otherwise, for example, 6+ would be treated as newer than 10.
     (append v-butlast
             (save-match-data
-              (if (string-match "\\`\\([0-9]+\\)\\([a-zA-Z]?\\)\\(\\+?\\)\\'"
+              (if (string-match "^\\([0-9]+\\)\\([a-zA-Z]?\\)\\(\\+?\\)$"
                                 v-last)
                   (list (match-string 1 v-last)
                         (match-string 2 v-last)
@@ -386,9 +386,9 @@ pkg-name."
   ;; This matches the versions for most emacs packages.
   `((,stp-version-regexp . stp-default-extractor)
     ;; haskell-mode
-    ("\\`\\(?:haskell-mode-\\)\\(1-44_\\|1-45_\\)\\'" . stp-haskell-extractor)
+    ("^\\(?:haskell-mode-\\)\\(1-44_\\|1-45_\\)$" . stp-haskell-extractor)
     ;; auctex
-    ("\\`\\(?:auctex_release\\|auctex\\|release\\|rel\\)\\(?:[-_./]\\)\\([0-9]+\\([-_.][0-9]+\\)*[a-zA-Z]?\\+?\\)\\'" . stp-auctex-extractor))
+    ("^\\(?:auctex_release\\|auctex\\|release\\|rel\\)\\(?:[-_./]\\)\\([0-9]+\\([-_.][0-9]+\\)*[a-zA-Z]?\\+?\\)$" . stp-auctex-extractor))
   "An list of regexps to match to package versions and functions to
 extract a key from the text that matches the first group of the
 regexp. The key should be a list of strings which are the
@@ -505,7 +505,8 @@ for PKG-NAME even if they were not previously loaded."
                                                      rem-elisp-file-regexp
                                                      "\\)$"))))
     (dolist (f files)
-      (load f))))
+      (unless (cl-some (-rpartial #'string-match-p f) stp-load-blacklist)
+        (load f)))))
 
 (provide 'stp-utils)
 ;;; stp-utils.el ends here

@@ -36,18 +36,16 @@
       (= (call-process-shell-command (concat "git ls-files --error-unmatch \"" file "\"")) 0))))
 
 (defun stp-git-remotes ()
-  (stp-with-git-root
-    (db (exit-code output)
-        (rem-call-process-shell-command "git remote")
-      (if (= exit-code 0)
-          (s-split rem-positive-whitespace-regexp output t)
-        (error "Failed to list the remotes for the git repository")))))
+  (db (exit-code output)
+      (rem-call-process-shell-command "git remote")
+    (if (= exit-code 0)
+        (s-split rem-positive-whitespace-regexp output t)
+      (error "Failed to list the remotes for the git repository"))))
 
 (defun stp-git-remote-p (remote)
   "Determine if remote is the name of a git remote."
   (or (member remote (stp-git-remotes))
-      (stp-with-git-root
-        (= (call-process-shell-command (format "git ls-remote %s" remote)) 0))))
+      (= (call-process-shell-command (format "git ls-remote %s" remote)) 0)))
 
 (defun stp-git-valid-remote-p (remote)
   "Determine if remote is a valid git repository."
@@ -98,6 +96,8 @@ repository."
           (stp-download-elisp dir pkg-name remote)
           (stp-git-init dir)
           (stp-git-add dir)
+          (let ((default-directory dir))
+            (stp-git-commit))
           (setq success t))
       (unless success
         (f-delete dir t)))
@@ -141,12 +141,11 @@ repository."
     (message "There are no commits to push. Skipping...")))
 
 (cl-defun stp-git-commit-push (msg &optional (do-commit t) (do-push t))
-  (stp-with-git-root
-    (when do-commit
-      (stp-git-commit msg)
-      ;; Pushing does not make sense if we did not commit earlier.
-      (when do-push
-        (stp-git-push)))))
+  (when do-commit
+    (stp-git-commit msg)
+    ;; Pushing does not make sense if we did not commit earlier.
+    (when do-push
+      (stp-git-push))))
 
 (cl-defun stp-git-status (&key full keep-ignored keep-untracked)
   "Return a list of the status of each file in the repository. Each
@@ -157,42 +156,40 @@ git-status) and the second element is the character status code
 for the worktree. The third is the file name. When a file is
 renamed or copied, there is also a fourth element that indicates
 the new name."
-  (stp-with-git-root
-    (let ((cmd "git status --porcelain"))
-      (db (exit-code output)
-          (rem-call-process-shell-command cmd)
-        (unless (= exit-code 0)
-          (error "%s failed: %s" cmd (s-trim output)))
-        (cl-remove-if (lambda (status)
-                        (db (index-status worktree-status &rest args)
-                            status
-                          (and (string= index-status worktree-status)
-                               (member index-status
-                                       (append (and keep-ignored (list "!"))
-                                               (and keep-untracked (list "?")))))))
-                      (mapcar (lambda (line)
-                                ;; The first two characters can be spaces which have
-                                ;; a specific meaning and should not be used to
-                                ;; split the strings.
-                                (cl-list* (substring line 0 1)
-                                          (substring line 1 2)
-                                          (and full (s-split " " (substring line 2)))))
-                              (s-split "\n" output t)))))))
+  (let ((cmd "git status --porcelain"))
+    (db (exit-code output)
+        (rem-call-process-shell-command cmd)
+      (unless (= exit-code 0)
+        (error "%s failed: %s" cmd (s-trim output)))
+      (cl-remove-if (lambda (status)
+                      (db (index-status worktree-status &rest args)
+                          status
+                        (and (string= index-status worktree-status)
+                             (member index-status
+                                     (append (and keep-ignored (list "!"))
+                                             (and keep-untracked (list "?")))))))
+                    (mapcar (lambda (line)
+                              ;; The first two characters can be spaces which have
+                              ;; a specific meaning and should not be used to
+                              ;; split the strings.
+                              (cl-list* (substring line 0 1)
+                                        (substring line 1 2)
+                                        (and full (s-split " " (substring line 2)))))
+                            (s-split "\n" output t))))))
 
 (defun stp-git-clean-p ()
   "Determine if the git repository is clean (i.e. has no uncommitted changes)."
   (and (not (stp-git-status)) t))
 
 (defun stp-git-unpushed-p ()
-  (stp-with-git-root
-    (let* ((branch (stp-git-current-branch))
-           (target (stp-git-push-target branch)))
-      (and branch
-           (db (exit-code output)
-               (rem-call-process-shell-command (format "git cherry %s %s" target branch))
-             (unless (= exit-code 0)
-               (error "git cherry failed: %s" (s-trim output)))
-             (not (string= (s-trim output) "")))))))
+  (let* ((branch (stp-git-current-branch))
+         (target (stp-git-push-target branch)))
+    (and branch
+         (db (exit-code output)
+             (rem-call-process-shell-command (format "git cherry %s %s" target branch))
+           (unless (= exit-code 0)
+             (error "git cherry failed: %s" (s-trim output)))
+           (not (string= (s-trim output) ""))))))
 
 (defun stp-git-conflicted-files ()
   "Return the list of files with merge conflicts."
@@ -214,29 +211,27 @@ the new name."
 
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
-  (stp-with-git-root
-    (db (exit-code output)
-        (rem-call-process-shell-command "git symbolic-ref --short HEAD")
-      (unless (= exit-code 0)
-        (error "Failed to get the current branch"))
-      (s-trim output))))
+  (db (exit-code output)
+      (rem-call-process-shell-command "git symbolic-ref --short HEAD")
+    (unless (= exit-code 0)
+      (error "Failed to get the current branch"))
+    (s-trim output)))
 
 ;; Based on `magit-get-push-remote'.
 (defun stp-git-push-target (&optional branch)
-  (stp-with-git-root
-    (setq branch (or branch (stp-git-current-branch)))
-    ;; git config --get returns a non-zero exit status and does not print
-    ;; anything when the value does not exist so we do not treat a non-zero exit
-    ;; code as an error.
-    (let ((push-default (s-trim (cadr (rem-call-process-shell-command "git config --get remote.pushDefault")))))
-      (when (string= push-default "")
-        (setq push-default nil))
-      (or push-default
-          (let ((push-remote (cadr (rem-call-process-shell-command (format "git config --get %s" (s-join "." (list "branch" branch "pushRemote")))))))
-            (setq push-remote (s-trim push-remote))
-            (when (string= push-remote "")
-              (setq push-remote nil))
-            push-remote)))))
+  (setq branch (or branch (stp-git-current-branch)))
+  ;; git config --get returns a non-zero exit status and does not print
+  ;; anything when the value does not exist so we do not treat a non-zero exit
+  ;; code as an error.
+  (let ((push-default (s-trim (cadr (rem-call-process-shell-command "git config --get remote.pushDefault")))))
+    (when (string= push-default "")
+      (setq push-default nil))
+    (or push-default
+        (let ((push-remote (cadr (rem-call-process-shell-command (format "git config --get %s" (s-join "." (list "branch" branch "pushRemote")))))))
+          (setq push-remote (s-trim push-remote))
+          (when (string= push-remote "")
+            (setq push-remote nil))
+          push-remote))))
 
 (defvar stp-git-ask-when-unclean-p t)
 
@@ -250,15 +245,14 @@ the new name."
 (defun stp-git-abbreviate-hash (hash)
   (s-left stp-git-abbreviated-hash-length hash))
 
-(defun stp-git-subtree-hash (pkg-name)
+(defun stp-git-subtree-hash (path)
   "Determine the hash that was last merged into the subtree at pkg-name from the
 remote repository."
-  (let ((pkg-path (stp-canonical-path pkg-name)))
-    (unless (f-dir-p pkg-path)
-      (error "Package directory %s does not exist" pkg-name))
+  (unless (f-dir-p path)
+    (error "The directory %s does not exist" path))
+  (let ((default-directory path))
     (db (exit-code string)
-        (stp-with-git-root
-          (rem-call-process-shell-command (format "git log | grep \"Squashed '\\(.*/\\)\\?%s/\\?'\" | head -n 1" (stp-name pkg-name))))
+        (rem-call-process-shell-command (format "git log | grep \"Squashed '\\(.*/\\)\\?%s/\\?'\" | head -n 1" (f-filename path)))
       (setq string (s-trim string))
       (and (= exit-code 0)
            (> (length string) 0)
@@ -266,12 +260,11 @@ remote repository."
              (string-match "\\(?:[0-9a-fA-F]+..\\| \\)\\([0-9a-fA-F]+\\)$" string)
              (match-string 1 string))))))
 
+(defun stp-git-subtree-p (path)
+  (and (stp-git-subtree-hash path) t))
+
 (defun stp-git-head ()
   (stp-git-remote-head (stp-git-root stp-source-directory)))
-
-(defun stp-git-subtree-p (pkg-name)
-  "Determine if there is a git subtree for this package."
-  (stp-git-subtree-hash pkg-name))
 
 (cl-defun stp-git-remote-hash-alist (remote &rest args &key (prefixes nil prefixes-supplied-p))
   "Return an alist that maps hashes to refs. If supplied, prefixes is a list of
@@ -280,8 +273,7 @@ kept. By default all refs are returned."
   (unless (stp-git-valid-remote-p remote)
     (error "%s is not a valid remote" remote))
   (db (exit-code string)
-      (stp-with-git-root
-        (rem-call-process-shell-command (format "git ls-remote %s 2> /dev/null" remote)))
+      (rem-call-process-shell-command (format "git ls-remote %s 2> /dev/null" remote))
     (setq string (s-trim string))
     (and (= exit-code 0)
          ;; Handle empty repositories that do not have any tags.

@@ -184,7 +184,7 @@ occurred."
                       ;; `stp-source-directory' but is not recorded in pkg-info.
                       ;; In other words, the user installed the package manually
                       ;; without using `stp-install'.
-                      (when (stp-git-subtree-p pkg-name)
+                      (when (stp-git-subtree-package-p pkg-name)
                         (message "A manual installation was detected for %s" pkg-name)
                         (setq .method 'git
                               pkg-info (stp-set-attribute pkg-info pkg-name 'method 'git))))

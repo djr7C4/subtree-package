@@ -22,13 +22,21 @@
 (defvar stp-auto-commit)
 (declare-function stp-reinstall "stp")
 
+(defun stp-git-subtree-package-hash (pkg-name)
+  (let ((pkg-path (stp-canonical-path pkg-name)))
+    (stp-git-subtree-hash pkg-path)))
+
+(defun stp-git-subtree-package-p (pkg-name)
+  "Determine if there is a git subtree for this package."
+  (and (stp-git-subtree-package-hash pkg-name) t))
+
 (defun stp-normalize-version (pkg-name remote version)
   ;; If version is a hash, it might be shortened if the user entered it
   ;; manually. In this case, we replace it with the full hash from the installed
   ;; subtree.
   (if (stp-git-valid-remote-ref-p remote version)
       version
-    (stp-git-subtree-hash pkg-name)))
+    (stp-git-subtree-package-hash pkg-name)))
 
 (defun stp-git-subtree-version (pkg-info pkg-name)
   "Determine the version and the update type of the package that was
@@ -37,7 +45,7 @@ otherwise, use the hash."
   (let* ((pkg-name (stp-name pkg-name)))
     (let-alist (stp-get-alist pkg-info pkg-name)
       (if (stp-git-remote-p .remote)
-          (let ((cur-hash (stp-git-subtree-hash pkg-name))
+          (let ((cur-hash (stp-git-subtree-package-hash pkg-name))
                 (hash-tags (stp-git-remote-hash-tag-alist .remote)))
             (if cur-hash
                 (aif (cl-assoc-if (lambda (hash)
@@ -184,8 +192,7 @@ are converted to hashes before they are returned."
 `stp-source-directory'."
   (let* ((git-root (stp-git-root stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
-         (prefix (f-relative pkg-path
-                             git-root)))
+         (prefix (f-relative pkg-path git-root)))
     (when (f-exists-p pkg-path)
       (error "%s already exists" pkg-name))
     ;; Clone the remote repository as a squashed subtree.
@@ -195,7 +202,7 @@ are converted to hashes before they are returned."
         (db (exit-code output)
             (rem-call-process-shell-command
              (apply #'format
-                    (concat "git subtree add --prefix \"%s\" "
+                    (concat "git subtree add --prefix \"%s\"%s "
                             ;; When the version is a hash, don't provide a
                             ;; remote to git subtree add. This forces git to
                             ;; look for the commit locally instead which is
@@ -203,14 +210,14 @@ are converted to hashes before they are returned."
                             (if hash-p
                                 " "
                               "\"%s\" ")
-                            "\"%s\"%s")
-                    (append (list prefix)
-                            (unless hash-p
-                              (list remote))
-                            (list version
+                            "\"%s\"")
+                    (append (list prefix
                                   (if squash
                                       " --squash"
-                                    "")))))
+                                    ""))
+                            (unless hash-p
+                              (list remote))
+                            (list version))))
           (if (= exit-code 0)
               ;; If installation was successful, add the information for the package
               (progn
@@ -233,8 +240,7 @@ package and install the new version instead.")
 from remote."
   (let* ((git-root (stp-git-root stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
-         (prefix (f-relative pkg-path
-                             git-root)))
+         (prefix (f-relative pkg-path git-root)))
     (unless (f-exists-p pkg-path)
       (error "%s does not exist" pkg-name))
     (rem-with-directory git-root
@@ -247,7 +253,7 @@ from remote."
                          "merge"
                        "pull"))
              (version-hash (stp-git-ref-to-hash remote version)))
-        (when (stp-git-hash= (stp-git-subtree-hash pkg-name) version-hash)
+        (when (stp-git-hash= (stp-git-subtree-package-hash pkg-name) version-hash)
           (user-error "Commit %s of %s is already installed"
                       (if (stp-git-hash= version version-hash)
                           (stp-git-abbreviate-hash version-hash)
@@ -264,10 +270,10 @@ from remote."
                               "\"%s\" ")
                             "\"%s\"")
                     (append (list action
+                                  prefix
                                   (if squash
                                       " --squash"
-                                    "")
-                                  prefix)
+                                    ""))
                             (unless hash-p
                               (list remote))
                             (list version))))
