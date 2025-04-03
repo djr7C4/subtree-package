@@ -112,9 +112,8 @@ operation should be performed."
       (error "%s already exists" pkg-name))
      ((f-exists-p pkg-path)
       (error "%s does not exist" pkg-name)))
-    (let* ((url (aif (assoc version elpa-version-url-alist)
-                    (stp-git-download-as-synthetic-repo repo pkg-name (cdr it))
-                  (error "Version %s not found" version)))
+    (let* ((url (or (cdr (assoc version elpa-version-url-alist))
+                    (error "Version %s not found" version)))
            (repo (stp-git-download-as-synthetic-repo pkg-name url)))
       (unwind-protect
           ;; We intentionally discard the pkg-info returned by `stp-git-install'
