@@ -1435,7 +1435,7 @@ the same time unless PARALLEL is non-nil."
                       (if stp-latest-versions-cache
                           " Latest"
                         "")))
-      (dolist (pkg-name (stp-info-names))
+      (dolist (pkg-name (stp-info-names pkg-info))
         (let ((version-alist (map-elt stp-latest-versions-cache pkg-name)))
           ;; Nesting `let-alist' doesn't work nicely so we merge the alists
           ;; instead.
