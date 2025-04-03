@@ -493,6 +493,8 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
     (insert (format "Current directory: %s\n" default-directory))
     (insert cmd)))
 
+(defvar stp-load-blacklist '("-pkg.\\(el\\|elc\\)"))
+
 (cl-defun stp-reload-once (pkg-name &key all)
   "Reload all features for PKG-NAME that have already been loaded
 according to `features'. When ALL is non-nil, load all features
