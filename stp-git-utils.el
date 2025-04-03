@@ -24,6 +24,8 @@
   `(rem-with-directory (stp-git-root stp-source-directory)
      ,@body))
 
+(def-edebug-spec stp-with-git-root t)
+
 (defun stp-git-tracked-p (path)
   "Determine if a file in a git repository is tracked."
   (unless (stp-git-root)
@@ -69,7 +71,8 @@
 (defun stp-git-init (path)
   "Run \"git init\" on PATH."
   (let ((default-directory path))
-    (call-process-shell-command "git init")))
+    (unless (= (call-process-shell-command "git init") 0)
+      (error "git init failed"))))
 
 (cl-defun stp-git-add (path &optional (relative t))
   "Run \"git add\" on path. If RELATIVE is non-nil, then path will
@@ -154,21 +157,26 @@ for the worktree. The third is the file name. When a file is
 renamed or copied, there is also a fourth element that indicates
 the new name."
   (stp-with-git-root
-    (cl-remove-if (lambda (status)
-                    (db (index-status worktree-status &rest args)
-                        status
-                      (and (string= index-status worktree-status)
-                           (member index-status
-                                   (append (and keep-ignored (list "!"))
-                                           (and keep-untracked (list "?")))))))
-                  (mapcar (lambda (line)
-                            ;; The first two characters can be spaces which have
-                            ;; a specific meaning and should not be used to
-                            ;; split the strings.
-                            (cl-list* (substring line 0 1)
-                                      (substring line 1 2)
-                                      (and full (s-split " " (substring line 2)))))
-                          (s-split "\n" (call-process-shell-command "git status --porcelain") t)))))
+    (let ((cmd "git status --porcelain"))
+      (db (exit-code output)
+          (rem-call-process-shell-command cmd)
+        (unless (= exit-code 0)
+          (error "%s failed: %s" cmd (s-trim output)))
+        (cl-remove-if (lambda (status)
+                        (db (index-status worktree-status &rest args)
+                            status
+                          (and (string= index-status worktree-status)
+                               (member index-status
+                                       (append (and keep-ignored (list "!"))
+                                               (and keep-untracked (list "?")))))))
+                      (mapcar (lambda (line)
+                                ;; The first two characters can be spaces which have
+                                ;; a specific meaning and should not be used to
+                                ;; split the strings.
+                                (cl-list* (substring line 0 1)
+                                          (substring line 1 2)
+                                          (and full (s-split " " (substring line 2)))))
+                              (s-split "\n" output t)))))))
 
 (defun stp-git-clean-p ()
   "Determine if the git repository is clean (i.e. has no uncommitted changes)."
@@ -179,7 +187,11 @@ the new name."
     (let* ((branch (stp-git-current-branch))
            (target (stp-git-push-target branch)))
       (and branch
-           (not (string= (s-trim (call-process-shell-command (format "git cherry %s %s" target branch))) ""))))))
+           (db (exit-code output)
+               (rem-call-process-shell-command (format "git cherry %s %s" target branch))
+             (unless (= exit-code 0)
+               (error "git cherry failed: %s" (s-trim output)))
+             (not (string= (s-trim output) "")))))))
 
 (defun stp-git-conflicted-files ()
   "Return the list of files with merge conflicts."
@@ -397,7 +409,7 @@ will be considered which may improve efficiency."
                                                       remote
                                                       path))
             (unless (= exit-code 0)
-              (error "Failed to clone %s: %s" remote output)))
+              (error "Failed to clone %s: %s" remote (s-trim output))))
           (stp-git-count-commits path ref ref2 :both both))
       (delete-directory path t))))
 
