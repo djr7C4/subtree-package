@@ -1287,41 +1287,46 @@ the same time unless PARALLEL is non-nil."
            (pkg-names (if (eq pkg-names t)
                           (stp-info-names pkg-info)
                         pkg-names))
-           (plural (not (= (length pkg-names) 1))))
-      ;; Ignore URL packages as there is no way to fetch their latest versions.
-      (setq pkg-names (-filter (lambda (pkg-name)
-                                 (not (eq (stp-get-attribute pkg-info pkg-name 'method) 'url)))
-                               pkg-names))
+           ;; Ignore URL packages as there is no way to fetch their latest versions.
+           (kept-pkg-names (-filter (lambda (pkg-name)
+                                      (not (eq (stp-get-attribute pkg-info pkg-name 'method) 'url)))
+                                    pkg-names))
+           (num-ignored (- (length pkg-names) (length kept-pkg-names)))
+           (ignored-string (if (> num-ignored 0) (format " (%d ignored)" num-ignored) ""))
+           (pkg-names kept-pkg-names)
+           (plural (not (= (length kept-pkg-names) 1))))
+      (setq pkg-names kept-pkg-names)
       (if pkg-names
-          (unless quiet-toplevel
-            (if plural
-                (message "Updating the latest versions for %d packages" (length pkg-names))
-              (message "Updating the latest version for %s" (car pkg-names))))
-        (stp-latest-versions
-         (lambda (latest-version-alist)
-           (db (pkg-name . version-alist)
-               latest-version-alist
-             (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
-             (with-current-buffer stp-list-buffer-name
-               (if-let ((win (get-buffer-window)))
-                   (with-selected-window win
-                     (when focus
-                       (stp-list-focus-package pkg-name :recenter-arg -1))
-                     (stp-list-refresh :quiet t))
-                 ;; Don't refresh at all when the STP list buffer isn't visible.
-                 ;; If the `stp-list' command is used to raise the buffer, it
-                 ;; will refresh then anyway without losing the current package.
-                 ;; (stp-list-refresh :focus-window-line nil :quiet t)
-                 ))))
-         (lambda (_latest-versions)
-           (unless quiet-toplevel
-             (if plural
-                 (message "Finished updating the latest versions for %d packages" (length pkg-names))
-               (message "Updated the latest version for %s" (car pkg-names)))))
-         pkg-names
-         :quiet quiet-packages
-         :async async)
-        (message "No packages need their latest versions updated")))))
+          (progn
+            (unless quiet-toplevel
+              (if plural
+                  (message "Updating the latest versions for %d packages%s" (length pkg-names) ignored-string)
+                (message "Updating the latest version for %s" (car pkg-names))))
+            (stp-latest-versions
+             (lambda (latest-version-alist)
+               (db (pkg-name . version-alist)
+                   latest-version-alist
+                 (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
+                 (with-current-buffer stp-list-buffer-name
+                   (if-let ((win (get-buffer-window)))
+                       (with-selected-window win
+                         (when focus
+                           (stp-list-focus-package pkg-name :recenter-arg -1))
+                         (stp-list-refresh :quiet t))
+                     ;; Don't refresh at all when the STP list buffer isn't visible.
+                     ;; If the `stp-list' command is used to raise the buffer, it
+                     ;; will refresh then anyway without losing the current package.
+                     ;; (stp-list-refresh :focus-window-line nil :quiet t)
+                     ))))
+             (lambda (_latest-versions)
+               (unless quiet-toplevel
+                 (if plural
+                     (message "Finished updating the latest versions for %d packages" (length pkg-names))
+                   (message "Updated the latest version for %s" (car pkg-names)))))
+             pkg-names
+             :quiet quiet-packages
+             :async async))
+        (message "No packages need their latest versions updated%s" ignored-string)))))
 
 (rem-set-keys stp-list-mode-map
               "a" #'stp-post-actions
