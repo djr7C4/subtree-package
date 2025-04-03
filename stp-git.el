@@ -19,8 +19,8 @@
 (require 'stp-utils)
 (require 'stp-git-utils)
 
-(declare-function stp-install "stp")
-(declare-function stp-uninstall "stp")
+(defvar stp-auto-commit)
+(declare-function stp-reinstall "stp")
 
 (defun stp-normalize-version (pkg-name remote version)
   ;; If version is a hash, it might be shortened if the user entered it
@@ -290,16 +290,7 @@ from remote."
                          (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
               (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
               nil)
-            ;; We do not want to commit, push or perform other actions. Those
-            ;; decisions are normally made in higher-level code (i.e.
-            ;; `stp-upgrade'). However, git subtree add will fail if there are
-            ;; uncommitted changes so we have to auto commit here. Refreshing
-            ;; the stp-list-buffer-name buffer is suppressed since that will be
-            ;; done by stp-upgrade (which calls this command).
-            (stp-uninstall pkg-name :do-commit t :refresh nil)
-            (let ((pkg-alist (stp-get-alist pkg-info pkg-name)))
-              (setf (map-elt pkg-alist 'version) version)
-              (stp-install pkg-name pkg-alist :do-commit stp-auto-commit :do-push stp-auto-push :refresh nil)))
+            (setq pkg-info (stp-reinstall pkg-info pkg-name version)))
            ;; Handle git subtree merge/pull errors and when the user chose not
            ;; to proceed with uninstalling and reinstalling the package.
            (t
