@@ -74,13 +74,13 @@
     (unless (= (call-process-shell-command "git init") 0)
       (error "git init failed"))))
 
-(cl-defun stp-git-add (path &optional (relative t))
-  "Run \"git add\" on path. If RELATIVE is non-nil, then path will
-be calculated relative to `stp-source-directory'."
-  (when relative
-    (setq path (f-join stp-source-directory path)))
-  (let ((dir (f-dirname path))
-        (target (f-filename path)))
+(cl-defun stp-git-add (path)
+  "Run \"git add\" on path."
+  (db (dir target)
+      (if (f-dir-p path)
+          ;; This allows path to be the top-level of a git repository.
+          (list path ".")
+        (list (f-dirname path) (f-filename path)))
     (rem-with-directory dir
       (db (exit-code output)
           (rem-call-process-shell-command (format "git add '%s'" target))
