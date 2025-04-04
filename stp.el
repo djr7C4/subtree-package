@@ -729,7 +729,7 @@ there were no errors."
               (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
             (unless (f-exists-p build-dir)
               (make-directory build-dir))
-            (rem-with-directory build-dir
+            (let ((default-directory build-dir))
               (let ((cmd "cmake .."))
                 (stp-before-build-command cmd output-buffer)
                 ;; This will use `build-dir' as the build directory and
@@ -742,9 +742,10 @@ there were no errors."
                  ;; Try different methods of building the package until one
                  ;; succeeds.
                  (or nil
-                     ;; Handle GNU make. We use a separate `rem-with-directory' here
-                     ;; because the cmake code above can change build-dir.
-                     (rem-with-directory build-dir
+                     ;; Handle GNU make. We use a separate binding for
+                     ;; `default-directory' here because the cmake code above
+                     ;; can change build-dir.
+                     (let ((default-directory build-dir))
                        (when (-any (lambda (file)
                                      (f-exists-p file))
                                    stp-gnu-makefile-names)
@@ -760,7 +761,7 @@ there were no errors."
                      ;; Note that `byte-recompile-directory' won't recompile files
                      ;; unless they are out of date.
                      (and allow-naive-byte-compile
-                          (rem-with-directory pkg-path
+                          (let ((default-directory pkg-path))
                             (message "Attempting to byte compile files in %s..." pkg-path)
                             (condition-case err
                                 (progn
@@ -819,7 +820,7 @@ there were no errors."
               ;; Try to find a makefile that has an appropriate target.
               (dolist (makefile makefiles)
                 (when (member target (stp-make-targets makefile))
-                  (rem-with-directory (f-dirname makefile)
+                  (let ((default-directory (f-dirname makefile)))
                     (setq attempted t)
                     (message "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
                     (let ((cmd (format "make %s" target)))
@@ -835,7 +836,7 @@ there were no errors."
                                          (lambda (path)
                                            (string= (f-filename path) texi-target))
                                          t))
-                (rem-with-directory (f-dirname source)
+                (let ((default-directory (f-dirname source)))
                   (setq attempted t)
                   (message "texi source file found at %s. Attempting to compile it with makeinfo..." source)
                   (let ((cmd (format "makeinfo --no-split %s" texi-target)))

@@ -196,7 +196,7 @@ are converted to hashes before they are returned."
     (when (f-exists-p pkg-path)
       (error "%s already exists" pkg-name))
     ;; Clone the remote repository as a squashed subtree.
-    (rem-with-directory git-root
+    (let ((default-directory git-root))
       ;; Install the package.
       (let ((hash-p (stp-git-maybe-fetch remote version)))
         (db (exit-code output)
@@ -243,7 +243,7 @@ from remote."
          (prefix (f-relative pkg-path git-root)))
     (unless (f-exists-p pkg-path)
       (error "%s does not exist" pkg-name))
-    (rem-with-directory git-root
+    (let ((default-directory git-root))
       ;; Upgrade package
       (let* ((hash-p (stp-git-maybe-fetch remote version))
              (action (if hash-p

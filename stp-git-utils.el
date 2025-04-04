@@ -9,7 +9,7 @@
 (defun stp-git-root (&optional path)
   "Return the absolute path to the root of the git directory that path is in."
   (setq path (or path default-directory))
-  (rem-with-directory path
+  (let ((default-directory path))
     (db (exit-code root)
         (rem-call-process-shell-command "git rev-parse --show-toplevel")
       (setq root (s-trim root))
@@ -21,7 +21,7 @@
 (defmacro stp-with-git-root (&rest body)
   "Executes body in the git root for `stp-source-directory'."
   (declare (indent 0))
-  `(rem-with-directory (stp-git-root stp-source-directory)
+  `(let ((default-directory (stp-git-root stp-source-directory)))
      ,@body))
 
 (def-edebug-spec stp-with-git-root t)
@@ -32,7 +32,7 @@
     (error "Not in a git repository"))
   (let ((dir (f-dirname path))
         (file (f-filename path)))
-    (rem-with-directory dir
+    (let ((default-directory dir))
       (= (call-process-shell-command (concat "git ls-files --error-unmatch \"" file "\"")) 0))))
 
 (defun stp-git-remotes ()
@@ -79,7 +79,7 @@
           ;; This allows path to be the top-level of a git repository.
           (list path ".")
         (list (f-dirname path) (f-filename path)))
-    (rem-with-directory dir
+    (let ((default-directory dir))
       (db (exit-code output)
           (rem-call-process-shell-command (format "git add '%s'" target))
         (unless (= exit-code 0)

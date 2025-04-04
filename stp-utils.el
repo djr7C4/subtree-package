@@ -120,7 +120,7 @@ within that package."
 
 (defmacro stp-with-package-source-directory (&rest body)
   (declare (indent 0))
-  `(rem-with-directory stp-source-directory
+  `(let ((default-directory stp-source-directory))
      ,@body))
 
 (def-edebug-spec stp-with-package-source-directory t)
@@ -488,7 +488,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
   (let ((directory (or (and makefile
                             (f-dirname makefile))
                        default-directory)))
-    (rem-with-directory directory
+    (let ((default-directory directory))
       (db (exit-code output)
           (rem-call-process-shell-command stp-make-target-command)
         (when (/= exit-code 0)
@@ -496,11 +496,13 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
         (s-split rem-positive-whitespace-regexp output t)))))
 
 (defun stp-before-build-command (cmd buf)
-  (with-current-buffer buf
-    (read-only-mode 0)
-    (insert "\n\n")
-    (insert (format "Current directory: %s\n" default-directory))
-    (insert cmd)))
+  ;; Using `with-current-buffer' can change the default directory.
+  (let ((dir default-directory))
+    (with-current-buffer buf
+      (read-only-mode 0)
+      (insert "\n\n")
+      (insert (format "Current directory: %s\n" dir))
+      (insert cmd))))
 
 (defvar stp-load-blacklist '("-pkg.\\(el\\|elc\\)"))
 
