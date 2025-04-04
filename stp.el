@@ -1250,14 +1250,16 @@ single package."
                        :async async
                        :focus (not async))))
   (when pkg-name
-    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus focus)))
+    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus focus :parallel t)))
 
 (defvar stp-list-latest-versions-min-refresh-interval 3
   "This is the minimum number of seconds after which
 `stp-list-refresh' will be called by
 `stp-list-update-latest-versions'.")
 
-(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet async focus)
+(defvar stp-list-update-latest-versions-running nil)
+
+(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet async focus parallel)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
@@ -1302,7 +1304,10 @@ the same time unless PARALLEL is non-nil."
            (ignored-string (if (> num-ignored 0) (format " (%d ignored)" num-ignored) ""))
            (pkg-names kept-pkg-names)
            (plural (not (= (length kept-pkg-names) 1))))
-      (setq pkg-names kept-pkg-names)
+      (when (and (not parallel) pkg-names)
+        (if stp-list-update-latest-versions-running
+            (user-error "`stp-list-update-latest-versions' is already running")
+          (setq stp-list-update-latest-versions-running t)))
       (if pkg-names
           (progn
             (unless quiet-toplevel
@@ -1338,6 +1343,8 @@ the same time unless PARALLEL is non-nil."
                  (when focus
                    (stp-list-focus-package skipped-refresh :recenter-arg -1))
                  (stp-list-refresh :quiet t))
+               (unless parallel
+                 (setq stp-list-update-latest-versions-running nil))
                (unless quiet-toplevel
                  (if plural
                      (message "Finished updating the latest versions for %d packages" (length pkg-names))
