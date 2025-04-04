@@ -50,13 +50,20 @@ releases. Stable packages are only upgraded to other stable releases by default.
 Packages can also be marked as unstable which allows them to installed
 and upgraded to any hash, branch or tag.
 ** Find upgradable packages
-Use =v= in =stp-list-mode= to find the latest stable and unstable versions for
+Use =v= in =stp-list-mode= to fetch the latest stable and unstable versions for
 the current package and display this information in a latest field. Packages
-that can be upgraded are highlighted in blue. This is done asynchronously in a
-separate process by default if =stp-latest-version-async= is non-nil and
-otherwise is done synchronously. With a prefix argument, the meaning of
-=stp-latest-version-async= is inverted. The updated latest versions are inserted
-into the STP list buffer as they become available.
+that can be upgraded are highlighted in blue. This is done asynchronously if
+=stp-latest-version-async= is non-nil.
+
+Use =V= to fetch the latest stable and unstable versions for all packages with
+latest versions that have not been updated for at least
+=stp-latest-versions-stale-interval=. This is parallelized using
+=stp-latest-num-processes= processes asynchronously if
+=stp-latest-version-async= is non-nil. With a universal prefix argument, the
+meaning of =stp-latest-version-async= is inverted. With a negative prefix
+argument, all packages are updated instead of only those with stale latest
+versions. The updated latest versions are inserted into the STP list buffer as
+they become available.
 
 Only git packages have unstable versions so this information is omitted for ELPA
 packages. There is no way to retrieve any version information at all for URL
@@ -77,7 +84,8 @@ STP remembers all remotes that the user has entered when upgrading a package.
 These are available for the user to choose for future upgrades using completion.
 Set =stp-read-remote-default-directory= to the directory that contains your
 elisp repositories to allow for convenient completion of local directories via
-=stp-install=, =stp-upgrade= and =stp-edit-remotes=. Simply enter =./= at the remote completion prompt to begin directory completion.
+=stp-install=, =stp-upgrade= and =stp-edit-remotes=. Simply enter =./= at the
+remote completion prompt to begin directory completion.
 ** Quickly open the source in a local git repository
 When developing packages that are installed with STP, a copy of the source code
 will be installed as a git subtree and there will also be a local copy of git
