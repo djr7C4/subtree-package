@@ -504,7 +504,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
       (insert (format "Current directory: %s\n" dir))
       (insert cmd))))
 
-(defvar stp-load-blacklist '("-pkg.\\(el\\|elc\\)"))
+(defvar stp-load-blacklist (list "-pkg\\.\\(el\\|elc\\)$" (format "\\(^\\|/\\)%s$" dir-locals-file) (format "\\(^\\|/\\)%s-2.el$" (f-no-ext dir-locals-file))))
 
 (cl-defun stp-reload-once (pkg-name &key all)
   "Reload all features for PKG-NAME that have already been loaded
