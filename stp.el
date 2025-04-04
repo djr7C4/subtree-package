@@ -1259,7 +1259,7 @@ single package."
 
 (defvar stp-list-update-latest-versions-running nil)
 
-(cl-defun stp-list-update-latest-versions (&key (pkg-names t) quiet async focus parallel)
+(cl-defun stp-list-update-latest-versions (&key (pkg-names (stp-stale-packages)) quiet (async stp-latest-version-async) focus parallel)
   "Compute the latest field in `stp-list-mode' so that the user can
 see which packages can be upgraded. This is an expensive
 operation that may take several minutes if many packages are
@@ -1521,7 +1521,8 @@ the same time unless PARALLEL is non-nil."
     (pop-to-buffer buf)
     (unless exists
       (stp-list-mode)
-      (stp-list-refresh :quiet t))))
+      (stp-list-refresh :quiet t)
+      (stp-list-update-latest-versions :quiet t))))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
   "Remove packages that exist in `stp-info-file' but not on the
