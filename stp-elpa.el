@@ -14,8 +14,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(require 'stp-git)
-(require 'stp-git-utils)
+(require 'stp-url)
 (require 'stp-utils)
 (require 'url-parse)
 
@@ -99,48 +98,29 @@ package at remote to the URL where it can be downloaded."
 (defun stp-elpa-version-upgradable-p (count-to-stable)
   (and count-to-stable (> count-to-stable 0) t))
 
-(cl-defun stp-elpa-install-or-upgrade (pkg-info pkg-name remote version &key (type 'install))
+(cl-defun stp-elpa-install-or-upgrade (pkg-info pkg-name remote version action)
   "Install or upgrade to the specified version of pkg-name from
 remote into `stp-source-directory'. If the file fetched from
 remote is an archive, it will be automatically extracted. type
 should be either \\='install or \\='upgrade depending on which
 operation should be performed."
-  (let ((pkg-path (stp-canonical-path pkg-name))
-        (elpa-version-url-alist (stp-elpa-version-url-alist pkg-name remote)))
-    (cond
-     ((and (eq type 'install) (f-exists-p pkg-path))
-      (error "%s already exists" pkg-name))
-     ((and (not (eq type 'install)) (not (f-exists-p pkg-path)))
-      (error "%s does not exist" pkg-name)))
-    (let* ((url (or (cdr (assoc version elpa-version-url-alist))
-                    (error "Version %s not found" version)))
-           (repo (stp-git-download-as-synthetic-repo pkg-name url))
-           (branch (let ((default-directory repo))
-                     (stp-git-current-branch))))
-      (unwind-protect
-          ;; We intentionally discard the pkg-info returned by `stp-git-install'
-          ;; and `stp-git-upgrade' as we will handle the pkg-info ourselves
-          ;; below. Note that squashing is necessary because otherwise git will
-          ;; refuse to merge unrelated histories.
-          (if (eq type 'install)
-              (stp-git-install pkg-info pkg-name repo branch 'unstable  :squash t)
-            (stp-git-upgrade pkg-info pkg-name repo branch :squash t))
-        (f-delete repo t)))
-    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote remote))
-    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
-    (when (eq type 'install)
+  (let* ((elpa-version-url-alist (stp-elpa-version-url-alist pkg-name remote))
+         (url (or (cdr (assoc version elpa-version-url-alist))
+                  (error "Version %s not found" version))))
+    (setq pkg-info (stp-url-install-or-upgrade-basic pkg-info pkg-name url version action))
+    (when (eq action 'install)
       (setq pkg-info (stp-set-attribute pkg-info pkg-name 'method 'elpa))))
   pkg-info)
 
 (defun stp-elpa-install (pkg-info pkg-name remote version)
   "Install the specified version of pkg-name from remote into
 `stp-source-directory'."
-  (stp-elpa-install-or-upgrade pkg-info pkg-name remote version :type 'install))
+  (stp-elpa-install-or-upgrade pkg-info pkg-name remote version 'install))
 
 (defun stp-elpa-upgrade (pkg-info pkg-name remote version)
   "Upgrade the specified version of pkg-name from remote into
 `stp-source-directory'."
-  (stp-elpa-install-or-upgrade pkg-info pkg-name remote version :type 'upgrade))
+  (stp-elpa-install-or-upgrade pkg-info pkg-name remote version 'upgrade))
 
 (provide 'stp-elpa)
 ;;; stp-elpa.el ends here

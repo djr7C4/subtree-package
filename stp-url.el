@@ -36,49 +36,51 @@
   ;; one possibility.
   (rem-read-from-mini prompt :default default :history stp-url-version-history))
 
-(cl-defun stp-url-install-or-upgrade (pkg-info pkg-name remote version &key (type 'install))
-  "Install or upgrade to the specified version of pkg-name from
+(cl-defun stp-url-install-or-upgrade-basic (pkg-info pkg-name remote version action)
+  (let ((pkg-path (stp-canonical-path pkg-name)))
+    (cond
+     ((and (eq action 'install) (f-exists-p pkg-path))
+      (error "%s already exists" pkg-name))
+     ((and (not (eq action 'install)) (not (f-exists-p pkg-path)))
+      (error "%s does not exist" pkg-name)))
+    (let* ((repo (stp-git-download-as-synthetic-repo pkg-name remote))
+           (branch (let ((default-directory repo))
+                     (stp-git-current-branch))))
+      (unwind-protect
+          ;; We intentionally discard the pkg-info returned by `stp-git-install'
+          ;; and `stp-git-upgrade' as we will handle the pkg-info ourselves
+          ;; below. Note that squashing is necessary because otherwise git will
+          ;; refuse to merge unrelated histories.
+          (if (eq action 'install)
+              (stp-git-install pkg-info pkg-name repo branch 'unstable  :squash t)
+            (stp-git-upgrade pkg-info pkg-name repo branch :squash t))
+        (f-delete repo t)))
+    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote remote)
+          pkg-info (stp-set-attribute pkg-info pkg-name 'version version)))
+  pkg-info)
+
+(cl-defun stp-url-install-or-upgrade (pkg-info pkg-name remote version action)
+  "Install or upgrade to the specified version of PKG-NAME from
 remote into `stp-source-directory'. If the file fetched from
 remote is an archive, it will be automatically extracted. type
 should be either \\='install or upgrade depending on which
 operation should be performed."
   (when (or (stp-url-safe-remote-p remote)
             (yes-or-no-p (format "The remote %s is unsafe. Proceed anyway?" remote)))
-    (let ((pkg-path (stp-canonical-path pkg-name)))
-      (cond
-       ((and (eq type 'install) (f-exists-p pkg-path))
-        (error "%s already exists" pkg-name))
-       ((and (not (eq type 'install)) (not (f-exists-p pkg-path)))
-        (error "%s does not exist" pkg-name)))
-      (let* ((repo (stp-git-download-as-synthetic-repo pkg-name remote))
-             (branch (let ((default-directory repo))
-                       (stp-git-current-branch))))
-        (unwind-protect
-            ;; We intentionally discard the pkg-info returned by
-            ;; `stp-git-install' and `stp-git-upgrade' as we will handle the
-            ;; pkg-info ourselves below. Note that squashing is necessary
-            ;; because otherwise git will refuse to merge unrelated histories.
-            (if (eq type 'install)
-                (stp-git-install pkg-info pkg-name repo branch 'unstable :squash t)
-              (stp-git-upgrade pkg-info pkg-name repo branch :squash t))
-          (f-delete repo t)))
-      (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote remote))
-      (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
-      (when (eq type 'install)
-        (setq pkg-info (stp-set-attribute pkg-info pkg-name 'method 'url)))
-      ;; Add any new files to the git index.
-      (stp-git-add pkg-path)))
-  pkg-info)
+    (setq pkg-info (stp-url-install-or-upgrade-basic pkg-info pkg-name remote version action))
+    (when (eq action 'install)
+      (setq pkg-info (stp-set-attribute pkg-info pkg-name 'method 'url)))
+    pkg-info))
 
 (defun stp-url-install (pkg-info pkg-name remote version)
   "Install the specified version of pkg-name from remote into
 `stp-source-directory'."
-  (stp-url-install-or-upgrade pkg-info pkg-name remote version :type 'install))
+  (stp-url-install-or-upgrade pkg-info pkg-name remote version 'install))
 
 (defun stp-url-upgrade (pkg-info pkg-name remote version)
   "Upgrade the specified version of pkg-name from remote into
 `stp-source-directory'."
-  (stp-url-install-or-upgrade pkg-info pkg-name remote version :type 'upgrade))
+  (stp-url-install-or-upgrade pkg-info pkg-name remote version 'upgrade))
 
 (provide 'stp-url)
 ;;; stp-url.el ends here
