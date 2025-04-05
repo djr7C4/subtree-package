@@ -1058,6 +1058,9 @@ that many packages."
 
 (defun stp-package-upgradable-p (pkg-name)
   (let ((pkg-info (stp-read-info)))
+    ;; Create a combined alist so that latest version information and package
+    ;; information can be accessed using `let-alist' since `let-alist' does not
+    ;; nest nicely.
     (let-alist (map-merge 'alist
                           (map-elt stp-latest-versions-cache pkg-name)
                           (stp-get-alist pkg-info pkg-name))
