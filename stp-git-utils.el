@@ -405,16 +405,15 @@ number of commits n in REF2..REF and return -n."
 (defun stp-git-minimal-clone (remote path &optional branch)
   (db (exit-code output)
       ;; Make the call to git clone as lightweight as possible.
-      (progn
-        (rem-call-process-shell-command (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
-                                                (if branch
-                                                    (format " --single-branch --branch '%s'" branch)
-                                                  "")
-                                                remote
-                                                path))
-        path)
+      (rem-call-process-shell-command (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
+                                              (if branch
+                                                  (format " --single-branch --branch '%s'" branch)
+                                                "")
+                                              remote
+                                              path))
     (unless (= exit-code 0)
-      (error "Failed to clone %s: %s" remote (s-trim output)))))
+      (error "Failed to clone %s: %s" remote (s-trim output)))
+    path))
 
 (defun stp-git-cache-hash-directory (remote)
   (when (f-dir-p remote)
@@ -437,6 +436,8 @@ number of commits n in REF2..REF and return -n."
   (f-join stp-git-cache-directory (format "%s%s" path stp-git-cached-repo-timestamp-suffix)))
 
 (defun stp-git-ensure-cached-repo (remote &optional branch)
+  (unless (f-dir-p stp-git-cache-directory)
+    (f-mkdir-full-path stp-git-cache-directory))
   (let* ((path (stp-git-cached-repo-path remote))
          (tpath (stp-git-cached-repo-timestamp-path path)))
     (if (f-dir-p path)

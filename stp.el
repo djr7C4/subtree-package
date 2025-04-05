@@ -1192,7 +1192,7 @@ to TRIES times."
                   (error-message
                    (if (>= tries max-tries)
                        (unless quiet
-                         (message "Getting the latest version of %s failed %d times: skipping..." pkg-name max-tries))
+                         (message "Getting the latest version of %s failed %d times: skipping..." pkg-name tries))
                      (cl-incf tries)
                      (unless quiet
                        (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries max-tries error-message))
