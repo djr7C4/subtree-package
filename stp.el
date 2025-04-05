@@ -26,9 +26,8 @@
 (require 'stp-elpa)
 (require 'stp-git)
 (require 'stp-url)
-(require 'text-property-search)
+(require 'timer)
 (require 'url-handlers)
-(require 'xml)
 
 (defvar stp-normalize-versions nil
   "Indicates if versions should be printed in the same format by STP
@@ -393,7 +392,7 @@ active."
               (list pkg-alist))
             args)))
 
-(defvar stp-latest-versions-stale-interval (* 24 60 60)
+(defvar stp-latest-versions-stale-interval (timer-duration "1 day")
   "The number of seconds until the cached latest versions in
 `stp-latest-versions-cache' are considered stale.")
 
@@ -1539,7 +1538,8 @@ the same time unless PARALLEL is non-nil."
     (unless exists
       (stp-list-mode)
       (stp-list-refresh :quiet t)
-      (stp-list-update-latest-versions :quiet t))))
+      (stp-list-update-latest-versions :quiet t)
+      (stp-git-delete-stale-cached-repos))))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
   "Remove packages that exist in `stp-info-file' but not on the

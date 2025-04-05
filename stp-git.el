@@ -175,12 +175,14 @@ are converted to hashes before they are returned."
   (car (stp-git-remote-tags-sorted remote)))
 
 (defun stp-git-latest-stable-version (remote)
-  (stp-git-remote-latest-tag remote))
+  (let ((path (stp-git-ensure-cached-repo remote)))
+    (stp-git-remote-latest-tag path)))
 
 (defun stp-git-latest-unstable-version (remote ref)
-  (if (string= ref "HEAD")
-      (stp-git-remote-head remote)
-    (car (rassoc ref (stp-git-remote-hash-head-alist remote)))))
+  (let ((path (stp-git-ensure-cached-repo remote)))
+    (if (string= ref "HEAD")
+        (stp-git-remote-head path)
+      (car (rassoc ref (stp-git-remote-hash-head-alist path))))))
 
 (defun stp-git-version-upgradable-p (count-to-stable count-to-unstable update)
   (if (eq update 'stable)

@@ -5,6 +5,7 @@
 (require 's)
 (require 'stp-bootstrap)
 (require 'stp-utils)
+(require 'timer)
 
 (defun stp-git-root (&optional path)
   "Return the absolute path to the root of the git directory that path is in."
@@ -415,34 +416,60 @@ number of commits n in REF2..REF and return -n."
     (unless (= exit-code 0)
       (error "Failed to clone %s: %s" remote (s-trim output)))))
 
-(defun stp-git-cached-repo-path (remote)
+(defun stp-git-cache-hash-directory (remote)
   (when (f-dir-p remote)
     (setq remote (f-canonical remote)))
-  (let ((dir (->> remote
-                  ;; URLs and local filenames are converted to hex to avoid
-                  ;; conflicts. If we only replaced /'s with -'s for example,
-                  ;; local files and URLs could theoretically resolve to the
-                  ;; same cached path.
-                  (mapcar (lambda (char)
-                            (format "%02x" char)))
-                  (s-join "-"))))
-    (f-join stp-git-cache-directory dir)))
+  (->> remote
+       ;; URLs and local filenames are converted to hex to avoid
+       ;; conflicts. If we only replaced /'s with -'s for example,
+       ;; local files and URLs could theoretically resolve to the
+       ;; same cached path.
+       (mapcar (lambda (char)
+                 (format "%02x" char)))
+       (s-join "-")))
+
+(defun stp-git-cached-repo-path (remote)
+  (f-join stp-git-cache-directory (stp-git-cache-hash-directory remote)))
+
+(defvar stp-git-cached-repo-timestamp-suffix "-timestamp")
+
+(defun stp-git-cached-repo-timestamp-path (path)
+  (f-join stp-git-cache-directory (format "%s%s" path stp-git-cached-repo-timestamp-suffix)))
 
 (defun stp-git-ensure-cached-repo (remote &optional branch)
-  (let ((path (stp-git-cached-repo-path remote)))
+  (let* ((path (stp-git-cached-repo-path remote))
+         (tpath (stp-git-cached-repo-timestamp-path path)))
     (if (f-dir-p path)
         ;; Fetch and update all branches.
         (let ((default-directory path))
           (stp-git-fetch remote "*:*"))
       (stp-git-minimal-clone remote path branch))
+    (f-write (format "%f" (rem-seconds)) 'utf-8 tpath)
     path))
 
-(cl-defun stp-git-count-remote-commits (remote ref ref2 &key branch both)
+(defvar stp-git-stale-cached-repo-interval (timer-duration "1 year")
+  "Cached repos can be deleted if they have not been used this long.")
+
+(defun stp-git-delete-stale-cached-repos ()
+  (f-entries stp-git-cache-directory
+             (lambda (file)
+               (and (s-ends-with-p stp-git-cached-repo-timestamp-suffix file)
+                    (let ((updated (string-to-number (f-read file 'utf-8))))
+                      (when (> (- (rem-seconds) updated)
+                               stp-git-stale-cached-repo-interval)
+                        (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
+                        (f-delete file)))))))
+
+(cl-defun stp-git-count-remote-commits (remote ref ref2 &key _branch both)
   "This is similar to `stp-git-count-commits' except that it counts
 the number of commits in the remote git repository REMOTE.
 Additionally, If BRANCH is non-nil, only refs from that branch
 will be considered which may improve efficiency."
-  (let ((path (stp-git-ensure-cached-repo remote branch)))
+  ;; branch is ignored because it does not save much space and branches are not
+  ;; known for stable git packages which prevents using it there anyway. This
+  ;; would result in multiple cached versions of the same repository if it was
+  ;; changed from stable to unstable for example.
+  (let ((path (stp-git-ensure-cached-repo remote)))
     (stp-git-count-commits path ref ref2 :both both)))
 
 (provide 'stp-git-utils)
