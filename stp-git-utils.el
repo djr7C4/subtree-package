@@ -120,9 +120,13 @@ repository."
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
 
-(defun stp-git-fetch (remote)
+(defun stp-git-fetch (remote &optional refspec)
   (db (exit-code output)
-      (rem-call-process-shell-command (format "git fetch \"%s\"" remote))
+      (rem-call-process-shell-command (format "git fetch \"%s\"%s"
+                                              remote
+                                              (if refspec
+                                                  (format " \"%s\"" refspec)
+                                                "")))
     (unless (= exit-code 0)
       (error "git fetch failed: %s" (s-trim output)))))
 
@@ -383,38 +387,54 @@ number of commits n in REF2..REF and return -n."
     (error "%s is not a valid ref for %s" ref path))
   (unless (stp-git-valid-ref-p path ref2)
     (error "%s is not a valid ref for %s" ref2 path))
-  (cl-flet ((stp-git-count-commits-forward (path ref ref2)
+  (cl-flet ((stp-git-count-commits-forward (ref ref2)
               (db (exit-code output)
-                  (let ((default-directory path))
-                    (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2)))
+                  (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2))
                 (if (= exit-code 0)
                     (string-to-number (s-trim output))
                   (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output))))))
-    (or (--first (/= it 0)
-                 (append (list (stp-git-count-commits-forward path ref ref2))
-                         (and both (list (- (stp-git-count-commits-forward path ref2 ref))))))
-        0)))
+    (let ((default-directory path))
+      (or (--first (/= it 0)
+                   (append (list (stp-git-count-commits-forward ref ref2))
+                           (and both (list (- (stp-git-count-commits-forward ref2 ref))))))
+          0))))
+
+(defvar stp-git-cache-directory (f-join user-emacs-directory "stp/cache/git-repos/"))
+
+(defun stp-git-minimal-clone (remote path &optional branch)
+  (db (exit-code output)
+      ;; Make the call to git clone as lightweight as possible.
+      (progn
+        (rem-call-process-shell-command (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
+                                                (if branch
+                                                    (format " --single-branch --branch '%s'" branch)
+                                                  "")
+                                                remote
+                                                path))
+        path)
+    (unless (= exit-code 0)
+      (error "Failed to clone %s: %s" remote (s-trim output)))))
+
+(defun stp-git-cached-repo-path (remote)
+  (when (f-dir-p remote)
+    (setq remote (f-canonical remote)))
+  (f-join stp-git-cache-directory (s-replace "/" "-" remote)))
+
+(defun stp-git-ensure-cached-repo (remote &optional branch)
+  (let ((path (stp-git-cached-repo-path remote)))
+    (if (f-dir-p path)
+        ;; Fetch and update all branches.
+        (stp-git-fetch remote "*:*")
+      (stp-git-minimal-clone remote path branch))
+    path))
 
 (cl-defun stp-git-count-remote-commits (remote ref ref2 &key branch both)
   "This is similar to `stp-git-count-commits' except that it counts
 the number of commits in the remote git repository REMOTE.
 Additionally, If BRANCH is non-nil, only refs from that branch
 will be considered which may improve efficiency."
-  (let ((path (make-temp-file "repo-clone" t)))
-    (unwind-protect
-        (progn
-          (db (exit-code output)
-              ;; Make the call to git clone as lightweight as possible.
-              (rem-call-process-shell-command (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
-                                                      (if branch
-                                                          (format " --single-branch --branch '%s'" branch)
-                                                        "")
-                                                      remote
-                                                      path))
-            (unless (= exit-code 0)
-              (error "Failed to clone %s: %s" remote (s-trim output))))
-          (stp-git-count-commits path ref ref2 :both both))
-      (delete-directory path t))))
+  (let ((path (stp-git-ensure-cached-repo remote branch)))
+    (stp-git-count-commits path ref ref2 :both both)))
 
 (provide 'stp-git-utils)
 ;;; stp-git-utils.el ends here

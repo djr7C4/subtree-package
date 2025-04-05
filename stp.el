@@ -1240,7 +1240,8 @@ to TRIES times."
                          (pkg-alist (stp-get-alist pkg-name)))
                      (process-latest-version
                       (condition-case err
-                          (setq latest-version-alist (stp-latest-version pkg-name pkg-alist))
+                          (stp-with-memoization
+                            (setq latest-version-alist (stp-latest-version pkg-name pkg-alist)))
                         (error
                          (list pkg-name tries nil (error-message-string err)))
                         (:success
