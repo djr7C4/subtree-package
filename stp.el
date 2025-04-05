@@ -466,7 +466,7 @@ the package has been installed."
                   (stp-post-actions pkg-name))
                 (when refresh
                   (stp-update-cached-latest pkg-name)
-                  (stp-list-refresh :quiet t))))))))
+                  (stp-list-refresh pkg-info :quiet t))))))))
     pkg-info))
 
 (defun stp-uninstall-command ()
@@ -496,7 +496,7 @@ as in `stp-install'."
                                        do-push)
                   (when refresh
                     (stp-update-cached-latest pkg-name)
-                    (stp-list-refresh :quiet t)))
+                    (stp-list-refresh pkg-info :quiet t)))
               (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))
     pkg-info))
 
@@ -553,7 +553,7 @@ do-push and proceed arguments are as in `stp-install'."
                       (stp-post-actions pkg-name)))
                   (when refresh
                     (stp-update-cached-latest pkg-name)
-                    (stp-list-refresh :quiet t)))))))))
+                    (stp-list-refresh pkg-info :quiet t)))))))))
     pkg-info))
 
 (cl-defun stp-reinstall-command (pkg-name &key do-commit do-push do-actions (refresh t))
@@ -589,10 +589,11 @@ arguments are as in `stp-install'."
     (when pkg-name
       (save-window-excursion
         (stp-with-package-source-directory
-          (stp-write-info (stp-repair-info pkg-info :quiet nil :pkg-names (list pkg-name)))
+          (setq pkg-info (stp-repair-info pkg-info :quiet nil :pkg-names (list pkg-name)))
+          (stp-write-info pkg-info)
           (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
           (when refresh
-            (stp-list-refresh :quiet t)))))))
+            (stp-list-refresh pkg-info :quiet t)))))))
 
 (defun stp-repair-all-command ()
   (interactive)
@@ -606,10 +607,11 @@ arguments are as in `stp-install'."
              (stp-git-clean-or-ask-p))
     (save-window-excursion
       (stp-with-package-source-directory
-        (stp-write-info (stp-repair-info (stp-read-info) :quiet nil))
-        (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
-        (when refresh
-          (stp-list-refresh :quiet t))))))
+        (let ((pkg-info (stp-repair-info (stp-read-info) :quiet nil)))
+          (stp-write-info pkg-info)
+          (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
+          (when refresh
+            (stp-list-refresh pkg-info :quiet t)))))))
 
 (defun stp-edit-remotes-command ()
   "Edit the remotes of a package interactively and write the new
@@ -648,7 +650,7 @@ the rest will be other-remotes."
                                do-commit
                                do-push)
           (when refresh
-            (stp-list-refresh :quiet t)))))))
+            (stp-list-refresh pkg-info :quiet t)))))))
 
 (defun stp-toggle-update-command ()
   "Toggle the update attribute of a package interactively."
@@ -677,7 +679,7 @@ unstable."
                                    do-commit
                                    do-push)
               (when refresh
-                (stp-list-refresh :quiet t)))
+                (stp-list-refresh pkg-info :quiet t)))
           (user-error "The update attribute can only be toggled for git packages."))))))
 
 (defun stp-post-actions (pkg-name)
@@ -1331,19 +1333,21 @@ the same time unless PARALLEL is non-nil."
                              (setq skipped-refresh pkg-name)
                            (when focus
                              (stp-list-focus-package pkg-name :recenter-arg -1))
-                           (stp-list-refresh :quiet t)
+                           ;; Reload the package info in case it has been
+                           ;; changed on disk by another command.
+                           (stp-list-refresh (stp-read-info) :quiet t)
                            (setq skipped-refresh nil
                                  last-refresh (rem-seconds))))
                      ;; Don't refresh at all when the STP list buffer isn't visible.
                      ;; If the `stp-list' command is used to raise the buffer, it
                      ;; will refresh then anyway without losing the current package.
-                     ;; (stp-list-refresh :focus-window-line nil :quiet t)
+                     ;; (stp-list-refresh (stp-read-info) :focus-window-line nil :quiet t)
                      ))))
              (lambda (_latest-versions)
                (when skipped-refresh
                  (when focus
                    (stp-list-focus-package skipped-refresh :recenter-arg -1))
-                 (stp-list-refresh :quiet t))
+                 (stp-list-refresh (stp-read-info) :quiet t))
                (unless parallel
                  (setq stp-list-update-latest-versions-running nil))
                (unless quiet-toplevel
@@ -1353,7 +1357,8 @@ the same time unless PARALLEL is non-nil."
              pkg-names
              :quiet quiet-packages
              :async async))
-        (message "No packages need their latest versions updated%s" ignored-string)))))
+        (unless quiet-toplevel
+          (message "No packages need their latest versions updated%s" ignored-string))))))
 
 (rem-set-keys stp-list-mode-map
               "a" #'stp-post-actions
@@ -1451,11 +1456,10 @@ the same time unless PARALLEL is non-nil."
           (setq version-string (propertize (concat version-string stale-string) 'face stp-list-stale-face)))
         version-string))))
 
-(cl-defun stp-list-refresh (&key (focus-current-pkg t) (focus-window-line t) quiet)
-  (interactive)
+(cl-defun stp-list-refresh (pkg-info &key (focus-current-pkg t) (focus-window-line t) quiet)
+  (interactive (list (stp-read-info)))
   (when (derived-mode-p 'stp-list-mode)
     (let ((column (current-column))
-          (pkg-info (stp-read-info))
           (seconds (rem-seconds))
           (line (line-number-at-pos))
           (window-line (when (and focus-current-pkg focus-window-line)
@@ -1522,7 +1526,7 @@ the same time unless PARALLEL is non-nil."
     (pop-to-buffer buf)
     (unless exists
       (stp-list-mode)
-      (stp-list-refresh :quiet t)
+      (stp-list-refresh (stp-read-info) :quiet t)
       (stp-list-update-latest-versions :quiet t))))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
