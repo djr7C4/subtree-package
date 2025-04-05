@@ -120,10 +120,11 @@ operation should be performed."
       (unwind-protect
           ;; We intentionally discard the pkg-info returned by `stp-git-install'
           ;; and `stp-git-upgrade' as we will handle the pkg-info ourselves
-          ;; below.
+          ;; below. Note that squashing is necessary because otherwise git will
+          ;; refuse to merge unrelated histories.
           (if (eq type 'install)
-              (stp-git-install pkg-info pkg-name repo branch 'unstable)
-            (stp-git-upgrade pkg-info pkg-name repo branch))
+              (stp-git-install pkg-info pkg-name repo branch 'unstable  :squash t)
+            (stp-git-upgrade pkg-info pkg-name repo branch :squash t))
         (f-delete repo t)))
     (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote remote))
     (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
