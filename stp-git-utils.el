@@ -418,7 +418,15 @@ number of commits n in REF2..REF and return -n."
 (defun stp-git-cached-repo-path (remote)
   (when (f-dir-p remote)
     (setq remote (f-canonical remote)))
-  (f-join stp-git-cache-directory (s-replace "/" "-" remote)))
+  (let ((dir (->> remote
+                  ;; URLs and local filenames are converted to hex to avoid
+                  ;; conflicts. If we only replaced /'s with -'s for example,
+                  ;; local files and URLs could theoretically resolve to the
+                  ;; same cached path.
+                  (mapcar (lambda (char)
+                            (format "%02x" char)))
+                  (s-join "-"))))
+    (f-join stp-git-cache-directory dir)))
 
 (defun stp-git-ensure-cached-repo (remote &optional branch)
   (let ((path (stp-git-cached-repo-path remote)))
