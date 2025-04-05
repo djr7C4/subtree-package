@@ -308,11 +308,12 @@ and \\='branch attributes should not be present.")
                  pkg-info)))
 
 (defun stp-read-info ()
-  (if (file-readable-p stp-info-file)
-      (with-temp-buffer
-        (insert-file-contents stp-info-file)
-        (read (buffer-string)))
-    (error "Could not read %s" stp-info-file)))
+  ;; We don't signal an error when stp-info-file doesn't exist. This just means
+  ;; that STP is being run for the first time.
+  (when (file-readable-p stp-info-file)
+    (with-temp-buffer
+      (insert-file-contents stp-info-file)
+      (read (buffer-string)))))
 
 (defun stp-write-info (pkg-info)
   (with-temp-buffer
