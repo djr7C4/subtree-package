@@ -266,14 +266,18 @@ remote repository."
 (defun stp-git-head ()
   (stp-git-remote-head (stp-git-root stp-source-directory)))
 
-(cl-defun stp-git-remote-hash-alist (remote &rest args &key (prefixes nil prefixes-supplied-p))
-  "Return an alist that maps hashes to refs. If supplied, prefixes is a list of
-allowed prefixes. Only those prefixes that match a prefix in prefixes will be
-kept. By default all refs are returned."
+;; This function exists to make memoization more efficient.
+(defun stp-git-remote-hash-alist-basic (remote)
+  (rem-call-process-shell-command (format "git ls-remote %s 2> /dev/null" remote)))
+
+(cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p))
+  "Return an alist that maps hashes to refs. If supplied, prefixes
+is a list of allowed prefixes. Matching prefixes are removed from
+the refs. By default all refs are returned."
   (unless (stp-git-valid-remote-p remote)
     (error "%s is not a valid remote" remote))
   (db (exit-code string)
-      (rem-call-process-shell-command (format "git ls-remote %s 2> /dev/null" remote))
+      (stp-git-remote-hash-alist-basic remote)
     (setq string (s-trim string))
     (and (= exit-code 0)
          ;; Handle empty repositories that do not have any tags.
