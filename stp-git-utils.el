@@ -424,7 +424,8 @@ number of commits n in REF2..REF and return -n."
   (let ((path (stp-git-cached-repo-path remote)))
     (if (f-dir-p path)
         ;; Fetch and update all branches.
-        (stp-git-fetch remote "*:*")
+        (let ((default-directory path))
+          (stp-git-fetch remote "*:*"))
       (stp-git-minimal-clone remote path branch))
     path))
 
