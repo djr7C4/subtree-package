@@ -25,7 +25,7 @@
 
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
-(defvar stp-memoized-functions '(stp-read-info stp-git-remote-hash-alist stp-elpa-version-url-alist))
+(defvar stp-memoized-functions '(stp-refresh-info stp-git-remote-hash-alist stp-elpa-version-url-alist))
 
 (defvar stp-package-info nil)
 
@@ -316,6 +316,10 @@ and \\='branch attributes should not be present.")
       (read (buffer-string)))))
 
 (defun stp-refresh-info ()
+  (stp-force-refresh-info))
+
+;; This version exists for when memoization should not be used.
+(defun stp-force-refresh-info ()
   (setq stp-package-info (stp-read-info)))
 
 (defun stp-write-info ()

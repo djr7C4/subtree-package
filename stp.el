@@ -597,9 +597,10 @@ arguments are as in `stp-install'."
 `stp-info-file'."
   (when (and interactive-p
              (stp-git-clean-or-ask-p))
+    (stp-refresh-info)
     (save-window-excursion
       (stp-with-package-source-directory
-        (stp-repair-info (stp-read-info) :quiet nil)
+        (stp-repair-info :quiet nil)
         (stp-write-info)
         (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
         (when refresh
@@ -1218,16 +1219,16 @@ to TRIES times."
                                        ,(async-inject-variables "^stp-")
                                        (setq load-path ',load-path)
                                        (require 'stp)
+                                       ;; pkg-alist is read from disk every time
+                                       ;; rather than stored in case some other
+                                       ;; STP command (such as an upgrade has
+                                       ;; modified the package information while
+                                       ;; the latest versions were being
+                                       ;; updated).
+                                       (stp-refresh-info)
                                        (stp-with-memoization
                                          (let (latest-version-alist
-                                               ;; pkg-alist is read from disk
-                                               ;; every time rather than stored
-                                               ;; in case some other STP command
-                                               ;; (such as an upgrade has
-                                               ;; modified the package
-                                               ;; information while the latest
-                                               ;; versions were being updated).
-                                               (pkg-alist (stp-get-alist (stp-read-info) ,pkg-name)))
+                                               (pkg-alist (stp-get-alist ,pkg-name)))
                                            (condition-case err
                                                (setq latest-version-alist (stp-latest-version ,pkg-name pkg-alist))
                                              (error
@@ -1237,12 +1238,13 @@ to TRIES times."
                                     #'process-latest-version))
                    (let (latest-version-alist
                          (pkg-alist (stp-get-alist pkg-name)))
-                     (condition-case err
-                         (setq latest-version-alist (stp-latest-version pkg-name pkg-alist))
-                       (error
-                        (list pkg-name tries nil (error-message-string err)))
-                       (:success
-                        (list pkg-name tries latest-version-alist nil)))))))))
+                     (process-latest-version
+                      (condition-case err
+                          (setq latest-version-alist (stp-latest-version pkg-name pkg-alist))
+                        (error
+                         (list pkg-name tries nil (error-message-string err)))
+                        (:success
+                         (list pkg-name tries latest-version-alist nil))))))))))
         (dotimes (_ (if async (min num-processes (length pkg-names)) 1))
           (unless (queue-empty queue)
             (compute-next-latest-version))))))))
@@ -1338,19 +1340,23 @@ the same time unless PARALLEL is non-nil."
                              (stp-list-focus-package pkg-name :recenter-arg -1))
                            ;; Reload the package info in case it has been
                            ;; changed on disk by another command.
-                           (stp-list-refresh (stp-read-info) :quiet t)
+                           (stp-force-refresh-info)
+                           (stp-list-refresh :quiet t)
                            (setq skipped-refresh nil
                                  last-refresh (rem-seconds))))
                      ;; Don't refresh at all when the STP list buffer isn't visible.
                      ;; If the `stp-list' command is used to raise the buffer, it
-                     ;; will refresh then anyway without losing the current package.
-                     ;; (stp-list-refresh (stp-read-info) :focus-window-line nil :quiet t)
+                     ;; will refresh then anyway without losing the current
+                     ;; package.
+                     ;; (stp-force-refresh-info)
+                     ;; (stp-list-refresh :focus-window-line nil :quiet t)
                      ))))
              (lambda (_latest-versions)
                (when skipped-refresh
                  (when focus
                    (stp-list-focus-package skipped-refresh :recenter-arg -1))
-                 (stp-list-refresh (stp-read-info) :quiet t))
+                 (stp-force-refresh-info)
+                 (stp-list-refresh :quiet t))
                (unless parallel
                  (setq stp-list-update-latest-versions-running nil))
                (unless quiet-toplevel
@@ -1524,13 +1530,14 @@ the same time unless PARALLEL is non-nil."
 (defun stp-list ()
   "List the packages installed in `stp-source-directory'."
   (interactive)
+  (stp-refresh-info)
   (let* ((default-directory stp-source-directory)
          (exists (get-buffer stp-list-buffer-name))
          (buf (get-buffer-create stp-list-buffer-name)))
     (pop-to-buffer buf)
     (unless exists
       (stp-list-mode)
-      (stp-list-refresh (stp-read-info) :quiet t)
+      (stp-list-refresh :quiet t)
       (stp-list-update-latest-versions :quiet t))))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
