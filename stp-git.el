@@ -178,9 +178,9 @@ are converted to hashes before they are returned."
   (stp-git-remote-latest-tag remote))
 
 (defun stp-git-latest-unstable-version (remote ref)
-  (or (car (rassoc ref (stp-git-remote-hash-head-alist remote)))
-      (and (string= ref "HEAD")
-           (stp-git-remote-head remote))))
+  (if (string= ref "HEAD")
+      (stp-git-remote-head remote)
+    (car (rassoc ref (stp-git-remote-hash-head-alist remote)))))
 
 (defun stp-git-version-upgradable-p (count-to-stable count-to-unstable update)
   (if (eq update 'stable)
