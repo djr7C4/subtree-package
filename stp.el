@@ -121,7 +121,8 @@ are not abbreviated."
                   (let ((prompt (format "[%s] version: " pkg-name)))
                     (cl-ecase .method
                       (elpa (setq .version (stp-elpa-read-version prompt pkg-name .remote)))
-                      (url (setq .version (stp-url-read-version prompt))))))
+                      (url (setq .version (stp-url-read-version prompt))))
+                    (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version .version))))
                 pkg-info))
       (cl-case type
         (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
