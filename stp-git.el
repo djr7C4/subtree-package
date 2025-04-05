@@ -38,12 +38,12 @@
       version
     (stp-git-subtree-package-hash pkg-name)))
 
-(defun stp-git-subtree-version (pkg-info pkg-name)
+(defun stp-git-subtree-version (pkg-name)
   "Determine the version and the update type of the package that was
 installed at the subtree. Use a tag if one is available;
 otherwise, use the hash."
   (let* ((pkg-name (stp-name pkg-name)))
-    (let-alist (stp-get-alist pkg-info pkg-name)
+    (let-alist (stp-get-alist pkg-name)
       (if (stp-git-remote-p .remote)
           (let ((cur-hash (stp-git-subtree-package-hash pkg-name))
                 (hash-tags (stp-git-remote-hash-tag-alist .remote)))
@@ -187,7 +187,7 @@ are converted to hashes before they are returned."
       (and count-to-stable (> count-to-stable 0) t)
     (and count-to-unstable (> count-to-unstable 0) t)))
 
-(cl-defun stp-git-install (pkg-info pkg-name remote version update &key branch (squash t))
+(cl-defun stp-git-install (pkg-name remote version update &key branch (squash t))
   "Install the specified version of pkg-name from remote in
 `stp-source-directory'."
   (let* ((git-root (stp-git-root stp-source-directory))
@@ -221,21 +221,21 @@ are converted to hashes before they are returned."
           (if (= exit-code 0)
               ;; If installation was successful, add the information for the package
               (progn
-                (setq version (stp-normalize-version pkg-name remote version)
-                      pkg-info (stp-set-alist pkg-info pkg-name `((method . git)
-                                                                  (remote . ,remote)
-                                                                  (version . ,version)
-                                                                  (update . ,update))))
+                (setq version (stp-normalize-version pkg-name remote version))
+                (stp-set-alist pkg-name
+                               `((method . git)
+                                 (remote . ,remote)
+                                 (version . ,version)
+                                 (update . ,update)))
                 (when branch
-                  (setq pkg-info (stp-set-attribute pkg-info pkg-name 'branch branch))))
-            (error "Failed to install %s as a git subtree: %s" pkg-name (s-trim output)))))))
-  pkg-info)
+                  (stp-set-attribute pkg-name 'branch branch)))
+            (error "Failed to install %s as a git subtree: %s" pkg-name (s-trim output))))))))
 
 (defvar stp-subtree-pull-fallback t
   "When this is non-nil and git subtree pull fails, attempt to uninstall the
 package and install the new version instead.")
 
-(cl-defun stp-git-upgrade (pkg-info pkg-name remote version &key (squash t))
+(cl-defun stp-git-upgrade (pkg-name remote version &key (squash t))
   "Upgrade pkg-name in `stp-source-directory' to the specified version
 from remote."
   (let* ((git-root (stp-git-root stp-source-directory))
@@ -296,7 +296,7 @@ from remote."
                          (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
               (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
               nil)
-            (setq pkg-info (stp-reinstall pkg-info pkg-name version)))
+            (stp-reinstall pkg-name version))
            ;; Handle git subtree merge/pull errors and when the user chose not
            ;; to proceed with uninstalling and reinstalling the package.
            (t
@@ -309,21 +309,22 @@ from remote."
               ;; parameter and store the current hash as the version. Since
               ;; branches are constantly updated as more commits are pushed to
               ;; the remote, storing a branch name does not make sense.
-              (setq pkg-info (stp-set-attribute pkg-info pkg-name 'version version-hash)
-                    pkg-info (stp-set-attribute pkg-info pkg-name 'branch version)
-                    pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable))
+              (progn
+                (stp-set-attribute pkg-name 'version version-hash)
+                (stp-set-attribute pkg-name 'branch version)
+                (stp-set-attribute pkg-name 'update 'unstable))
             ;; For tags or hashes, use the tag or hash.
-            (setq version (stp-normalize-version pkg-name remote version)
-                  pkg-info (stp-set-attribute pkg-info pkg-name 'version version))
+            (setq version (stp-normalize-version pkg-name remote version))
+            (stp-set-attribute pkg-name 'version version)
             (if (stp-git-remote-tag-p remote version)
                 ;; Tags do not have a branch to update from and are considered
                 ;; stable.
-                (setq pkg-info (stp-delete-attribute pkg-info pkg-name 'branch)
-                      pkg-info (stp-set-attribute pkg-info pkg-name 'update 'stable))
+                (progn
+                  (stp-delete-attribute pkg-name 'branch)
+                  (stp-set-attribute pkg-name 'update 'stable))
               ;; If there is a 'branch attribute when updating to a hash,
               ;; leave it as is.
-              (setq pkg-info (stp-set-attribute pkg-info pkg-name 'update 'unstable)))))))
-    pkg-info))
+              (stp-set-attribute pkg-name 'update 'unstable))))))))
 
 (provide 'stp-git)
 ;;; stp-git.el ends here

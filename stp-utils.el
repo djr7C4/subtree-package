@@ -27,6 +27,8 @@
 
 (defvar stp-memoized-functions '(stp-read-info stp-git-remote-hash-alist stp-elpa-version-url-alist))
 
+(defvar stp-package-info nil)
+
 (defvar stp-memoization-active nil)
 
 (defmacro stp-with-memoization (&rest body)
@@ -106,6 +108,7 @@ never ends with a slash (nor does it contain any slashes)."
   "Return a list containing the name of the package for the current
 file and the relative path to the current file or directory
 within that package."
+  (stp-refresh-info)
   (let ((path (or buffer-file-name default-directory)))
     (db (pkg-name k)
         (->> (stp-info-names)
@@ -128,17 +131,16 @@ within that package."
 (defun stp-filesystem-names ()
   "Return a list of packages installed in `stp-source-directory'."
   (stp-with-package-source-directory
-    (-filter 'f-directory-p (directory-files stp-source-directory nil "^[^.]"))))
+    (-filter 'f-dir-p (directory-files stp-source-directory nil "^[^.]"))))
 
-(defun stp-info-names (&optional pkg-info method)
+(defun stp-info-names (&optional method)
   "Return a list of packages stored in `stp-info-file'."
-  (setq pkg-info (or pkg-info (stp-read-info)))
   (sort (mapcar 'car
                 (-filter (lambda (pkg)
                            (or (not method)
                                (let ((pkg-alist (cdr pkg)))
                                  (eq (map-elt pkg-alist 'method) method))))
-                         pkg-info))
+                         stp-package-info))
         'string<))
 
 (defvar stp-methods-order '(git elpa url)
@@ -244,18 +246,16 @@ be selected.")
       (stp-comp-read-remote prompt remote (cons remote other-remotes))
     remote))
 
-(defun stp-update-remotes (pkg-info pkg-name chosen-remote remote other-remotes)
+(defun stp-update-remotes (pkg-name chosen-remote remote other-remotes)
   ;; Remote should always be chosen-remote since that is where the package was
   ;; just installed or upgraded from. (See the documentation of
   ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
   ;; not chosen.
-  (setq pkg-info (stp-set-attribute pkg-info pkg-name 'remote chosen-remote))
+  (stp-set-attribute pkg-name 'remote chosen-remote)
   (when (or other-remotes (not (string= chosen-remote remote)))
     (->> (cons remote other-remotes)
          (remove chosen-remote)
-         (stp-set-attribute pkg-info pkg-name 'other-remotes)
-         (setq pkg-info) ))
-  pkg-info)
+         (stp-set-attribute pkg-name 'other-remotes))))
 
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
@@ -315,45 +315,53 @@ and \\='branch attributes should not be present.")
       (insert-file-contents stp-info-file)
       (read (buffer-string)))))
 
-(defun stp-write-info (pkg-info)
+(defun stp-refresh-info ()
+  (setq stp-package-info (stp-read-info)))
+
+(defun stp-write-info ()
   (with-temp-buffer
     (insert ";;; mode: read-only; -*- no-byte-compile: t; -*-\n\n")
-    (pp (stp-sort-info pkg-info) (current-buffer))
+    (pp (stp-sort-info stp-package-info) (current-buffer))
     (write-file stp-info-file)))
 
-(defun stp-get-attribute (pkg-info pkg-name attr)
+(defun stp-get-attribute (pkg-name attr)
   "Get the attribute attr in the alist with the key corresponding to
 pkg-name."
   (let ((pkg-name (stp-name pkg-name)))
-    (map-elt (map-elt pkg-info pkg-name) attr)))
+    (map-elt (map-elt stp-package-info pkg-name) attr)))
 
-(defun stp-set-attribute (pkg-info pkg-name attr val)
+(defun stp-set-attribute (pkg-name attr val)
   "Set the attribute attr to val in the alist with the key
 corresponding to pkg-name."
   (let* ((pkg-name (stp-name pkg-name))
-         (alist (map-elt pkg-info pkg-name)))
+         (alist (map-elt stp-package-info pkg-name)))
     (if alist
         (setf (map-elt alist attr) val
-              (map-elt pkg-info pkg-name) alist)
-      (setq pkg-info (cons `(,pkg-name . ((,attr . ,val))) pkg-info))))
-  pkg-info)
+              (map-elt stp-package-info pkg-name) alist)
+      (setq stp-package-info (cons `(,pkg-name . ((,attr . ,val))) stp-package-info)))))
 
-(defun stp-delete-attribute (pkg-info pkg-name attr)
+(defun stp-delete-attribute (pkg-name attr)
   "Remove attr from the alist with the key corresponding to
 pkg-name."
-  (let ((alist (stp-get-alist pkg-info pkg-name)))
-    (stp-set-alist pkg-info pkg-name (remq (assoc attr alist) alist))))
+  (let ((alist (stp-get-alist pkg-name)))
+    (stp-set-alist pkg-name (remq (assoc attr alist) alist))))
 
-(defun stp-get-alist (pkg-info pkg-name)
-  "Get the alist the contains information corresponding to pkg-name."
+(defun stp-get-alist (pkg-name)
+  "Get the alist that contains information corresponding to
+pkg-name."
   (let ((pkg-name (stp-name pkg-name)))
-    (map-elt pkg-info pkg-name)))
+    (map-elt stp-package-info pkg-name)))
 
-(defun stp-set-alist (pkg-info pkg-name alist)
-  "Set the alist the contains information corresponding to pkg-name to alist."
+(defun stp-set-alist (pkg-name alist)
+  "Set the alist that contains information corresponding to pkg-name
+to alist."
   (let ((pkg-name (stp-name pkg-name)))
-    (setf (map-elt pkg-info pkg-name) alist))
-  pkg-info)
+    (setf (map-elt stp-package-info pkg-name) alist)))
+
+(defun stp-delete-alist (pkg-name)
+  "Remove the alist that contains information corresponding to
+PKG-NAME."
+  (setq stp-package-info (map-delete stp-package-info pkg-name)))
 
 (defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?[-_./]?\\)*\\)$")
 
@@ -507,7 +515,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
 
 (defvar stp-load-blacklist (list "-pkg\\.\\(el\\|elc\\)$" (format "\\(^\\|/\\)%s$" dir-locals-file) (format "\\(^\\|/\\)%s-2.el$" (f-no-ext dir-locals-file))))
 
-(cl-defun stp-reload-once (pkg-name &key all)
+(cl-defun stp-reload-once (pkg-name)
   "Reload all features for PKG-NAME that have already been loaded
 according to `features'. When ALL is non-nil, load all features
 for PKG-NAME even if they were not previously loaded."

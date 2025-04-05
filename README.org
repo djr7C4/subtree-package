@@ -126,8 +126,8 @@ bootstraping code in =early-init.el=.
 #+begin_src emacs-lisp
   (require 'stp-bootstrap (expand-file-name "path/to/package-source/subtree-package/stp-bootstrap.el"))
 
-  (setq stp-source-directory "path/to/package-source/"
-        stp-info-file (expand-file-name "pkg-info.eld" djr-emacs-user-code-directory))
+  (setq stp-source-directory "emacs-config/package-source/"
+        stp-info-file "emacs-config/pkg-info.eld")
 
   ;; Set up dependencies for STP itself.
   (stp-bootstrap)
