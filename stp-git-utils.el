@@ -121,9 +121,12 @@ repository."
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
 
-(defun stp-git-fetch (remote &optional refspec)
+(cl-defun stp-git-fetch (remote &key force refspec)
   (db (exit-code output)
-      (rem-call-process-shell-command (format "git fetch \"%s\"%s"
+      (rem-call-process-shell-command (format "git fetch%s \"%s\"%s"
+                                              (if force
+                                                  " --force"
+                                                "")
                                               remote
                                               (if refspec
                                                   (format " \"%s\"" refspec)
@@ -443,7 +446,8 @@ number of commits n in REF2..REF and return -n."
     (if (f-dir-p path)
         ;; Fetch and update all branches.
         (let ((default-directory path))
-          (stp-git-fetch remote "*:*"))
+          ;; :force t is required in case a branch is deleted upstream.
+          (stp-git-fetch remote :force t :refspec "*:*"))
       (stp-git-minimal-clone remote path branch))
     (f-write (format "%f" (rem-seconds)) 'utf-8 tpath)
     path))
