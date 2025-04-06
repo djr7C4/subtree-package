@@ -1293,6 +1293,8 @@ the same time unless PARALLEL is non-nil."
   (stp-refresh-info)
   (db (quiet-toplevel quiet-packages)
       (cl-case quiet
+        ((nil)
+         (list nil nil))
         (toplevel
          (list t nil))
         (packages
@@ -1327,35 +1329,21 @@ the same time unless PARALLEL is non-nil."
                (db (pkg-name . version-alist)
                    latest-version-alist
                  (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
-                 (with-current-buffer stp-list-buffer-name
-                   (if-let ((win (get-buffer-window)))
-                       (with-selected-window win
-                         ;; Don't refresh too often. This prevents the main
-                         ;; process from locking up when there are a large
-                         ;; number of asynchronous processes.
-                         (if (< (- (rem-seconds) last-refresh)
-                                stp-list-latest-versions-min-refresh-interval)
-                             (setq skipped-refresh pkg-name)
-                           (when focus
-                             (stp-list-focus-package pkg-name :recenter-arg -1))
-                           ;; Reload the package info in case it has been
-                           ;; changed on disk by another command.
-                           (stp-force-refresh-info)
-                           (stp-list-refresh :quiet t)
-                           (setq skipped-refresh nil
-                                 last-refresh (rem-seconds))))
-                     ;; Don't refresh at all when the STP list buffer isn't visible.
-                     ;; If the `stp-list' command is used to raise the buffer, it
-                     ;; will refresh then anyway without losing the current
-                     ;; package.
-                     ;; (stp-force-refresh-info)
-                     ;; (stp-list-refresh :focus-window-line nil :quiet t)
-                     ))))
-             (lambda (_latest-versions)
+                 ;; Don't refresh too often. This prevents the main
+                 ;; process from locking up when there are a large
+                 ;; number of asynchronous processes.
+                 (if (< (- (rem-seconds) last-refresh)
+                        stp-list-latest-versions-min-refresh-interval)
+                     (setq skipped-refresh pkg-name)
+                   (when focus
+                     (stp-list-focus-package pkg-name :recenter-arg -1))
+                   (stp-list-refresh :quiet t)
+                   (setq skipped-refresh nil
+                         last-refresh (rem-seconds)))))
+             (lambda (latest-versions)
                (when skipped-refresh
                  (when focus
                    (stp-list-focus-package skipped-refresh :recenter-arg -1))
-                 (stp-force-refresh-info)
                  (stp-list-refresh :quiet t))
                (unless parallel
                  (setq stp-list-update-latest-versions-running nil))
@@ -1465,59 +1453,62 @@ the same time unless PARALLEL is non-nil."
           (setq version-string (propertize (concat version-string stale-string) 'face stp-list-stale-face)))
         version-string))))
 
-(cl-defun stp-list-refresh (&key (focus-current-pkg t) (focus-window-line t) quiet)
+(cl-defun stp-list-refresh (&key (focus-window-line t) quiet)
   (interactive)
   (stp-refresh-info)
-  (when (derived-mode-p 'stp-list-mode)
-    (let ((column (current-column))
-          (seconds (rem-seconds))
-          (line (line-number-at-pos))
-          (window-line (when (and focus-current-pkg focus-window-line)
-                         (beginning-of-line)
-                         (rem-window-line-number-at-pos))))
-      (read-only-mode 0)
-      (erase-buffer)
-      (insert (format "Package Version%s Method Update Branch Remote\n"
-                      (if stp-latest-versions-cache
-                          " Latest"
-                        "")))
-      (dolist (pkg-name (stp-info-names))
-        (let ((version-alist (map-elt stp-latest-versions-cache pkg-name)))
-          ;; Nesting `let-alist' doesn't work nicely so we merge the alists
-          ;; instead.
-          (let-alist (map-merge 'alist version-alist (stp-get-alist pkg-name))
-            (insert (format "%s %s %s %s %s %s %s\n"
-                            (stp-name pkg-name)
-                            (or (stp-list-version-field .method .version .count-to-stable .count-to-unstable .update)
-                                (propertize stp-list-missing-field-string 'face stp-list-error-face))
-                            (or (when stp-latest-versions-cache
-                                  (or (when version-alist
-                                        (stp-list-latest-field .method version-alist seconds))
-                                      "\t"))
-                                "")
-                            (if .method
-                                (symbol-name .method)
-                              stp-list-missing-field-string)
-                            ;; Instead of using
-                            ;; `stp-list-missing-field-string' when the
-                            ;; update or branch is missing, simply omit it.
-                            (or .update "\t")
-                            (or .branch "\t")
-                            (or .remote stp-list-missing-field-string))))))
-      ;; Align columns. We explicitly use a space so that tab characters will
-      ;; count as a column (see how branches are handled above).
-      (let ((align-large-region nil))
-        (align-regexp (point-min) (point-max) "\\( *\\) +" nil nil t))
-      (goto-char (point-min))
-      (read-only-mode 1)
-      (when focus-current-pkg
-        (rem-goto-line line)
-        (when focus-window-line
-          (rem-move-current-window-line-to-pos window-line))
-        (beginning-of-line)
-        (forward-char column))
-      (unless quiet
-        (message "Refreshed packages")))))
+  (when-let ((buf (get-buffer stp-list-buffer-name)))
+    (let ((win (get-buffer-window buf)))
+      (with-current-buffer buf
+        (let ((column (current-column))
+              (seconds (rem-seconds))
+              (line (line-number-at-pos))
+              (window-line (when (and focus-window-line win)
+                             (beginning-of-line)
+                             (with-selected-window win
+                               (rem-window-line-number-at-pos)))))
+          (read-only-mode 0)
+          (erase-buffer)
+          (insert (format "Package Version%s Method Update Branch Remote\n"
+                          (if stp-latest-versions-cache
+                              " Latest"
+                            "")))
+          (dolist (pkg-name (stp-info-names))
+            (let ((version-alist (map-elt stp-latest-versions-cache pkg-name)))
+              ;; Nesting `let-alist' doesn't work nicely so we merge the alists
+              ;; instead.
+              (let-alist (map-merge 'alist version-alist (stp-get-alist pkg-name))
+                (insert (format "%s %s %s %s %s %s %s\n"
+                                (stp-name pkg-name)
+                                (or (stp-list-version-field .method .version .count-to-stable .count-to-unstable .update)
+                                    (propertize stp-list-missing-field-string 'face stp-list-error-face))
+                                (or (when stp-latest-versions-cache
+                                      (or (when version-alist
+                                            (stp-list-latest-field .method version-alist seconds))
+                                          "\t"))
+                                    "")
+                                (if .method
+                                    (symbol-name .method)
+                                  stp-list-missing-field-string)
+                                ;; Instead of using
+                                ;; `stp-list-missing-field-string' when the
+                                ;; update or branch is missing, simply omit it.
+                                (or .update "\t")
+                                (or .branch "\t")
+                                (or .remote stp-list-missing-field-string))))))
+          ;; Align columns. We explicitly use a space so that tab characters will
+          ;; count as a column (see how branches are handled above).
+          (let ((align-large-region nil))
+            (align-regexp (point-min) (point-max) "\\( *\\) +" nil nil t))
+          (goto-char (point-min))
+          (read-only-mode 1)
+          (when (and focus-window-line win)
+            (with-selected-window win
+              (rem-goto-line line)
+              (rem-move-current-window-line-to-pos window-line)
+              (beginning-of-line)
+              (forward-char column)))
+          (unless quiet
+            (message "Refreshed packages")))))))
 
 (cl-defun stp-list-focus-package (pkg-name &key (recenter t) (recenter-arg nil))
   (save-match-data
