@@ -147,8 +147,8 @@ are converted to hashes before they are returned."
                       (cond
                        ((and (member v1 order)
                              (member v2 order))
-                        (< (cl-position v1 order :test 'string=)
-                           (cl-position v2 order :test 'string=)))
+                        (< (cl-position v1 order :test #'string=)
+                           (cl-position v2 order :test #'string=)))
                        ((member v1 order)
                         t)
                        ((member v2 order)

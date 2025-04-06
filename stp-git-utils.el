@@ -313,7 +313,7 @@ the refs. By default all refs are returned."
   (stp-git-remote-hash-alist remote :prefixes '("refs/tags/")))
 
 (defun stp-git-remote-tags (remote)
-  (mapcar 'cdr (stp-git-remote-hash-tag-alist remote)))
+  (mapcar #'cdr (stp-git-remote-hash-tag-alist remote)))
 
 (defun stp-git-remote-tag-p (remote ref)
   (member ref (stp-git-remote-tags remote)))
@@ -330,7 +330,7 @@ the refs. By default all refs are returned."
   (car (rassoc "HEAD" (stp-git-remote-hash-alist remote))))
 
 (defun stp-git-remote-heads (remote)
-  (mapcar 'cdr (stp-git-remote-hash-head-alist remote)))
+  (mapcar #'cdr (stp-git-remote-hash-head-alist remote)))
 
 (defun stp-git-remote-head-p (remote ref)
   (member ref (stp-git-remote-heads remote)))

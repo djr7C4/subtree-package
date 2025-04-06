@@ -59,7 +59,7 @@ package at remote to the URL where it can be downloaded."
                            (kill-buffer elpa-html-buf)))
          (elpa-version-url-regexp (concat "^" pkg-name "-\\(\\(?:[0-9]+\\.\\)*\\)\\([0-9]+\\)\\(\\.tar\\|\\.el\\)?\\(\\.lz\\)?$" ))
          ;; Find href attributes of tags. This will get all the links.
-         (elpa-version-urls (mapcar 'cdr
+         (elpa-version-urls (mapcar #'cdr
                                     (rem-tree-find-if (lambda (x)
                                                         (and (consp x)
                                                              (eq (car x) 'href)
@@ -67,7 +67,7 @@ package at remote to the URL where it can be downloaded."
                                                       elpa-html-tree))))
     ;; Remove everything that is nil. These correspond to the URLs that did not
     ;; match `elpa-version-url-regexp'.
-    (-filter 'identity
+    (-filter #'identity
              ;; Construct an alist the maps versions to the corresponding URL.
              (mapcar (lambda (url)
                        (setq url (f-filename url))
@@ -80,10 +80,10 @@ package at remote to the URL where it can be downloaded."
                      elpa-version-urls))))
 
 (defun stp-elpa-versions (pkg-name remote)
-  (mapcar 'car (stp-elpa-version-url-alist pkg-name remote)))
+  (mapcar #'car (stp-elpa-version-url-alist pkg-name remote)))
 
 (defun stp-elpa-versions-sorted (pkg-name remote)
-  (reverse (-sort 'stp-version<
+  (reverse (-sort #'stp-version<
                   (stp-elpa-versions pkg-name remote))))
 
 (defun stp-elpa-count-versions (pkg-name remote v1 v2)

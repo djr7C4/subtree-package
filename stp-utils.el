@@ -131,17 +131,17 @@ within that package."
 (defun stp-filesystem-names ()
   "Return a list of packages installed in `stp-source-directory'."
   (stp-with-package-source-directory
-    (-filter 'f-dir-p (directory-files stp-source-directory nil "^[^.]"))))
+    (-filter #'f-dir-p (directory-files stp-source-directory nil "^[^.]"))))
 
 (defun stp-info-names (&optional method)
   "Return a list of packages stored in `stp-info-file'."
-  (sort (mapcar 'car
+  (sort (mapcar #'car
                 (-filter (lambda (pkg)
                            (or (not method)
                                (let ((pkg-alist (cdr pkg)))
                                  (eq (map-elt pkg-alist 'method) method))))
                          stp-package-info))
-        'string<))
+        #'string<))
 
 (defvar stp-methods-order '(git elpa url)
   "Valid values for the METHOD attribute.")

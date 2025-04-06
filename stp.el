@@ -896,7 +896,7 @@ info files in the directory for that package."
     (info-initialize)
     (setq Info-directory-list
           (cl-remove-duplicates (append Info-directory-list new)
-                                :test 'equal))
+                                :test #'equal))
     (unless quiet
       (if new
           (message "Added info files for %s" pkg-name)
