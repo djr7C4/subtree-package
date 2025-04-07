@@ -1451,9 +1451,21 @@ the same time unless PARALLEL is non-nil."
           (setq version-string (propertize (concat version-string stale-string) 'face stp-list-stale-face)))
         version-string))))
 
-(cl-defun stp-list-refresh (&key (focus-window-line t) quiet)
-  (interactive)
+(cl-defun stp-list-refresh (&key (focus-window-line t) quiet full)
+  "Refresh the STP list buffer. When FOCUS-WINDOW-LINE is non-nil,
+keep point on the same line in the same position in the window
+after refreshing. This argument is ignored when the STP list
+buffer is not selected in a window. When QUIET is non-nil, do not
+print any status messages. When FULL is non-nil (with a prefix
+argument interactively), also update the latest versions, delete
+stale cached repositories and refresh `package-archive-contents'
+asynchronously."
+  (interactive (list :full current-prefix-arg))
   (stp-refresh-info)
+  (when full
+    (stp-list-update-latest-versions :quiet t :async t)
+    (stp-git-delete-stale-cached-repos)
+    (stp-archive-async-refresh))
   (when-let ((buf (get-buffer stp-list-buffer-name)))
     (let ((win (get-buffer-window buf)))
       (with-current-buffer buf
@@ -1526,9 +1538,7 @@ the same time unless PARALLEL is non-nil."
     (pop-to-buffer buf)
     (unless exists
       (stp-list-mode)
-      (stp-list-refresh :quiet t)
-      (stp-list-update-latest-versions :quiet t)
-      (stp-git-delete-stale-cached-repos))))
+      (stp-list-refresh :quiet t :full t))))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
   "Remove packages that exist in `stp-info-file' but not on the
