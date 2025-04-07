@@ -517,8 +517,6 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
       (insert (format "Current directory: %s\n" dir))
       (insert cmd))))
 
-(defvar stp-load-blacklist (list "-pkg\\.\\(el\\|elc\\)$" (format "\\(^\\|/\\)%s$" dir-locals-file) (format "\\(^\\|/\\)%s-2.el$" (f-no-ext dir-locals-file))))
-
 (cl-defun stp-reload-once (pkg-name)
   "Reload all features for PKG-NAME that have already been loaded
 according to `features'. When ALL is non-nil, load all features
@@ -526,13 +524,9 @@ for PKG-NAME even if they were not previously loaded."
   (let* ((pkg-path (stp-canonical-path pkg-name))
          ;; Reload those features that were already loaded and correspond to
          ;; files in the package.
-         (files (directory-files-recursively pkg-path
-                                             (concat "\\.\\("
-                                                     rem-elisp-file-regexp
-                                                     "\\)$"))))
+         (files (rem-elisp-files-to-load pkg-path)))
     (dolist (f files)
-      (unless (cl-some (-rpartial #'string-match-p f) stp-load-blacklist)
-        (load f)))))
+      (load f))))
 
 (provide 'stp-utils)
 ;;; stp-utils.el ends here
