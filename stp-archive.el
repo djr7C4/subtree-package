@@ -34,7 +34,8 @@
      (message "Asynchronous refresh package archive finished"))))
 
 (defun stp-package-requirements (pkg-name)
-  "Find all packages that are required by PKG-NAME."
+  "Find all packages that are required by PKG-NAME according to the
+Package-Requires field of its elisp files."
   (let* (reqs
          (pkg-path (stp-canonical-path pkg-name))
          (files (rem-elisp-files-to-load pkg-path :keep-extensions t :extensions '("el"))))
