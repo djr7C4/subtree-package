@@ -322,7 +322,7 @@ the refs. By default all refs are returned."
   "Return an alist that maps hashes to heads."
   ;; HEAD is different from refs/heads/HEAD and is more up to date for some
   ;; repositories.
-  (cons (stp-git-remote-head remote)
+  (cons (cons (stp-git-remote-head remote) "HEAD")
         (stp-git-remote-hash-alist remote :prefixes '("refs/heads/"))))
 
 (defun stp-git-remote-head (remote)
