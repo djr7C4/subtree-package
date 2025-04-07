@@ -1,6 +1,6 @@
 ;;; -*- lexical-binding: t; -*-
 ;;
-;; Copyright (C) 2025, David J. Rosenbaum <djr7c4@gmail.com>
+;; Copyright (C) 2025 David J. Rosenbaum <djr7c4@gmail.com>
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
