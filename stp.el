@@ -1,8 +1,12 @@
-;;; -*- lexical-binding: t; -*-
-;; Subtree package
-;;
-;; Copyright (C) 2025 David J. Rosenbaum <djr7c4@gmail.com>
-;;
+;;; stp.el --- Manage packages as git subtrees -*- lexical-binding: t; -*-
+;; Copyright (C) 2025 David J. Rosenbaum
+
+;; Author: David J. Rosenbaum <djr7c4@gmail.com>
+;; Keywords: TODO
+;; URL: https://github.com/djr7C4/subtree-package.git
+;; Version: TODO
+;; Package-Requires: ()
+
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
 ;; published by the Free Software Foundation.
@@ -1647,4 +1651,4 @@ development or for opening packages from `stp-list-mode'."
           (message "%s was not found in the local filesystem" pkg-name))))))
 
 (provide 'stp)
-;;; subtree-package.el ends here
+;;; stp.el ends here

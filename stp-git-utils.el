@@ -255,6 +255,13 @@ the new name."
             (setq push-remote nil))
           push-remote))))
 
+(defun stp-git-remote-url (remote)
+  (db (exit-code output)
+      (rem-call-process-shell-command (format "git remote get-url \"%s\"" remote))
+    (if (= exit-code 0)
+        (s-trim output)
+      (error "Unable to find the URL for the git remote %s" remote))))
+
 (defvar stp-git-ask-when-unclean-p t)
 
 (defun stp-git-clean-or-ask-p ()
@@ -273,14 +280,14 @@ remote repository."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (let ((default-directory path))
-    (db (exit-code string)
+    (db (exit-code output)
         (rem-call-process-shell-command (format "git log | grep \"Squashed '\\(.*/\\)\\?%s/\\?'\" | head -n 1" (f-filename path)))
-      (setq string (s-trim string))
+      (setq output (s-trim output))
       (and (= exit-code 0)
-           (> (length string) 0)
+           (> (length output) 0)
            (save-match-data
-             (string-match "\\(?:[0-9a-fA-F]+..\\| \\)\\([0-9a-fA-F]+\\)$" string)
-             (match-string 1 string))))))
+             (output-match "\\(?:[0-9a-fA-F]+..\\| \\)\\([0-9a-fA-F]+\\)$" output)
+             (match-output 1 output))))))
 
 (defun stp-git-subtree-p (path)
   (and (stp-git-subtree-hash path) t))
@@ -298,12 +305,12 @@ is a list of allowed prefixes. Matching prefixes are removed from
 the refs. By default all refs are returned."
   (unless (stp-git-valid-remote-p remote)
     (error "%s is not a valid remote" remote))
-  (db (exit-code string)
+  (db (exit-code output)
       (stp-git-remote-hash-alist-basic remote)
-    (setq string (s-trim string))
+    (setq output (s-trim output))
     (and (= exit-code 0)
          ;; Handle empty repositories that do not have any tags.
-         (not (string= string ""))
+         (not (output= output ""))
          (mapcar (lambda (list)
                    (db (hash ref)
                        list
@@ -320,7 +327,7 @@ the refs. By default all refs are returned."
                               t))
                           (mapcar (lambda (line)
                                     (s-split rem-positive-whitespace-regexp line))
-                                  (s-split "\n" string)))))))
+                                  (s-split "\n" output)))))))
 
 (defun stp-git-remote-hash-tag-alist (remote)
   "Return an alist that maps hashes to tags."
