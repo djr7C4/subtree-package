@@ -257,10 +257,17 @@ be selected.")
          (remove chosen-remote)
          (stp-set-attribute pkg-name 'other-remotes))))
 
+(defun stp-version-list< (v1 v2)
+  (and (not (and (null v1) (null v2)))
+       (or (null v1)
+           (rem-shortlex-string< (car v1) (car v2))
+           (and (string= (car v1) (car v2))
+                (stp-version-list< (cdr v1) (cdr v2))))))
+
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
-  (rem-version< (stp-version-extract v1)
-                (stp-version-extract v2)))
+  (stp-version-list< (stp-version-extract v1)
+                     (stp-version-extract v2)))
 
 (defvar stp-info-file (f-join user-emacs-directory "pkg-info.eld")
   "The name of the file that stores the package information.
