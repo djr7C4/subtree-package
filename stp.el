@@ -280,10 +280,8 @@ upgraded. The value t indicates that all post actions should be
 performed.")
 
 (defvar stp-auto-load t
-  "If this variable is nil, then packages will not be loaded after
-they are installed or upgraded. The value \\='reload means that
-packages will be loaded only if they were already loaded.
-Otherwise, always automatically load newly installed packages.")
+  "This variable indicates if newly installed packages should be
+automatically loaded.")
 
 (defun stp-ensure-no-merge-conflicts ()
   (when (stp-git-merge-conflict-p)
@@ -684,7 +682,7 @@ the package and updating the load path."
   (stp-with-memoization
     (stp-update-load-path (stp-full-path pkg-name))
     (when stp-auto-load
-      (stp-reload pkg-name :all (not (eq stp-auto-load 'reload))))
+      (stp-reload pkg-name))
     (stp-build pkg-name)
     (stp-build-info pkg-name)
     (stp-update-info-directories pkg-name)))
