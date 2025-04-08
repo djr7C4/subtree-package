@@ -19,13 +19,14 @@
 
 (defvar stp-archive-async-refresh-running nil)
 
-(defun stp-archive-async-refresh ()
+(cl-defun stp-archive-async-refresh (&key quiet)
   "Refresh the package archive asynchronously in a separate process."
   (interactive)
   (if stp-archive-async-refresh-running
       (user-error "`stp-archive-async-refresh' is already running")
     (setq stp-archive-async-refresh-running t)
-    (message "Refreshing package archives asynchronously")
+    (unless quiet
+      (message "Refreshing package archives asynchronously"))
     (async-start
      `(lambda ()
         (require 'package)
@@ -38,7 +39,8 @@
        ;; archive from disk instead.
        (package-read-all-archive-contents)
        (setq stp-archive-async-refresh-running nil)
-       (message "Asynchronous refresh of the package archives finished")))))
+       (unless quiet
+         (message "Asynchronous refresh of the package archives finished"))))))
 
 (defun stp-package-requirements (pkg-name)
   "Find all packages that are required by PKG-NAME according to the
