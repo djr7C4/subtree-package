@@ -17,21 +17,28 @@
 (require 'async)
 (require 'package)
 
+(defvar stp-archive-async-refresh-running nil)
+
 (defun stp-archive-async-refresh ()
   "Refresh the package archive asynchronously in a separate process."
   (interactive)
-  (async-start
-   `(lambda ()
-      (require 'package)
-      ,(async-inject-variables "^package-archives$")
-      (package-refresh-contents)
-      nil)
-   (lambda (_result)
-     ;; Receiving `package-archive-contents' from the child process is very slow
-     ;; because it is so large. It is much faster to just read the package
-     ;; archive from disk instead.
-     (package-read-all-archive-contents)
-     (message "Asynchronous refresh package archive finished"))))
+  (if stp-archive-async-refresh-running
+      (user-error "`stp-archive-async-refresh' is already running")
+    (setq stp-archive-async-refresh-running t)
+    (message "Refreshing package archives asynchronously")
+    (async-start
+     `(lambda ()
+        (require 'package)
+        ,(async-inject-variables "^package-archives$")
+        (package-refresh-contents)
+        nil)
+     (lambda (_result)
+       ;; Receiving `package-archive-contents' from the child process is very slow
+       ;; because it is so large. It is much faster to just read the package
+       ;; archive from disk instead.
+       (package-read-all-archive-contents)
+       (setq stp-archive-async-refresh-running nil)
+       (message "Asynchronous refresh of the package archives finished")))))
 
 (defun stp-package-requirements (pkg-name)
   "Find all packages that are required by PKG-NAME according to the
