@@ -310,7 +310,7 @@ the refs. By default all refs are returned."
     (setq output (s-trim output))
     (and (= exit-code 0)
          ;; Handle empty repositories that do not have any tags.
-         (not (output= output ""))
+         (not (string= output ""))
          (mapcar (lambda (list)
                    (db (hash ref)
                        list
