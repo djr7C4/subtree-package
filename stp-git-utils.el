@@ -303,8 +303,10 @@ remote repository."
   "Return an alist that maps hashes to refs. If supplied, prefixes
 is a list of allowed prefixes. Matching prefixes are removed from
 the refs. By default all refs are returned."
-  (unless (stp-git-valid-remote-p remote)
-    (error "%s is not a valid remote" remote))
+  ;; This function should not be passed an invalid remote and this check has a
+  ;; significant performance penalty even with caching.
+  ;; (unless (stp-git-valid-remote-p remote)
+  ;;   (error "%s is not a valid remote" remote))
   (db (exit-code output)
       (stp-git-remote-hash-alist-basic remote)
     (setq output (s-trim output))

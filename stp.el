@@ -25,6 +25,7 @@
 (require 'info)
 (require 'persist nil t)
 (require 'queue nil t)
+(require 'stp-archive)
 (require 'stp-bootstrap)
 (require 'stp-utils)
 (require 'stp-elpa)
