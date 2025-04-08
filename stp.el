@@ -1468,9 +1468,11 @@ asynchronously."
   (interactive (list :full current-prefix-arg))
   (stp-refresh-info)
   (when full
-    (stp-list-update-latest-versions :quiet t :async t)
+    (unless stp-list-update-latest-versions-running
+      (stp-list-update-latest-versions :quiet t :async t))
     (stp-git-delete-stale-cached-repos)
-    (stp-archive-async-refresh))
+    (unless stp-archive-async-refresh-running
+      (stp-archive-async-refresh :quiet t)))
   (when-let ((buf (get-buffer stp-list-buffer-name)))
     (let ((win (get-buffer-window buf)))
       (with-current-buffer buf
@@ -1533,9 +1535,13 @@ asynchronously."
     (when recenter
       (recenter recenter-arg))))
 
-(defun stp-list ()
-  "List the packages installed in `stp-source-directory'."
-  (interactive)
+(defvar stp-list-auto-update-latest-versions t)
+(defvar stp-list-auto-delete-stale-cached-repos t)
+(defvar stp-list-auto-refresh-package-archives t)
+
+(defun stp-list (&optional arg)
+  "List the packages installed in `stp-source-directory'. When `stp-list-auto-update-latest-versions', `stp-list-auto-delete-stale-cached-repos' and `stp-list-auto-refresh-package-archives' are non-nil update the latest versions, delete stale cached repositories and refresh the package archives asynchronously."
+  (interactive "P")
   (stp-refresh-info)
   (let* ((default-directory stp-source-directory)
          (exists (get-buffer stp-list-buffer-name))
@@ -1543,7 +1549,17 @@ asynchronously."
     (pop-to-buffer buf)
     (unless exists
       (stp-list-mode)
-      (stp-list-refresh :quiet t :full t))))
+      (when (and (featurep 'async)
+                 (not stp-list-update-latest-versions-running)
+                 (xor stp-list-auto-update-latest-versions arg))
+        (stp-list-update-latest-versions :quiet t :async t))
+      (when (xor stp-list-auto-delete-stale-cached-repos arg)
+        (stp-git-delete-stale-cached-repos))
+      (when (and (featurep 'async)
+                 (not stp-archive-async-refresh-running)
+                 (xor stp-list-auto-refresh-package-archives arg))
+        (stp-archive-async-refresh :quiet t))
+      (stp-list-refresh :quiet t))))
 
 (cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
   "Remove packages that exist in `stp-info-file' but not on the
