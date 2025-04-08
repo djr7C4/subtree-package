@@ -257,12 +257,44 @@ be selected.")
          (remove chosen-remote)
          (stp-set-attribute pkg-name 'other-remotes))))
 
+(defun stp-no-leading-zeros (string)
+  (save-match-data
+    (if (and (string-match "^0+" string))
+        (or (rem-empty-nil (substring string (match-end 0)))
+            "0")
+      string)))
+
+(defun stp-number-string-p (string)
+  (string-match-p "[+-]?[0-9]+" string))
+
+(defun stp-version-component= (v1 v2)
+  (let ((v1-nz (stp-no-leading-zeros v1))
+        (v2-nz (stp-no-leading-zeros v2)))
+    (string= v1-nz v2-nz)))
+
+(defun stp-version-component< (v1 v2)
+  ;; Remove leading zeros.
+  (let ((v1-nz (stp-no-leading-zeros v1))
+        (v2-nz (stp-no-leading-zeros v2)))
+    ;; Compare string as numbers when possible.
+    (if (and (stp-number-string-p v1)
+             (stp-number-string-p v2))
+        (< (string-to-number v1) (string-to-number v2))
+      ;; When strings are the same without leading zeros, consider the longer
+      ;; string to be a newer version.
+      (or (and (string= v1-nz v2-nz)
+               (< (length v1) (length v2)))
+          ;; Compare strings after removing leading zeros.
+          (rem-shortlex-string< v1-nz v2-nz)))))
+
 (defun stp-version-list< (v1 v2)
   (and (not (and (null v1) (null v2)))
-       (or (null v1)
-           (rem-shortlex-string< (car v1) (car v2))
-           (and (string= (car v1) (car v2))
-                (stp-version-list< (cdr v1) (cdr v2))))))
+       ;; Missing elements default to 0 as in `version-to-list'.
+       (let ((v1-comp (if v1 (car v1) "0"))
+             (v2-comp (if v2 (car v2) "0")))
+         (or (stp-version-component< v1-comp v2-comp)
+             (and (stp-version-component= v1-comp v2-comp)
+                  (stp-version-list< (cdr v1) (cdr v2)))))))
 
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
@@ -374,7 +406,7 @@ to alist."
 PKG-NAME."
   (setq stp-package-info (map-delete stp-package-info pkg-name)))
 
-(defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?[-_./]?\\)*\\)$")
+(defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?\\)*\\)[-_./]?$")
 
 (defun stp-default-extractor (v)
   (mapcan (lambda (s)
@@ -382,7 +414,7 @@ PKG-NAME."
               (if (string-match "^\\([0-9]+\\)\\([A-Za-z]+\\)$" s)
                   (list (match-string 1 s) (match-string 2 s))
                 (list s))))
-          (s-split "[-_.]" v)))
+          (s-split "[-_.]" v t)))
 
 (defun stp-haskell-extractor (v)
   (s-split "-" (s-chop-prefix "haskell-mode-" v)))
@@ -403,6 +435,8 @@ PKG-NAME."
                         (match-string 3 v-last))
                 (list v-last))))))
 
+(defvar stp-version-suffix-regexp "[-_./]?\\(?:\\(snapshot\\|git\\|hg\\|darcs\\|bzr\\|svn\\|cvs\\)\\|\\(alpha\\)\\|\\(beta\\)\\|\\(pre\\|rc\\)\\)[-_./]?\\(?:\\([0-9]+\\)[-_./]?\\([a-zA-Z]?\\)\\)?$")
+
 (defvar stp-version-extractor-alist
   ;; This matches the versions for most emacs packages.
   `((,stp-version-regexp . stp-default-extractor)
@@ -417,12 +451,28 @@ components of the version string. For example, for v1.2.3a the
 key would be (\"1\" \"2\" \"3\" \"a\").")
 
 (defun stp-version-extract (version)
-  (dolist (cell stp-version-extractor-alist)
-    (db (regexp . extractor)
-        cell
-      (save-match-data
-        (when (string-match regexp version)
-          (cl-return (funcall extractor (match-string 1 version))))))))
+  (save-match-data
+    (dolist (cell stp-version-extractor-alist)
+      (db (regexp . extractor)
+          cell
+        (let (version-suffix-list
+              (main-version version))
+          (when-let ((suffix-start (string-match stp-version-suffix-regexp version)))
+            (setq main-version (substring version 0 suffix-start))
+            (setq version-suffix-list
+                  (append
+                   (list (cond
+                          ((rem-empty-nil (match-string 1 version)) "-4") ; git
+                          ((rem-empty-nil (match-string 2 version)) "-3") ; alpha
+                          ((rem-empty-nil (match-string 3 version)) "-2") ; beta
+                          ((rem-empty-nil (match-string 4 version)) "-1") ; rc
+                          ;; This should be impossible.
+                          (t (error "Unknown suffix type"))))
+                   (rem-empty-nil (match-string 5 version) #'list) ; number
+                   (rem-empty-nil (match-string 6 version) #'list)))) ; letter
+          (when (string-match regexp main-version)
+            (cl-return (append (funcall extractor (match-string 1 main-version))
+                               version-suffix-list))))))))
 
 (defun stp-download-elisp (dir pkg-name remote)
   "Download the elisp file or archive at REMOTE and copy it to DIR.
