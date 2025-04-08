@@ -286,8 +286,8 @@ remote repository."
       (and (= exit-code 0)
            (> (length output) 0)
            (save-match-data
-             (output-match "\\(?:[0-9a-fA-F]+..\\| \\)\\([0-9a-fA-F]+\\)$" output)
-             (match-output 1 output))))))
+             (string-match "\\(?:[0-9a-fA-F]+..\\| \\)\\([0-9a-fA-F]+\\)$" output)
+             (match-string 1 output))))))
 
 (defun stp-git-subtree-p (path)
   (and (stp-git-subtree-hash path) t))
