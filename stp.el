@@ -483,7 +483,7 @@ as in `stp-install'."
         (stp-with-package-source-directory
           (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
               (progn
-                (delete-directory pkg-name t)
+                (f-delete pkg-name t)
                 (stp-delete-alist pkg-name)
                 (stp-write-info)
                 (stp-delete-load-path pkg-name)
@@ -1586,7 +1586,7 @@ confirmation."
         (dolist (dir orphaned-dir-names)
           (when (or (not confirm)
                     (yes-or-no-p (format "(%d/%d) The directory %s in %s has no entry in %s. Delete the directory?" k (length orphaned-dir-names) dir stp-source-directory stp-info-file)))
-            (delete-directory (stp-canonical-path dir) t)
+            (f-delete (stp-canonical-path dir) t)
             (cl-incf deleted-dirs))
           (cl-incf k))))
     (message "Deleted %d orphaned entries in %s and %d orphaned directories in %s"
