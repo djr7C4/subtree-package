@@ -1469,10 +1469,10 @@ asynchronously."
   (stp-refresh-info)
   (when full
     (unless stp-list-update-latest-versions-running
-      (stp-list-update-latest-versions :quiet t :async t))
+      (stp-list-update-latest-versions :quiet quiet :async t))
     (stp-git-delete-stale-cached-repos)
     (unless stp-archive-async-refresh-running
-      (stp-archive-async-refresh :quiet t)))
+      (stp-archive-async-refresh :quiet quiet)))
   (when-let ((buf (get-buffer stp-list-buffer-name)))
     (let ((win (get-buffer-window buf)))
       (with-current-buffer buf
