@@ -534,10 +534,11 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
                         ;; Handle local paths which cannot be parsed by
                         ;; `url-generic-parse-url'.
                         remote
-                      (url-domain (url-generic-parse-url remote)))))
-        (not (-any (lambda (regexp)
-                     (and (string-match-p regexp domain) t))
-                   stp-url-unsafe-regexps)))
+                      (ignore-errors (url-domain (url-generic-parse-url remote))))))
+        (or (not domain)
+            (not (-any (lambda (regexp)
+                         (and (string-match-p regexp domain) t))
+                       stp-url-unsafe-regexps))))
       (yes-or-no-p (format "The remote %s is unsafe. Continue anyway? " remote))))
 
 (defun stp-invert-update (update)
