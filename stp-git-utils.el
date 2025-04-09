@@ -440,12 +440,13 @@ number of commits n in REF2..REF and return -n."
 (defun stp-git-minimal-clone (remote path &optional branch)
   (db (exit-code output)
       ;; Make the call to git clone as lightweight as possible.
-      (rem-call-process-shell-command (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
-                                              (if branch
-                                                  (format " --single-branch --branch '%s'" branch)
-                                                "")
-                                              remote
-                                              path))
+      (rem-call-process-shell-command
+       (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
+               (if branch
+                   (format " --single-branch --branch '%s'" branch)
+                 "")
+               remote
+               path))
     (unless (= exit-code 0)
       (error "Failed to clone %s: %s" remote (s-trim output)))
     path))
