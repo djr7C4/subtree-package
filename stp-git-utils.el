@@ -43,12 +43,16 @@
 
 (defun stp-git-tracked-p (path)
   "Determine if a file in a git repository is tracked."
-  (unless (stp-git-root)
-    (error "Not in a git repository"))
-  (let ((dir (f-dirname path))
-        (file (f-filename path)))
+  ;; This is needed to handle the case when path is a file in
+  ;; `default-directory'. Without this, (f-dirname path) would be "./" which
+  ;; will lead to the file not being found by git ls-files.
+  (setq path (f-full path))
+  (let* ((dir (f-dirname path))
+         (file (f-relative path dir)))
+    (unless (stp-git-root dir)
+      (error "Not in a git repository"))
     (let ((default-directory dir))
-      (= (call-process-shell-command (concat "git ls-files --error-unmatch \"" file "\"")) 0))))
+      (= (call-process-shell-command (format "git ls-files --error-unmatch \"%s\"" file)) 0))))
 
 (defun stp-git-remotes ()
   (db (exit-code output)
