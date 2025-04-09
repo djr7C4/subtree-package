@@ -25,7 +25,7 @@
 
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
-(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-elpa-version-url-alist))
+(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-elpa-version-url-alist))
 
 (defvar stp-package-info nil)
 
