@@ -310,26 +310,28 @@ the refs. By default all refs are returned."
   (db (exit-code output)
       (stp-git-remote-hash-alist-basic remote)
     (setq output (s-trim output))
-    (and (= exit-code 0)
-         ;; Handle empty repositories that do not have any tags.
-         (not (string= output ""))
-         (mapcar (lambda (list)
-                   (db (hash ref)
-                       list
-                     (cons hash
-                           (s-chop-prefixes prefixes
-                                            ref))))
-                 (-filter (lambda (list)
-                            (if prefixes-supplied-p
-                                (-any (lambda (prefix)
-                                        (db (_hash ref)
-                                            list
-                                          (s-starts-with-p prefix ref)))
-                                      prefixes)
-                              t))
-                          (mapcar (lambda (line)
-                                    (s-split rem-positive-whitespace-regexp line))
-                                  (s-split "\n" output)))))))
+    (if (= exit-code 0)
+        (progn
+          ;; Handle empty repositories that do not have any tags.
+          (not (string= output ""))
+          (mapcar (lambda (list)
+                    (db (hash ref)
+                        list
+                      (cons hash
+                            (s-chop-prefixes prefixes
+                                             ref))))
+                  (-filter (lambda (list)
+                             (if prefixes-supplied-p
+                                 (-any (lambda (prefix)
+                                         (db (_hash ref)
+                                             list
+                                           (s-starts-with-p prefix ref)))
+                                       prefixes)
+                               t))
+                           (mapcar (lambda (line)
+                                     (s-split rem-positive-whitespace-regexp line))
+                                   (s-split "\n" output)))))
+      (error "Failed to fetch the hashes for each ref from the remote %s" remote))))
 
 (defun stp-git-remote-hash-tag-alist (remote)
   "Return an alist that maps hashes to tags."
