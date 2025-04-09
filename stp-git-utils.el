@@ -412,10 +412,13 @@ do not match any hash will remain unchanged."
 before REF2 for the local git repository at PATH. If BOTH is
 non-nil and the number of commits in REF..REF2 is zero, find the
 number of commits n in REF2..REF and return -n."
-  (unless (stp-git-valid-ref-p path ref)
-    (error "%s is not a valid ref for %s" ref path))
-  (unless (stp-git-valid-ref-p path ref2)
-    (error "%s is not a valid ref for %s" ref2 path))
+  ;; This has a significant performance penalty.
+  ;; `rem-call-process-shell-command' will produce an error below anyway if a
+  ;; ref is invalid.
+  ;; (unless (stp-git-valid-ref-p path ref)
+  ;;   (error "%s is not a valid ref for %s" ref path))
+  ;; (unless (stp-git-valid-ref-p path ref2)
+  ;;   (error "%s is not a valid ref for %s" ref2 path))
   (cl-flet ((stp-git-count-commits-forward (ref ref2)
               (db (exit-code output)
                   (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2))
