@@ -57,11 +57,6 @@
         (s-split rem-positive-whitespace-regexp output t)
       (error "Failed to list the remotes for the git repository"))))
 
-(defun stp-git-remote-p (remote)
-  "Determine if remote is the name of a git remote."
-  (or (member remote (stp-git-remotes))
-      (= (call-process-shell-command (format "git ls-remote %s" remote)) 0)))
-
 (defun stp-git-valid-remote-p (remote)
   "Determine if remote is a valid git repository."
   (= (call-process-shell-command (format "git ls-remote -h '%s'" remote)) 0))

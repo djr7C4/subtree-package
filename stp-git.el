@@ -44,7 +44,7 @@ installed at the subtree. Use a tag if one is available;
 otherwise, use the hash."
   (let* ((pkg-name (stp-name pkg-name)))
     (let-alist (stp-get-alist pkg-name)
-      (if (stp-git-remote-p .remote)
+      (if (stp-git-valid-remote-p .remote)
           (let ((cur-hash (stp-git-subtree-package-hash pkg-name))
                 (hash-tags (stp-git-remote-hash-tag-alist .remote)))
             (if cur-hash
