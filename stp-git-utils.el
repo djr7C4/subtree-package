@@ -330,7 +330,7 @@ the refs. By default all refs are returned."
                            (mapcar (lambda (line)
                                      (s-split rem-positive-whitespace-regexp line))
                                    (s-split "\n" output)))))
-      (error "Failed to fetch the hashes for each ref from the remote %s" remote))))
+      (error "Failed to fetch the hashes for each ref from the remote %s: %s" remote (s-trim output)))))
 
 (defun stp-git-remote-hash-tag-alist (remote)
   "Return an alist that maps hashes to tags."
