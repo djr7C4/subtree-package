@@ -23,7 +23,6 @@
 (require 'async nil t)
 (require 'find-lisp)
 (require 'info)
-(require 'persist nil t)
 (require 'queue nil t)
 (require 'stp-archive)
 (require 'stp-bootstrap)
@@ -384,10 +383,6 @@ active."
 (defvar stp-latest-versions-stale-interval (timer-duration "1 day")
   "The number of seconds until the cached latest versions in
 `stp-latest-versions-cache' are considered stale.")
-
-(with-no-warnings
-  (when (featurep 'persist)
-    (persist-defvar stp-latest-versions-cache nil nil)))
 
 (defvar stp-latest-versions-cache nil)
 

@@ -75,10 +75,8 @@ mean that the currently installed version is newer by that many commits. For
 ELPA packages, the number in parentheses is the number of stable versions since
 the currently installed version.
 
-If the ELPA =persist= package is installed, the latest versions will be saved
-between sessions. Latest versions are considered stale when they haven't been
-updated for more than =stp-latest-versions-stale-interval= seconds and are
-highlighted in orange.
+Latest versions are considered stale when they haven't been updated for more
+than =stp-latest-versions-stale-interval= seconds and are highlighted in orange.
 ** Choose between multiple remotes
 STP remembers all remotes that the user has entered when upgrading a package.
 These are available for the user to choose for future upgrades using completion.
@@ -135,7 +133,7 @@ bootstraping code in =early-init.el=.
   (stp-update-load-paths)
 #+end_src
 
-In your =~/.emacs= or =~/.emacs.d/init.el=
+In your =~/.emacs= or =~/.emacs.d/init.el=, use the following code.
 
 #+begin_src emacs-lisp
   (require 'stp)
@@ -166,6 +164,17 @@ for each dependency.
 STP also requires that you install =atool= if you wish to install ELPA and
 compressed URL packages. Additionally, to support certain non-essential
 features, the ELPA =async=, =persist= and =queue= packages are required.
+
+It is recommended to make the latest versions and the last time the package
+archive was updated persistent across sessions. This can be done by adding
+=stp-latest-versions-cache= and =stp-archive-last-refreshed= to
+=savehist-additional-variables=.
+
+#+begin_src bash
+  (add-to-list 'savehist-additional-variables 'stp-latest-versions-cache)
+  (add-to-list 'savehist-additional-variables 'stp-archive-last-refreshed)
+#+end_src
+
 * Recommended bindings
 #+begin_src emacs-lisp
   (keymap-global-set "C-c O" #'stp-find-package)

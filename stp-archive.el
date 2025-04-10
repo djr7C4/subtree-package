@@ -17,16 +17,11 @@
 (require 'async)
 (require 'map)
 (require 'package)
-(require 'persist nil t)
 (require 'rem)
 (require 'stp-headers)
 (require 'stp-utils)
 
 (defvar stp-archive-async-refresh-running nil)
-
-(with-no-warnings
-  (when (featurep 'persist)
-    (persist-defvar stp-archive-last-refreshed most-negative-fixnum nil)))
 
 (defvar stp-archive-last-refreshed most-negative-fixnum)
 
