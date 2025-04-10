@@ -17,6 +17,40 @@
 (require 'rem)
 (require 'stp-git-utils)
 
+(defun stp-headers-elisp-requirements ()
+  "Return the packages required by the current buffer according to
+the Package-Requires field."
+  (let ((text (apply #'concat (lm-header-multiline "Package-Requires"))))
+    (ignore-errors
+      (db (reqs . index)
+          (read-from-string text)
+        (when (>= index (length text))
+
+          (mapcar (lambda (cell)
+                    (list (car cell) (version-to-list (cadr cell))))
+                  reqs))))))
+
+(defun stp-headers-package-requirements (pkg-name)
+  "Find all packages that are required by PKG-NAME according to the
+Package-Requires field of its elisp files."
+  (let* (reqs
+         (pkg-path (stp-canonical-path pkg-name))
+         (files (rem-elisp-files-to-load pkg-path :keep-extensions t :extensions '("el"))))
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (setq reqs (append reqs (stp-headers-elisp-requirements)))))
+    (mapcar (lambda (cell)
+              (db (pkg-name-sym . pkg-reqs)
+                  cell
+                (cons pkg-name-sym
+                      ;; Select the most recent version of each package that is
+                      ;; required by one of its files.
+                      (car (-sort (lambda (v1 v2)
+                                    (version-list-< v2 v1))
+                                  (mapcar #'cadr pkg-reqs))))))
+            (-group-by #'car reqs))))
+
 ;;; For archaic reasons, Emacs lisp packages require some redundant headers such
 ;;; as beginning and end of file headers. These are maintained automatically.
 (defun stp-header-bounds-of-bob-header ()

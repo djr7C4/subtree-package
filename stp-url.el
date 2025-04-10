@@ -24,6 +24,22 @@
       (let ((url (url-generic-parse-url remote)))
         (and url remote))))
 
+(defvar stp-url-unsafe-regexps '("emacswiki\\.org")
+  "The user should be warned before downloading from an unsafe URL.")
+
+(defun stp-url-safe-remote-p (remote)
+  (or (not remote)
+      (let ((domain (if (f-exists-p remote)
+                        ;; Handle local paths which cannot be parsed by
+                        ;; `url-generic-parse-url'.
+                        remote
+                      (ignore-errors (url-domain (url-generic-parse-url remote))))))
+        (or (not domain)
+            (not (-any (lambda (regexp)
+                         (and (string-match-p regexp domain) t))
+                       stp-url-unsafe-regexps))))
+      (yes-or-no-p (format "The remote %s is unsafe. Continue anyway? " remote))))
+
 (defvar stp-url-remote-history nil)
 
 (defun stp-url-read-remote (prompt &optional default)

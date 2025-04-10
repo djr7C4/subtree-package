@@ -50,14 +50,6 @@ are not abbreviated."
    (t
     version)))
 
-(defun stp-remote-method (remote)
-  "Determine the method for the remote."
-  (cond
-   ((stp-git-valid-remote-p remote) 'git)
-   ((stp-elpa-valid-remote-p remote) 'elpa)
-   ((stp-url-valid-remote-p remote) 'url)
-   (t (error "Invalid remote: %s" remote))))
-
 (defvar stp-remote-history nil)
 
 (defun stp-read-remote (prompt &optional default)
@@ -67,9 +59,7 @@ are not abbreviated."
        (lambda (remote)
          (-any-p (lambda (predicate)
                    (funcall predicate remote))
-                 (list #'stp-git-valid-remote-p
-                       #'stp-elpa-valid-remote-p
-                       #'stp-url-valid-remote-p)))
+                 stp-methods-order))
        default
        'stp-remote-history)
       stp-normalize-remote))
@@ -142,13 +132,9 @@ are not abbreviated."
 (defun stp-valid-remote-p (remote &optional method)
   "Check if REMOTE is a valid remote for some method. If METHOD is
 specified, ensure that REMOTE is valid for that specific METHOD."
-  (cl-ecase method
-    (git (stp-git-valid-remote-p remote))
-    (elpa (stp-elpa-valid-remote-p remote))
-    (url (stp-url-valid-remote-p remote))
-    ((nil) (or (stp-git-valid-remote-p remote)
-               (stp-elpa-valid-remote-p remote)
-               (stp-url-valid-remote-p remote)))))
+  (if method
+      (funcall (car (rassoc method stp-remote-valid-alist)) remote)
+    (and (stp-remote-method remote t) t)))
 
 (defvar stp-repair-allow-abbreviated-hashes nil)
 

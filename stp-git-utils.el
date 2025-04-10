@@ -310,9 +310,8 @@ the refs. By default all refs are returned."
       (stp-git-remote-hash-alist-basic remote)
     (setq output (s-trim output))
     (if (= exit-code 0)
-        (progn
-          ;; Handle empty repositories that do not have any tags.
-          (not (string= output ""))
+        ;; Handle empty repositories that do not have any tags.
+        (when (not (string= output ""))
           (mapcar (lambda (list)
                     (db (hash ref)
                         list

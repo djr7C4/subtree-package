@@ -143,13 +143,6 @@ within that package."
                          stp-package-info))
         #'string<))
 
-(defvar stp-methods-order '(git elpa url)
-  "Valid values for the METHOD attribute.")
-
-(defvar stp-attribute-order '(method remote other-remotes version update branch)
-  "The order in which package attributes should be sorted before being written
-  to disk.")
-
 (defvar stp-read-name-history nil)
 
 (defun stp-default-name (remote)
@@ -167,6 +160,29 @@ within that package."
                  (stp-info-names)
                  :require-match t
                  :history 'stp-read-name-history))
+
+(defvar stp-attribute-order '(method remote other-remotes version update branch)
+  "The order in which package attributes should be sorted before being written
+  to disk.")
+
+(defvar stp-remote-valid-alist '((stp-git-valid-remote-p . git)
+                                 (stp-elpa-valid-remote-p . elpa)
+                                 (stp-url-valid-remote-p . url))
+  "This alist maps predicates for testing if a remote is valid for a
+given method to methods.")
+
+(defun stp-remote-method (remote &optional noerror)
+  "Determine the method for REMOTE. If NOERROR is non-nil, then do
+not signal an error when REMOTE is invalid."
+  (or (cdr (cl-find-if (lambda (cell)
+                         (funcall (car cell) remote))
+                       stp-remote-valid-alist))
+      (unless noerror
+        (error "Invalid remote: %s" remote))))
+
+
+(defvar stp-methods-order (mapcar #'car stp-remote-valid-alist)
+  "Valid values for the METHOD attribute.")
 
 (defun stp-read-method (prompt &optional default)
   (when (and default (symbolp default))
@@ -524,22 +540,6 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
               (dolist (file (f-entries extract-path))
                 (f-move file dir))))
         (f-delete temp-dir t)))))
-
-(defvar stp-url-unsafe-regexps '("emacswiki\\.org")
-  "The user should be warned before downloading from an unsafe URL.")
-
-(defun stp-url-safe-remote-p (remote)
-  (or (not remote)
-      (let ((domain (if (f-exists-p remote)
-                        ;; Handle local paths which cannot be parsed by
-                        ;; `url-generic-parse-url'.
-                        remote
-                      (ignore-errors (url-domain (url-generic-parse-url remote))))))
-        (or (not domain)
-            (not (-any (lambda (regexp)
-                         (and (string-match-p regexp domain) t))
-                       stp-url-unsafe-regexps))))
-      (yes-or-no-p (format "The remote %s is unsafe. Continue anyway? " remote))))
 
 (defun stp-invert-update (update)
   (cl-ecase update
