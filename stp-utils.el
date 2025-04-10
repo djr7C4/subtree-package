@@ -165,17 +165,19 @@ within that package."
   "The order in which package attributes should be sorted before being written
   to disk.")
 
-(defvar stp-remote-valid-alist '((stp-git-valid-remote-p . git)
-                                 (stp-elpa-valid-remote-p . elpa)
-                                 (stp-url-valid-remote-p . url))
+(defvar stp-remote-valid-alist '((git . stp-git-valid-remote-p)
+                                 (elpa . stp-elpa-valid-remote-p)
+                                 (url . stp-url-valid-remote-p))
   "This alist maps predicates for testing if a remote is valid for a
 given method to methods.")
 
-(defun stp-remote-method (remote &optional noerror)
+(cl-defun stp-remote-method (remote &key noerror ignored-methods)
   "Determine the method for REMOTE. If NOERROR is non-nil, then do
-not signal an error when REMOTE is invalid."
-  (or (cdr (cl-find-if (lambda (cell)
-                         (funcall (car cell) remote))
+not signal an error when REMOTE is invalid. Methods in
+IGNORED-METHODS are not considered."
+  (or (car (cl-find-if (lambda (cell)
+                         (and (not (memq (car cell) ignored-methods))
+                              (funcall (cdr cell) remote)))
                        stp-remote-valid-alist))
       (unless noerror
         (error "Invalid remote: %s" remote))))

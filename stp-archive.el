@@ -67,8 +67,8 @@ refresh even if the last refresh was less than
 
 (defun stp-archive-find-remotes (pkg-name)
   "Find remotes for PKG-NAME in `package-archive-contents'. The
-result is returned as an alist that maps valid remotes to their
-methods."
+result is returned as an alist that maps methods to valid
+remotes."
   (--> (map-elt package-archive-contents (intern pkg-name))
        (mapcar (lambda (desc)
                  (map-elt (package-desc-extras desc) :url))
@@ -77,7 +77,7 @@ methods."
        (cl-remove-duplicates it :test #'equal)
        (mapcar (lambda (remote)
                  (when-let ((method (stp-remote-method remote)))
-                   (cons remote method)))
+                   (cons method remote)))
                it)
        (-filter #'identity it)))
 

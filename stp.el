@@ -132,8 +132,8 @@ are not abbreviated."
   "Check if REMOTE is a valid remote for some method. If METHOD is
 specified, ensure that REMOTE is valid for that specific METHOD."
   (if method
-      (funcall (car (rassoc method stp-remote-valid-alist)) remote)
-    (and (stp-remote-method remote t) t)))
+      (funcall (map-elt stp-remote-valid-alist method) remote)
+    (and (stp-remote-method remote :noerror t) t)))
 
 (defvar stp-repair-allow-abbreviated-hashes nil)
 
