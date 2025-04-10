@@ -348,9 +348,8 @@ the refs. By default all refs are returned."
   (cons (cons (stp-git-remote-head remote) "HEAD")
         ;; A few repositories have a head that is named HEAD. This should be
         ;; ignored.
-        (map-remove (lambda (hash head)
-                      (unless (string= head "HEAD")
-                        (cons hash head)))
+        (map-remove (lambda (_hash head)
+                      (string= head "HEAD"))
                     (stp-git-remote-hash-alist remote :prefixes '("refs/heads/")))))
 
 (defun stp-git-remote-head (remote)
