@@ -17,6 +17,8 @@
 (require 'async)
 (require 'package)
 (require 'persist nil t)
+(require 'rem)
+(require 'stp-utils)
 
 (defvar stp-archive-async-refresh-running nil)
 
@@ -85,7 +87,7 @@ Package-Requires field of its elisp files."
                       ;; required by one of its files.
                       (car (-sort (lambda (v1 v2)
                                     (version-list-< v2 v1))
-                                  (mapcar #'cdr pkg-reqs))))))
+                                  (mapcar #'cadr pkg-reqs))))))
             (-group-by #'car reqs))))
 
 (provide 'stp-archive)
