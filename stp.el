@@ -1392,7 +1392,8 @@ the same time unless PARALLEL is non-nil."
                  ""))))
 
 (defun stp-latest-stale-p (seconds updated)
-  (and updated (> (- seconds updated) stp-latest-versions-stale-interval)))
+  (or (not updated)
+      (> (- seconds updated) stp-latest-versions-stale-interval)))
 
 (defun stp-stale-packages (&optional seconds)
   (setq seconds (or seconds (rem-seconds)))
