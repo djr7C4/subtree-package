@@ -63,7 +63,7 @@ are not abbreviated."
        'stp-remote-history)
       stp-normalize-remote))
 
-(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") (_line-pkg t))
+(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix ""))
   (let* ((remote (stp-read-remote (stp-prefix-prompt prompt-prefix "Remote: ") (map-elt pkg-alist 'remote)))
          (pkg-name (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote))))
          (method (stp-remote-method remote))
@@ -360,25 +360,26 @@ should be included. When LINE-PKG is non-nil (as it is by
 default), any data that would normally be read from the user will
 be inferred from the cursor position when `stp-list-mode' is
 active."
-  (stp-ensure-no-merge-conflicts)
-  (pcase-let* ((args (if actions
-                         (stp-commit-push-action-args)
-                       (stp-commit-push-args)))
-               (do-commit (plist-get args :do-commit))
-               (proceed (or (not do-commit)
-                            (stp-git-clean-or-ask-p)))
-               (`(,pkg-name . ,pkg-alist) (and proceed
-                                               read-pkg-alist
-                                               (stp-read-package :line-pkg line-pkg)))
-               (pkg-name (and proceed
-                              (or pkg-name
-                                  (if line-pkg
-                                      (stp-list-read-package "Package name: ")
-                                    (stp-read-name "Package name: "))))))
-    (append (list pkg-name)
-            (when read-pkg-alist
-              (list pkg-alist))
-            args)))
+  (stp-with-package-source-directory
+    (stp-ensure-no-merge-conflicts)
+    (pcase-let* ((args (if actions
+                           (stp-commit-push-action-args)
+                         (stp-commit-push-args)))
+                 (do-commit (plist-get args :do-commit))
+                 (proceed (or (not do-commit)
+                              (stp-git-clean-or-ask-p)))
+                 (`(,pkg-name . ,pkg-alist) (and proceed
+                                                 read-pkg-alist
+                                                 (stp-read-package)))
+                 (pkg-name (and proceed
+                                (or pkg-name
+                                    (if line-pkg
+                                        (stp-list-read-package "Package name: ")
+                                      (stp-read-name "Package name: "))))))
+      (append (list pkg-name)
+              (when read-pkg-alist
+                (list pkg-alist))
+              args))))
 
 (defvar stp-latest-versions-stale-interval (timer-duration "1 day")
   "The number of seconds until the cached latest versions in
@@ -404,8 +405,10 @@ is negated relative to the default."
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
   ;; greatly improves efficiency).
-  (stp-with-memoization
-    (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :line-pkg nil))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :line-pkg nil)))
+    ))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
@@ -418,42 +421,43 @@ the package has been installed."
   ;; repository is dirty and `stp-git-clean-or-ask-p' is called.
   (when pkg-name
     (save-window-excursion
-      (stp-with-package-source-directory
-        (let-alist pkg-alist
-          ;; Don't prompt for the remote when one is already known. This
-          ;; prevents prompting the user twice in `stp-git-upgrade' when
-          ;; pulling the new subtree in fails and the package has to be
-          ;; uninstalled and reinstalled manually.
-          (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
-                                   (stp-choose-remote "Remote: " .remote .other-remotes))))
-            ;; Guess the method if it isn't already known.
-            (unless .method
-              (setq .method (stp-remote-method chosen-remote))
-              (stp-set-attribute pkg-name 'method .method))
-            (when (stp-url-safe-remote-p chosen-remote)
-              (cl-ecase .method
-                (git (stp-git-install pkg-name chosen-remote .version .update :branch .branch))
-                (elpa (stp-elpa-install pkg-name chosen-remote .version))
-                (url (stp-url-install pkg-name chosen-remote .version)))
-              (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
-              (stp-write-info)
-              (stp-git-commit-push (format "Installed version %s of %s"
-                                           (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
-                                           pkg-name)
-                                   do-commit
-                                   do-push)
-              (when do-actions
-                (stp-post-actions pkg-name))
-              (when refresh
-                (stp-update-cached-latest pkg-name)
-                (stp-list-refresh :quiet t)))))))))
+      (let-alist pkg-alist
+        ;; Don't prompt for the remote when one is already known. This
+        ;; prevents prompting the user twice in `stp-git-upgrade' when
+        ;; pulling the new subtree in fails and the package has to be
+        ;; uninstalled and reinstalled manually.
+        (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
+                                 (stp-choose-remote "Remote: " .remote .other-remotes))))
+          ;; Guess the method if it isn't already known.
+          (unless .method
+            (setq .method (stp-remote-method chosen-remote))
+            (stp-set-attribute pkg-name 'method .method))
+          (when (stp-url-safe-remote-p chosen-remote)
+            (cl-ecase .method
+              (git (stp-git-install pkg-name chosen-remote .version .update :branch .branch))
+              (elpa (stp-elpa-install pkg-name chosen-remote .version))
+              (url (stp-url-install pkg-name chosen-remote .version)))
+            (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
+            (stp-write-info)
+            (stp-git-commit-push (format "Installed version %s of %s"
+                                         (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
+                                         pkg-name)
+                                 do-commit
+                                 do-push)
+            (when do-actions
+              (stp-post-actions pkg-name))
+            (when refresh
+              (stp-update-cached-latest pkg-name)
+              (stp-list-refresh :quiet t))))))))
 
 (defun stp-uninstall-command ()
   "Uninstall a package interactively."
   (interactive)
   (stp-refresh-info)
-  (stp-with-memoization
-    (apply #'stp-uninstall (stp-command-args))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (apply #'stp-uninstall (stp-command-args)))
+    ))
 
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
   "Uninstall the package named pkg-name. The do-commit and do-push arguments are
@@ -461,22 +465,21 @@ as in `stp-install'."
   (when pkg-name
     (let-alist (stp-get-alist pkg-name)
       (save-window-excursion
-        (stp-with-package-source-directory
-          (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
-              (progn
-                (f-delete pkg-name t)
-                (stp-delete-alist pkg-name)
-                (stp-write-info)
-                (stp-delete-load-path pkg-name)
-                (stp-git-commit-push (format "Uninstalled version %s of %s"
-                                             (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                             pkg-name)
-                                     do-commit
-                                     do-push)
-                (when refresh
-                  (stp-update-cached-latest pkg-name)
-                  (stp-list-refresh :quiet t)))
-            (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
+        (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
+            (progn
+              (f-delete pkg-name t)
+              (stp-delete-alist pkg-name)
+              (stp-write-info)
+              (stp-delete-load-path pkg-name)
+              (stp-git-commit-push (format "Uninstalled version %s of %s"
+                                           (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                           pkg-name)
+                                   do-commit
+                                   do-push)
+              (when refresh
+                (stp-update-cached-latest pkg-name)
+                (stp-list-refresh :quiet t)))
+          (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
@@ -484,53 +487,54 @@ as in `stp-install'."
   "Upgrade a package interactively."
   (interactive)
   (stp-refresh-info)
-  (stp-with-memoization
-    (apply #'stp-upgrade (stp-command-args :actions t))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (apply #'stp-upgrade (stp-command-args :actions t)))
+    ))
 
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-actions (refresh t))
   "Change the version of the package named pkg-name. The do-commit,
 do-push and proceed arguments are as in `stp-install'."
   (when pkg-name
     (save-window-excursion
-      (stp-with-package-source-directory
-        (let-alist (stp-get-alist pkg-name)
-          (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
-                 (extra-versions (and (eq .method 'git)
-                                      (or stp-git-upgrade-always-offer-remote-heads
-                                          (eq .update 'unstable))
-                                      (stp-git-remote-heads-sorted chosen-remote)))
-                 (prompt (format "Upgrade from %s to version: " (stp-abbreviate-remote-version pkg-name .method chosen-remote .version))))
-            (when (stp-url-safe-remote-p chosen-remote)
-              (when (and .branch (member .branch extra-versions))
-                (setq extra-versions (cons .branch (remove .branch extra-versions))))
-              (cl-ecase .method
-                (git (--> extra-versions
-                          (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions it :branch-to-hash nil)
-                          (stp-git-upgrade pkg-name chosen-remote it)))
-                (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
-                           (stp-elpa-upgrade pkg-name chosen-remote)))
-                (url (->> (stp-url-read-version prompt)
-                          (stp-url-upgrade pkg-name chosen-remote))))
-              ;; The call to `stp-get-attribute' can't be replaced with
-              ;; .version because the 'version attribute will have changed
-              ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
-              ;; `stp-url-upgrade'.
-              (let ((new-version (stp-get-attribute pkg-name 'version)))
-                (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
-                (stp-write-info)
-                ;; Don't commit, push or perform push actions when there are
-                ;; merge conflicts.
-                (unless (stp-git-merge-conflict-p)
-                  (stp-git-commit-push (format "Installed version %s of %s"
-                                               (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
-                                               pkg-name)
-                                       do-commit
-                                       do-push)
-                  (when do-actions
-                    (stp-post-actions pkg-name)))
-                (when refresh
-                  (stp-update-cached-latest pkg-name)
-                  (stp-list-refresh :quiet t))))))))))
+      (let-alist (stp-get-alist pkg-name)
+        (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
+               (extra-versions (and (eq .method 'git)
+                                    (or stp-git-upgrade-always-offer-remote-heads
+                                        (eq .update 'unstable))
+                                    (stp-git-remote-heads-sorted chosen-remote)))
+               (prompt (format "Upgrade from %s to version: " (stp-abbreviate-remote-version pkg-name .method chosen-remote .version))))
+          (when (stp-url-safe-remote-p chosen-remote)
+            (when (and .branch (member .branch extra-versions))
+              (setq extra-versions (cons .branch (remove .branch extra-versions))))
+            (cl-ecase .method
+              (git (--> extra-versions
+                        (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions it :branch-to-hash nil)
+                        (stp-git-upgrade pkg-name chosen-remote it)))
+              (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
+                         (stp-elpa-upgrade pkg-name chosen-remote)))
+              (url (->> (stp-url-read-version prompt)
+                        (stp-url-upgrade pkg-name chosen-remote))))
+            ;; The call to `stp-get-attribute' can't be replaced with
+            ;; .version because the 'version attribute will have changed
+            ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
+            ;; `stp-url-upgrade'.
+            (let ((new-version (stp-get-attribute pkg-name 'version)))
+              (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
+              (stp-write-info)
+              ;; Don't commit, push or perform push actions when there are
+              ;; merge conflicts.
+              (unless (stp-git-merge-conflict-p)
+                (stp-git-commit-push (format "Installed version %s of %s"
+                                             (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
+                                             pkg-name)
+                                     do-commit
+                                     do-push)
+                (when do-actions
+                  (stp-post-actions pkg-name)))
+              (when refresh
+                (stp-update-cached-latest pkg-name)
+                (stp-list-refresh :quiet t)))))))))
 
 (cl-defun stp-reinstall-command (pkg-name &key do-commit do-push do-actions (refresh t))
   "Uninstall and reinstall PKG-NAME as the same version."
@@ -554,26 +558,27 @@ do-push and proceed arguments are as in `stp-install'."
 (defun stp-repair-command ()
   "Repair the stored information for a package interactively."
   (stp-refresh-info)
-  (stp-with-memoization
-    (apply #'stp-repair (stp-command-args))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (apply #'stp-repair (stp-command-args)))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
   "Repair the package named pkg-name. The do-commit, do-push and proceed
 arguments are as in `stp-install'."
   (when pkg-name
     (save-window-excursion
-      (stp-with-package-source-directory
-        (stp-repair-info :quiet nil :pkg-names (list pkg-name))
-        (stp-write-info)
-        (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
-        (when refresh
-          (stp-list-refresh :quiet t))))))
+      (stp-repair-info :quiet nil :pkg-names (list pkg-name))
+      (stp-write-info)
+      (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
+      (when refresh
+        (stp-list-refresh :quiet t)))))
 
 (defun stp-repair-all-command ()
   (interactive)
   (stp-refresh-info)
-  (stp-with-memoization
-    (apply #'stp-repair-all (append (stp-commit-push-args) (list :interactive-p t)))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (apply #'stp-repair-all (append (stp-commit-push-args) (list :interactive-p t))))))
 
 (cl-defun stp-repair-all (&key do-commit do-push (refresh t) interactive-p)
   "Run `stp-repair-info' and write the repaired package info to
@@ -582,12 +587,11 @@ arguments are as in `stp-install'."
              (stp-git-clean-or-ask-p))
     (stp-refresh-info)
     (save-window-excursion
-      (stp-with-package-source-directory
-        (stp-repair-info :quiet nil)
-        (stp-write-info)
-        (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
-        (when refresh
-          (stp-list-refresh :quiet t))))))
+      (stp-repair-info :quiet nil)
+      (stp-write-info)
+      (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
+      (when refresh
+        (stp-list-refresh :quiet t)))))
 
 (defun stp-edit-remotes-command ()
   "Edit the remotes of a package interactively and write the new
@@ -774,16 +778,15 @@ there were no errors."
                                         :test #'equal)
                      (xor stp-allow-naive-byte-compile current-prefix-arg)))
   (stp-refresh-info)
-  (stp-with-package-source-directory
-    (stp-with-memoization
-      (let (failed)
-        (dolist (pkg-name pkg-names)
-          (message "Building %s" pkg-name)
-          (unless (stp-build pkg-name allow-naive-byte-compile)
-            (push pkg-name failed)))
-        (if failed
-            (message "Failed to build: %s" (s-join " " failed))
-          (message "Successfully built all packages"))))))
+  (stp-with-memoization
+    (let (failed)
+      (dolist (pkg-name pkg-names)
+        (message "Building %s" pkg-name)
+        (unless (stp-build pkg-name allow-naive-byte-compile)
+          (push pkg-name failed)))
+      (if failed
+          (message "Failed to build: %s" (s-join " " failed))
+        (message "Successfully built all packages")))))
 
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."
