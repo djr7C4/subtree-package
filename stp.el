@@ -1171,13 +1171,13 @@ to TRIES times."
              ;; put the package information back into the queue if there was an
              ;; error.
              (when data
-               (db (pkg-name tries latest-version-alist error-message)
+               (db (pkg-name tries latest-version-data error-message)
                    data
                  (cond
-                  (latest-version-alist
-                   (push latest-version-alist latest-versions)
+                  (latest-version-data
+                   (push latest-version-data latest-versions)
                    (when package-callback
-                     (funcall package-callback latest-version-alist)))
+                     (funcall package-callback latest-version-data)))
                   (error-message
                    (if (>= tries max-tries)
                        (unless quiet
@@ -1215,25 +1215,25 @@ to TRIES times."
                                        ;; updated).
                                        (stp-refresh-info)
                                        (stp-with-memoization
-                                         (let (latest-version-alist
+                                         (let (latest-version-data
                                                (pkg-alist (stp-get-alist ,pkg-name)))
                                            (condition-case err
-                                               (setq latest-version-alist (stp-latest-version ,pkg-name pkg-alist))
+                                               (setq latest-version-data (stp-latest-version ,pkg-name pkg-alist))
                                              (error
                                               (list ,pkg-name ,tries nil (error-message-string err)))
                                              (:success
-                                              (list ,pkg-name ,tries latest-version-alist nil))))))
+                                              (list ,pkg-name ,tries latest-version-data nil))))))
                                     #'process-latest-version))
-                   (let (latest-version-alist
+                   (let (latest-version-data
                          (pkg-alist (stp-get-alist pkg-name)))
                      (process-latest-version
                       (condition-case err
                           (stp-with-memoization
-                            (setq latest-version-alist (stp-latest-version pkg-name pkg-alist)))
+                            (setq latest-version-data (stp-latest-version pkg-name pkg-alist)))
                         (error
                          (list pkg-name tries nil (error-message-string err)))
                         (:success
-                         (list pkg-name tries latest-version-alist nil))))))))))
+                         (list pkg-name tries latest-version-data nil))))))))))
         (dotimes (_ (if async (min num-processes (length pkg-names)) 1))
           (unless (queue-empty queue)
             (compute-next-latest-version))))))))
@@ -1314,9 +1314,9 @@ the same time unless PARALLEL is non-nil."
                   (message "Updating the latest versions for %d packages%s" (length pkg-names) ignored-string)
                 (message "Updating the latest version for %s" (car pkg-names))))
             (stp-latest-versions
-             (lambda (latest-version-alist)
+             (lambda (latest-version-data)
                (db (pkg-name . version-alist)
-                   latest-version-alist
+                   latest-version-data
                  (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
                  ;; Don't refresh too often. This prevents the main
                  ;; process from locking up when there are a large
@@ -1398,8 +1398,8 @@ the same time unless PARALLEL is non-nil."
 (defun stp-stale-packages (&optional seconds)
   (setq seconds (or seconds (rem-seconds)))
   (--> stp-latest-versions-cache
-       (-filter (lambda (latest-version-alist)
-                  (let-alist (cdr latest-version-alist)
+       (-filter (lambda (latest-version-data)
+                  (let-alist (cdr latest-version-data)
                     (not (stp-latest-stale-p seconds .updated))))
                 it)
        (mapcar #'car it)
