@@ -15,9 +15,11 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (require 'async)
+(require 'map)
 (require 'package)
 (require 'persist nil t)
 (require 'rem)
+(require 'stp-headers)
 (require 'stp-utils)
 
 (defvar stp-archive-async-refresh-running nil)
@@ -68,27 +70,21 @@ refresh even if the last refresh was less than
       (message "The package archives were last refreshed on %s: no refresh is necessary"
                (format-time-string "%c" stp-archive-last-refreshed)))))
 
-(defun stp-package-requirements (pkg-name)
-  "Find all packages that are required by PKG-NAME according to the
-Package-Requires field of its elisp files."
-  (let* (reqs
-         (pkg-path (stp-canonical-path pkg-name))
-         (files (rem-elisp-files-to-load pkg-path :keep-extensions t :extensions '("el"))))
-    (dolist (file files)
-      (with-temp-buffer
-        (insert-file-contents file)
-        (setq reqs (append reqs (awhen (ignore-errors (package-buffer-info))
-                                  (package-desc-reqs it))))))
-    (mapcar (lambda (cell)
-              (db (pkg-name-sym . pkg-reqs)
-                  cell
-                (cons pkg-name-sym
-                      ;; Select the most recent version of each package that is
-                      ;; required by one of its files.
-                      (car (-sort (lambda (v1 v2)
-                                    (version-list-< v2 v1))
-                                  (mapcar #'cadr pkg-reqs))))))
-            (-group-by #'car reqs))))
+(defun stp-archive-find-remotes (pkg-name)
+  "Find remotes for PKG-NAME in `package-archive-contents'. The
+result is returned as an alist that maps valid remotes to their
+methods."
+  (--> (map-elt package-archive-contents (intern pkg-name))
+       (mapcar (lambda (desc)
+                 (map-elt (package-desc-extras desc) :url))
+               it)
+       (-filter #'identity it)
+       (cl-remove-duplicates it :test #'equal)
+       (mapcar (lambda (remote)
+                 (when-let ((method (stp-remote-method remote)))
+                   (cons remote method)))
+               it)
+       (-filter #'identity it)))
 
 (provide 'stp-archive)
 ;;; stp-archive.el ends here
