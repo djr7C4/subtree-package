@@ -63,44 +63,63 @@ are not abbreviated."
        'stp-remote-history)
       stp-normalize-remote))
 
+(cl-defun stp-read-name-and-remote (prompt &key pkg-name default-remote (prompt-prefix ""))
+  "Read any type of remote or a package name. When the input is
+ambiguous, it will be treated as a package name unless it
+contains a slash. Return a cons cell the contains the package
+name and the remote."
+  (let* ((archive-names (stp-archive-package-names))
+         (name-or-remote (stp-comp-read-remote prompt archive-names :default default-remote :normalize nil)))
+    (if (member name-or-remote archive-names)
+        (progn
+          ;; If the user chose a package name, find remotes from
+          ;; `package-archive-contents' and allow the user to choose one.
+          (setq pkg-name name-or-remote)
+          (let* ((remotes (stp-archive-find-remotes pkg-name)))
+            (cons pkg-name
+                  (stp-comp-read-remote "Remote: " remotes :default (car remotes)))))
+      ;; Otherwise the user chose a remote so prompt for its package name.
+      (let ((remote (stp-normalize-remote name-or-remote)))
+        (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote)))
+              remote)))))
+
 (cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix ""))
-  (let* ((remote (stp-read-remote (stp-prefix-prompt prompt-prefix "Remote: ") (map-elt pkg-alist 'remote)))
-         (pkg-name (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote))))
-         (method (stp-remote-method remote))
-         version
-         update
-         branch)
-    (cl-ecase method
-      (git
-       (unless (stp-git-valid-remote-p remote)
-         (user-error (stp-prefix-prompt prompt-prefix "Invalid git repository (or host is down): %s") remote))
-       (unless update
-         (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (map-elt pkg-alist 'update))))
-       (when (and (eq update 'unstable)
-                  (not branch))
-         (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))
-       (unless version
-         (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (map-elt pkg-alist 'version) branch) :default (map-elt pkg-alist 'version)))))
-      ((elpa url)
-       (unless (or (and (string-match-p rem-strict-url-regexp remote)
-                        (url-file-exists-p remote))
-                   ;; Allow local files too.
-                   (f-exists-p remote))
-         (user-error (stp-prefix-prompt prompt-prefix "Invalid URL (or host is down): %s") remote))
-       (unless version
-         (cl-ecase method
-           (elpa (setq version (stp-elpa-read-version (stp-prefix-prompt prompt-prefix "Version: ") pkg-name remote)))
-           (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: "))))))))
-    (cons pkg-name
-          (if (eq method 'git)
+  (plet* ((`(,pkg-name . ,remote) (stp-read-name-and-remote (stp-prefix-prompt prompt-prefix "Package name or remote: ")
+                                                            :pkg-name pkg-name
+                                                            :default-remote (map-elt pkg-alist 'remote)))
+          (method (stp-remote-method remote)))
+    (let (version update branch)
+      (cl-ecase method
+        (git
+         (unless (stp-git-valid-remote-p remote)
+           (user-error (stp-prefix-prompt prompt-prefix "Invalid git repository (or host is down): %s") remote))
+         (unless update
+           (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (map-elt pkg-alist 'update))))
+         (when (and (eq update 'unstable)
+                    (not branch))
+           (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))
+         (unless version
+           (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (map-elt pkg-alist 'version) branch) :default (map-elt pkg-alist 'version)))))
+        ((elpa url)
+         (unless (or (and (string-match-p rem-strict-url-regexp remote)
+                          (url-file-exists-p remote))
+                     ;; Allow local files too.
+                     (f-exists-p remote))
+           (user-error (stp-prefix-prompt prompt-prefix "Invalid URL (or host is down): %s") remote))
+         (unless version
+           (cl-ecase method
+             (elpa (setq version (stp-elpa-read-version (stp-prefix-prompt prompt-prefix "Version: ") pkg-name remote)))
+             (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: "))))))))
+      (cons pkg-name
+            (if (eq method 'git)
+                `((method . ,method)
+                  (remote . ,remote)
+                  (version . ,version)
+                  (update . ,update)
+                  (branch . ,branch))
               `((method . ,method)
                 (remote . ,remote)
-                (version . ,version)
-                (update . ,update)
-                (branch . ,branch))
-            `((method . ,method)
-              (remote . ,remote)
-              (version . ,version))))))
+                (version . ,version)))))))
 
 (defun stp-repair-default-callback (type pkg-name)
   (let-alist (stp-get-alist pkg-name)
