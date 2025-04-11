@@ -284,6 +284,33 @@ be selected.")
          (remove chosen-remote)
          (stp-set-attribute pkg-name 'other-remotes))))
 
+(defun stp-github-io-transformer (remote)
+  "Transform github.io pages to git repositories."
+  (format "https://github.com/%s/%s" (match-string 1 remote) (match-string 2 remote)))
+
+(defun stp-github-no-extension-transformer (remote)
+  "Remove .git extensions from github repositories."
+  (match-string 1 remote))
+
+(defvar stp-remote-transformers
+  '(("\\(?:http[s]?://\\)\\(?:www\\.\\)?\\(.+\\)\\.github\\.io/\\(.+\\)/?" . stp-github-io-transformer)
+    ("\\(\\(?:http[s]?://\\)\\(?:www\\.\\)?github\\.com/\\(?:.+\\)/\\(?:.+\\)\\)\\.git" . stp-github-no-extension-transformer))
+  "This is an alist that maps regular expressions to functions that
+transform the :url fields of the extras slot of `package-desc'
+objects. A function is applied with the remote as the argument if
+the corresponding regular expression matches. Only the first
+function that applies is used to transform the remote. When
+functions are applied, the match data from their regular
+expression is active.")
+
+(defun stp-transform-remote (remote)
+  "Transform REMOTE by applying `stp-remote-transformers'."
+  (dolist (cell stp-remote-transformers)
+    (db (regexp . transformer)
+        cell
+      (when (string-match regexp remote)
+        (cl-return (funcall transformer remote))))))
+
 (defun stp-no-leading-zeros (string)
   (save-match-data
     (if (and (string-match "^0+" string))

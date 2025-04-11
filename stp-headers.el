@@ -15,6 +15,7 @@
 
 (require 'lisp-mnt)
 (require 'rem)
+(require 'stp-utils)
 (require 'stp-git-utils)
 
 (defun stp-headers-elisp-requirements ()
@@ -205,7 +206,10 @@ was not there before was inserted."
           (setq inserted t)
           (insert ";; Keywords: TODO\n"))
         (unless (save-excursion (or (lm-header "URL") (lm-header "Website")))
-          (awhen (ignore-errors (stp-git-remote-url (stp-git-push-target)))
+          (awhen (ignore-errors
+                   (-> (stp-git-push-target)
+                       stp-git-remote-url
+                       stp-transform-remote))
             (setq inserted t)
             (insert (format ";; URL: %s\n" it))))
         (when (stp-header-update-version-header insert)
