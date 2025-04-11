@@ -305,11 +305,12 @@ expression is active.")
 
 (defun stp-transform-remote (remote)
   "Transform REMOTE by applying `stp-remote-transformers'."
-  (dolist (cell stp-remote-transformers)
-    (db (regexp . transformer)
-        cell
-      (when (string-match regexp remote)
-        (cl-return (funcall transformer remote))))))
+  (or (dolist (cell stp-remote-transformers)
+        (db (regexp . transformer)
+            cell
+          (when (string-match regexp remote)
+            (cl-return (funcall transformer remote)))))
+      remote))
 
 (defun stp-no-leading-zeros (string)
   (save-match-data
