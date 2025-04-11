@@ -3,7 +3,7 @@
 
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: TODO
-;; URL: https://github.com/djr7C4/subtree-package.git
+;; URL: https://github.com/djr7C4/subtree-package
 ;; Version: TODO
 ;; Package-Requires: ()
 
@@ -381,20 +381,20 @@ be inferred from the cursor position when `stp-list-mode' is
 active."
   (stp-with-package-source-directory
     (stp-ensure-no-merge-conflicts)
-    (pcase-let* ((args (if actions
-                           (stp-commit-push-action-args)
-                         (stp-commit-push-args)))
-                 (do-commit (plist-get args :do-commit))
-                 (proceed (or (not do-commit)
-                              (stp-git-clean-or-ask-p)))
-                 (`(,pkg-name . ,pkg-alist) (and proceed
-                                                 read-pkg-alist
-                                                 (stp-read-package)))
-                 (pkg-name (and proceed
-                                (or pkg-name
-                                    (if line-pkg
-                                        (stp-list-read-package "Package name: ")
-                                      (stp-read-name "Package name: "))))))
+    (plet* ((args (if actions
+                      (stp-commit-push-action-args)
+                    (stp-commit-push-args)))
+            (do-commit (plist-get args :do-commit))
+            (proceed (or (not do-commit)
+                         (stp-git-clean-or-ask-p)))
+            (`(,pkg-name . ,pkg-alist) (and proceed
+                                            read-pkg-alist
+                                            (stp-read-package)))
+            (pkg-name (and proceed
+                           (or pkg-name
+                               (if line-pkg
+                                   (stp-list-read-package "Package name: ")
+                                 (stp-read-name "Package name: "))))))
       (append (list pkg-name)
               (when read-pkg-alist
                 (list pkg-alist))
@@ -627,7 +627,7 @@ package info to `stp-info-file'"
 the rest will be other-remotes."
   (when pkg-name
     (let-alist (stp-get-alist pkg-name)
-      (let* ((new-remotes (stp-comp-read-remote "Remotes: " .remote (cons .remote .other-remotes) t))
+      (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
              (new-remote (car new-remotes))
              (new-other-remotes (cdr new-remotes))
              (invalid-remotes (-filter (lambda (remote)
@@ -636,7 +636,9 @@ the rest will be other-remotes."
         (unless new-remotes
           (user-error "At least one remote must be specified"))
         (when invalid-remotes
-          (user-error "%s are not valid for method %s" (rem-join-and invalid-remotes) .method))
+          (user-error "%s %s not valid for method %s"
+                      (if (= (length invalid-remotes) 1) "is" "are")
+                      (rem-join-and invalid-remotes) .method))
         (stp-set-attribute pkg-name 'remote new-remote)
         (if new-other-remotes
             (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
