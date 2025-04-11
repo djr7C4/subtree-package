@@ -92,7 +92,7 @@ remotes."
        (cl-remove-duplicates it :test #'equal)
        (mapcar (lambda (remote)
                  (when-let ((method (stp-remote-method remote)))
-                   (cons method remote)))
+                   (cons method (stp-transform-remote remote))))
                it)
        (-filter #'identity it)
        (stp-sort-remotes it)
