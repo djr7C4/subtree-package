@@ -66,7 +66,8 @@ refresh even if the last refresh was less than
                (format-time-string "%c" stp-archive-last-refreshed)))))
 
 (defun stp-archive-ensure-loaded ()
-  (package-read-all-archive-contents))
+  (unless package-archive-contents
+    (package-read-all-archive-contents)))
 
 (defun stp-archive-package-names ()
   "Return a list of all packages in `package-archive-contents' as
