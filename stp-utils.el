@@ -22,10 +22,11 @@
 (require 'rem)
 (require 'rem-abbrev)
 (require 's)
+(require 'seq)
 
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
-(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-elpa-version-url-alist))
+(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-elpa-version-url-alist stp-archive-ensure-loaded))
 
 (defvar stp-package-info nil)
 
@@ -182,9 +183,13 @@ IGNORED-METHODS are not considered."
       (unless noerror
         (error "Invalid remote: %s" remote))))
 
-
 (defvar stp-methods-order (mapcar #'car stp-remote-valid-alist)
   "Valid values for the METHOD attribute.")
+
+(defun stp-sort-remotes (remotes)
+  "Sort the alist mapping methods to remotes by method according to
+the order in `stp-methods-order'."
+  (seq-sort-by (-compose #'cl-position #'car) #'< remotes))
 
 (defun stp-read-method (prompt &optional default)
   (when (and default (symbolp default))
@@ -228,7 +233,7 @@ be selected.")
 
 (defvar stp-remote-history nil)
 
-(defun stp-comp-read-remote (prompt remote known-remotes &optional multiple)
+(cl-defun stp-comp-read-remote (prompt known-remotes &key default multiple (normalize t))
   (cl-labels ((valid-candidate-p (candidate)
                 (or (member candidate known-remotes)
                     (f-dir-p candidate)))
@@ -242,7 +247,7 @@ be selected.")
                                        (completion-table-in-turn known-remotes
                                                                  #'completion-file-name-table)
                                        :predicate #'valid-candidates-p
-                                       :default remote
+                                       :default default
                                        :history 'stp-remote-history
                                        :sort-fun #'identity
                                        ;; Disable the category. By default, it
@@ -250,18 +255,22 @@ be selected.")
                                        ;; to be replaced with / during completion.
                                        :metadata '((category . nil))
                                        :multiple multiple)))
-      ;; When multiple is nil, new-remotes will just be a single remote rather
-      ;; than a list.
-      (if multiple
-          (mapcar #'stp-normalize-remote new-remotes)
-        (stp-normalize-remote new-remotes)))))
+      (cond
+       ((null normalize)
+        new-remotes)
+       ;; When multiple is nil, new-remotes will just be a single remote rather
+       ;; than a list.
+       (multiple
+        (mapcar #'stp-normalize-remote new-remotes))
+       (t
+        (stp-normalize-remote new-remotes))))))
 
 (defun stp-choose-remote (prompt remote &optional other-remotes)
   (if stp-use-other-remotes
       ;; A match is not required. This way, a new remote can be added
       ;; interactively by the user. Type ./ to complete in the current
       ;; directory.
-      (stp-comp-read-remote prompt remote (cons remote other-remotes))
+      (stp-comp-read-remote prompt (cons remote other-remotes) :default remote)
     remote))
 
 (defun stp-update-remotes (pkg-name chosen-remote remote other-remotes)
@@ -426,19 +435,21 @@ PKG-NAME."
 
 (defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?\\)*\\)[-_./]?$")
 
-(defun stp-default-extractor (v)
+(defun stp-default-extractor (main-version)
   (mapcan (lambda (s)
-            (save-match-data
-              (if (string-match "^\\([0-9]+\\)\\([A-Za-z]+\\)$" s)
-                  (list (match-string 1 s) (match-string 2 s))
-                (list s))))
-          (s-split "[-_.]" v t)))
+            (if (string-match "^\\([0-9]+\\)\\([A-Za-z]+\\)$" s)
+                (list (match-string 1 s) (match-string 2 s))
+              (list s)))
+          (s-split "[-_.]" (match-string 1 main-version) t)))
 
-(defun stp-haskell-extractor (v)
-  (s-split "-" (s-chop-prefix "haskell-mode-" v)))
+(defun stp-haskell-extractor (main-version)
+  (->> (match-string 1 main-version)
+       (s-chop-prefix "haskell-mode-")
+       (s-chop-suffix "_")
+       (s-split "-")))
 
-(defun stp-auctex-extractor (v)
-  (let* ((vs (s-split "_\\|-" v))
+(defun stp-auctex-extractor (main-version)
+  (let* ((vs (s-split "_\\|-" (match-string 1 main-version)))
          (v-butlast (butlast vs))
          (v-last (car (last vs))))
     ;; Any trailing letters or +'s need to be separate elements of the list
@@ -455,6 +466,23 @@ PKG-NAME."
 
 (defvar stp-version-suffix-regexp "[-_./]?\\(?:\\(snapshot\\|git\\|hg\\|darcs\\|bzr\\|svn\\|cvs\\)\\|\\(alpha\\)\\|\\(beta\\)\\|\\(pre\\|rc\\)\\)[-_./]?\\(?:\\([0-9]+\\)[-_./]?\\([a-zA-Z]?\\)\\)?$")
 
+(defun stp-version-default-suffix-extractor (version)
+  (list (cons 'main-version
+              (substring version 0 (match-beginning 0)))
+        (cons 'version-suffix-alist
+              (append
+               (list (cond
+                      ((rem-empty-nil (match-string 1 version)) "-4") ; git
+                      ((rem-empty-nil (match-string 2 version)) "-3") ; alpha
+                      ((rem-empty-nil (match-string 3 version)) "-2") ; beta
+                      ((rem-empty-nil (match-string 4 version)) "-1") ; rc
+                      ;; This should be impossible.
+                      (t (error "Unknown suffix type"))))
+               (rem-empty-nil (match-string 5 version) #'list) ; number
+               (rem-empty-nil (match-string 6 version) #'list))))) ; letter
+
+(defvar stp-version-suffix-extractor #'stp-version-default-suffix-extractor)
+
 (defvar stp-version-extractor-alist
   ;; This matches the versions for most emacs packages.
   `((,stp-version-regexp . stp-default-extractor)
@@ -462,35 +490,29 @@ PKG-NAME."
     ("^\\(?:haskell-mode-\\)\\(1-44_\\|1-45_\\)$" . stp-haskell-extractor)
     ;; auctex
     ("^\\(?:auctex_release\\|auctex\\|release\\|rel\\)\\(?:[-_./]\\)\\([0-9]+\\([-_.][0-9]+\\)*[a-zA-Z]?\\+?\\)$" . stp-auctex-extractor))
-  "An list of regexps to match to package versions and functions to
-extract a key from the text that matches the first group of the
-regexp. The key should be a list of strings which are the
-components of the version string. For example, for v1.2.3a the
-key would be (\"1\" \"2\" \"3\" \"a\").")
+  "An list of regexps to match to package versions (after the suffix
+is removed) and functions to extract a key from the text that
+matches the first group of the regexp. The key should be a list
+of strings which are the components of the version string. For
+example, for v1.2.3a the key would be (\"1\" \"2\" \"3\" \"a\").
+
+Functions are called with the match data from matching the
+package version and take the version with the suffix removed as
+an argument.")
 
 (defun stp-version-extract (version)
   (save-match-data
     (dolist (cell stp-version-extractor-alist)
       (db (regexp . extractor)
           cell
-        (let (version-suffix-list
+        (let (version-suffix-alist
               (main-version version))
-          (when-let ((suffix-start (string-match stp-version-suffix-regexp version)))
-            (setq main-version (substring version 0 suffix-start))
-            (setq version-suffix-list
-                  (append
-                   (list (cond
-                          ((rem-empty-nil (match-string 1 version)) "-4") ; git
-                          ((rem-empty-nil (match-string 2 version)) "-3") ; alpha
-                          ((rem-empty-nil (match-string 3 version)) "-2") ; beta
-                          ((rem-empty-nil (match-string 4 version)) "-1") ; rc
-                          ;; This should be impossible.
-                          (t (error "Unknown suffix type"))))
-                   (rem-empty-nil (match-string 5 version) #'list) ; number
-                   (rem-empty-nil (match-string 6 version) #'list)))) ; letter
+          (when (string-match stp-version-suffix-regexp version)
+            (let-alist (funcall stp-version-suffix-extractor version)
+              (setq main-version .main-version
+                    version-suffix-alist .version-suffix-alist)))
           (when (string-match regexp main-version)
-            (cl-return (append (funcall extractor (match-string 1 main-version))
-                               version-suffix-list))))))))
+            (cl-return (append (funcall extractor main-version) version-suffix-alist))))))))
 
 (defun stp-download-elisp (dir pkg-name remote)
   "Download the elisp file or archive at REMOTE and copy it to DIR.
