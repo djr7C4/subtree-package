@@ -65,10 +65,25 @@ refresh even if the last refresh was less than
       (message "The package archives were last refreshed on %s: no refresh is necessary"
                (format-time-string "%c" stp-archive-last-refreshed)))))
 
-(defun stp-archive-find-remotes (pkg-name)
+(defun stp-archive-ensure-loaded ()
+  (package-read-all-archive-contents))
+
+(defun stp-archive-package-names ()
+  "Return a list of all packages in `package-archive-contents' as
+ strings in alphabetical order."
+  ;; `package-archive-contents' needs to be initialized in order for this
+  ;; comment to work. Ideally, we would run `package-refresh-contents' but that
+  ;; would make everything very slow.
+  (stp-archive-ensure-loaded)
+  (->> package-archive-contents
+       (mapcar (-compose #'symbol-name #'car))
+       (-sort #'string<)))
+
+(cl-defun stp-archive-find-remotes (pkg-name &key keep-methods)
   "Find remotes for PKG-NAME in `package-archive-contents'. The
 result is returned as an alist that maps methods to valid
 remotes."
+  (stp-archive-ensure-loaded)
   (--> (map-elt package-archive-contents (intern pkg-name))
        (mapcar (lambda (desc)
                  (map-elt (package-desc-extras desc) :url))
@@ -79,7 +94,9 @@ remotes."
                  (when-let ((method (stp-remote-method remote)))
                    (cons method remote)))
                it)
-       (-filter #'identity it)))
+       (-filter #'identity it)
+       (stp-sort-remotes it)
+       (mapcar (if keep-methods #'identity #'cdr) it)))
 
 (provide 'stp-archive)
 ;;; stp-archive.el ends here
