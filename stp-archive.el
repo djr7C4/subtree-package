@@ -80,11 +80,15 @@ refresh even if the last refresh was less than
        (mapcar (-compose #'symbol-name #'car))
        (-sort #'string<)))
 
+;; This function is useful due to memoization.
+(defun stp-achive-get-descs (pkg-name)
+  (map-elt package-archive-contents (intern pkg-name)))
+
 (cl-defun stp-archive-find-remotes (pkg-name &key keep-methods)
   "Find remotes for PKG-NAME in `package-archive-contents'. The
 result is returned as an alist that maps methods to valid
 remotes."
-  (--> (map-elt package-archive-contents (intern pkg-name))
+  (--> (stp-achive-get-descs pkg-name)
        (mapcar (lambda (desc)
                  (map-elt (package-desc-extras desc) :url))
                it)
@@ -102,7 +106,7 @@ remotes."
   "Find the `package-desc' for PKG-NAME in ARCHIVE."
   (cl-find-if (lambda (desc)
                 (string= (package-desc-archive desc) archive))
-              (map-elt package-archive-contents (intern pkg-name))))
+              (stp-achive-get-descs pkg-name)))
 
 (defun stp-archive-url (desc)
   "Return the url that the package described by the `package-desc'
