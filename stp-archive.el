@@ -75,7 +75,6 @@ refresh even if the last refresh was less than
   ;; `package-archive-contents' needs to be initialized in order for this
   ;; comment to work. Ideally, we would run `package-refresh-contents' but that
   ;; would make everything very slow.
-  (stp-archive-ensure-loaded)
   (->> package-archive-contents
        (mapcar (-compose #'symbol-name #'car))
        (-sort #'string<)))
@@ -84,7 +83,6 @@ refresh even if the last refresh was less than
   "Find remotes for PKG-NAME in `package-archive-contents'. The
 result is returned as an alist that maps methods to valid
 remotes."
-  (stp-archive-ensure-loaded)
   (--> (map-elt package-archive-contents (intern pkg-name))
        (mapcar (lambda (desc)
                  (map-elt (package-desc-extras desc) :url))
