@@ -1541,7 +1541,9 @@ asynchronously."
     (when recenter
       (recenter recenter-arg))))
 
-(defvar stp-list-auto-update-latest-versions t)
+;; This is disabled by default because it is a bit sluggish and makes the UI
+;; hang for a few seconds.
+(defvar stp-list-auto-update-latest-versions nil)
 (defvar stp-list-auto-delete-stale-cached-repos t)
 (defvar stp-list-auto-refresh-package-archives t)
 
