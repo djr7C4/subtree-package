@@ -19,6 +19,7 @@
 (require 'package)
 (require 'rem)
 (require 'stp-headers)
+(require 'stp-url)
 (require 'stp-utils)
 
 (defvar stp-archive-async-refresh-running nil)
@@ -96,6 +97,50 @@ remotes."
        (-filter #'identity it)
        (stp-sort-remotes it)
        (mapcar (if keep-methods #'identity #'cdr) it)))
+
+(defun stp-archive-get-desc (pkg-name archive)
+  "Find the `package-desc' for PKG-NAME in ARCHIVE."
+  (cl-find-if (lambda (desc)
+                (string= (package-desc-archive desc) archive))
+              (map-elt package-archive-contents (intern pkg-name))))
+
+(defun stp-archive-url (desc)
+  "Return the url that the package described by the `package-desc'
+DESC can be downloaded from."
+  (format "%s%s.%s"
+          (package-archive-base desc)
+          (package-desc-full-name desc)
+          (symbol-name (package-desc-kind desc))))
+
+(cl-defun stp-archive-install-or-upgrade (pkg-name archive action)
+  "Install or upgrade to the current version of PKG-NAME from
+ARCHIVE into `stp-source-directory'. The current version is used
+instead of allowing the version to be specified because generic
+archives do not support installing older versions. type should be
+either \\='install or \\='upgrade depending on which operation
+should be performed."
+  (let* ((desc (or (stp-archive-get-desc pkg-name archive)
+                   (error "Failed to find %s in the %s package archive" pkg-name archive)))
+         (old-version (stp-get-attribute pkg-name 'version))
+         (new-version (package-version-join (package-desc-version desc))))
+    (when (and (eq action 'upgrade) (string= old-version new-version))
+      (user-error "Version %s of %s is already installed"))
+    (stp-url-install-or-upgrade-basic pkg-name
+                                      (stp-archive-url desc)
+                                      new-version
+                                      action)
+    (when (eq action 'install)
+      (stp-set-attribute pkg-name 'method 'archive))))
+
+(defun stp-archive-install (pkg-name archive)
+  "Install the specified version of PKG-NAME from ARCHIVE into
+`stp-source-directory'."
+  (stp-archive-install-or-upgrade pkg-name archive 'install))
+
+(defun stp-archive-upgrade (pkg-name archive)
+  "Upgrade the specified version of PKG-NAME from ARCHIVE into
+`stp-source-directory'."
+  (stp-archive-install-or-upgrade pkg-name archive 'upgrade))
 
 (provide 'stp-archive)
 ;;; stp-archive.el ends here
