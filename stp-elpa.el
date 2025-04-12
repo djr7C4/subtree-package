@@ -106,8 +106,13 @@ should be either \\='install or \\='upgrade depending on which
 operation should be performed."
   (let* ((elpa-version-url-alist (stp-elpa-version-url-alist pkg-name remote))
          (url (or (cdr (assoc version elpa-version-url-alist))
-                  (error "Version %s not found" version))))
-    (stp-url-install-or-upgrade-basic pkg-name url version action)
+                  (error "Version %s not found" version)))
+         (new-version version)
+         (old-version (stp-get-attribute pkg-name 'version)))
+    (when (and (eq action 'upgrade)
+               (string= old-version new-version))
+      (user-error "Version %s of %s is already installed"))
+    (stp-url-install-or-upgrade-basic pkg-name url new-version action)
     (when (eq action 'install)
       (stp-set-attribute pkg-name 'method 'elpa))))
 
