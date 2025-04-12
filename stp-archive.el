@@ -124,7 +124,7 @@ should be performed."
          (old-version (stp-get-attribute pkg-name 'version))
          (new-version (package-version-join (package-desc-version desc))))
     (when (and (eq action 'upgrade) (string= old-version new-version))
-      (user-error "Version %s of %s is already installed"))
+      (user-error "Version %s of %s is already installed" old-version pkg-name))
     (stp-url-install-or-upgrade-basic pkg-name
                                       (stp-archive-url desc)
                                       new-version

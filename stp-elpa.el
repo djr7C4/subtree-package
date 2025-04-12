@@ -111,7 +111,7 @@ operation should be performed."
          (old-version (stp-get-attribute pkg-name 'version)))
     (when (and (eq action 'upgrade)
                (string= old-version new-version))
-      (user-error "Version %s of %s is already installed"))
+      (user-error "Version %s of %s is already installed" old-version pkg-name))
     (stp-url-install-or-upgrade-basic pkg-name url new-version action)
     (when (eq action 'install)
       (stp-set-attribute pkg-name 'method 'elpa))))
