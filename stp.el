@@ -1129,6 +1129,9 @@ prefix argument, go forward that many packages."
                                       (stp-git-count-remote-commits .remote .version latest-stable :branch .branch :both t)))
               (commits-to-unstable (and latest-unstable
                                         (stp-git-count-remote-commits .remote .version latest-unstable :branch .branch :both t)))
+              (version-timestamp (and .version (stp-git-remote-timestamp .remote .version)))
+              (stable-timestamp (and latest-stable (stp-git-remote-timestamp .remote latest-stable)))
+              (unstable-timestamp (and latest-unstable (stp-git-remote-timestamp .remote latest-unstable)))
               (time (rem-seconds)))
          (when (or latest-stable latest-unstable commits-to-stable commits-to-unstable)
            (append (list pkg-name)
@@ -1136,6 +1139,9 @@ prefix argument, go forward that many packages."
                    (and latest-unstable (list `(latest-unstable . ,latest-unstable)))
                    (and commits-to-stable (list `(count-to-stable . ,commits-to-stable)))
                    (and commits-to-unstable (list `(count-to-unstable . ,commits-to-unstable)))
+                   (and version-timestamp (list `(version-timestamp . ,version-timestamp)))
+                   (and stable-timestamp (list `(stable-timestamp . ,stable-timestamp)))
+                   (and unstable-timestamp (list `(unstable-timestamp . ,unstable-timestamp)))
                    (list `(updated . ,time))))))
       (elpa
        (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))
@@ -1403,12 +1409,24 @@ the same time unless PARALLEL is non-nil."
               "V" #'stp-list-update-latest-versions
               "RET" #'stp-find-package)
 
-(defun stp-list-version-with-count (method version count)
-  (and version
-       (concat (stp-list-abbreviate-version method version)
-               (if (and count (/= count 0))
-                   (format "(%d)" count)
-                 ""))))
+(defun stp-list-annotated-version (method version count version-timestamp new-timestamp)
+  (let* ((count-string (if (and count (/= count 0))
+                           (number-to-string count)
+                         ""))
+         (time-string (if (and version-timestamp new-timestamp)
+                          (let ((time (- new-timestamp version-timestamp)))
+                            (concat (if (< time 0) "-" "") (format-seconds "%yy%dd%z" (abs time))))
+                        ""))
+         (separator (if (and (not (string= count-string ""))
+                             (not (string= time-string "")))
+                        ";"
+                      ""))
+         (combined-string (concat count-string separator time-string)))
+    (and version
+         (concat (stp-list-abbreviate-version method version)
+                 (if (not (string= combined-string ""))
+                     (format "(%s)" combined-string)
+                   "")))))
 
 (defun stp-latest-stale-p (seconds updated)
   (or (not updated)
@@ -1448,8 +1466,8 @@ the same time unless PARALLEL is non-nil."
     (let-alist version-alist
       (let* ((stale (stp-latest-stale-p seconds .updated))
              (stale-string (if stale stp-list-stale-version-string ""))
-             (stable-version-string (stp-list-version-with-count method .latest-stable .count-to-stable))
-             (unstable-version-string (stp-list-version-with-count method .latest-unstable .count-to-unstable))
+             (stable-version-string (stp-list-annotated-version method .latest-stable .count-to-stable .version-timestamp .stable-timestamp))
+             (unstable-version-string (stp-list-annotated-version method .latest-unstable .count-to-unstable .version-timestamp .unstable-timestamp))
              (version-string
               (cond
                ((and .latest-stable .latest-unstable)
