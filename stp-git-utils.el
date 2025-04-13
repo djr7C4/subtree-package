@@ -508,5 +508,21 @@ will be considered which may improve efficiency."
   (let ((path (stp-git-ensure-cached-repo remote)))
     (stp-git-count-commits path ref ref2 :both both)))
 
+(defun stp-git-timestamp (path ref)
+  "Return the UNIX timestamp for when REF was commited to the git
+repository at PATH."
+  (let ((default-directory path))
+    (db (exit-code output)
+        (rem-call-process-shell-command (format "git show --no-patch --format=%%ct '%s'" ref))
+      (if (= exit-code 0)
+          (string-to-number (s-trim output))
+        (error "Failed to obtain the UNIX timestamp for %s at %s" ref path)))))
+
+(defun stp-git-remote-timestamp (remote ref)
+  "This is similar to `stp-git-timestamp' except that it works with
+remote repositories."
+  (let ((path (stp-git-ensure-cached-repo remote)))
+    (stp-git-timestamp path ref)))
+
 (provide 'stp-git-utils)
 ;;; stp-git-utils.el ends here
