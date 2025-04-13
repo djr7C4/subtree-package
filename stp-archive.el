@@ -84,6 +84,12 @@ refresh even if the last refresh was less than
 (defun stp-achive-get-descs (pkg-name)
   (map-elt package-archive-contents (intern pkg-name)))
 
+(defun stp-archive-get-desc (pkg-name archive)
+  "Find the `package-desc' for PKG-NAME in ARCHIVE."
+  (cl-find-if (lambda (desc)
+                (string= (package-desc-archive desc) archive))
+              (stp-achive-get-descs pkg-name)))
+
 (cl-defun stp-archive-find-remotes (pkg-name &key keep-methods)
   "Find remotes for PKG-NAME in `package-archive-contents'. The
 result is returned as an alist that maps methods to valid
@@ -102,11 +108,13 @@ remotes."
        (stp-sort-remotes it)
        (mapcar (if keep-methods #'identity #'cdr) it)))
 
-(defun stp-archive-get-desc (pkg-name archive)
-  "Find the `package-desc' for PKG-NAME in ARCHIVE."
-  (cl-find-if (lambda (desc)
-                (string= (package-desc-archive desc) archive))
-              (stp-achive-get-descs pkg-name)))
+(defun stp-archives (pkg-name)
+  "Find the archives that PKG-NAME is available on according to
+`package-archive-contents'."
+  (seq-sort-by (lambda (archive)
+                 (cl-position archive (mapcar #'car package-archives) :test #'string=))
+               #'<
+               (mapcar #'package-desc-archive (stp-achive-get-descs pkg-name))))
 
 (defun stp-archive-url (desc)
   "Return the url that the package described by the `package-desc'

@@ -64,10 +64,11 @@ are not abbreviated."
       stp-normalize-remote))
 
 (cl-defun stp-read-name-and-remote (prompt &key pkg-name default-remote (prompt-prefix ""))
-  "Read any type of remote or a package name. When the input is
-ambiguous, it will be treated as a package name unless it
-contains a slash. Return a cons cell the contains the package
-name and the remote."
+  "Read a package name and remote of any type or a package archive.
+When the input is ambiguous and could be package name or a local
+path, it will be treated as a package name unless it contains a
+slash. Return a cons cell the contains the package name and the
+remote or archive. Archives are represented as symbols."
   (stp-archive-ensure-loaded)
   (let* ((archive-names (stp-archive-package-names))
          (name-or-remote (stp-comp-read-remote prompt archive-names :default default-remote :normalize nil)))
@@ -76,9 +77,17 @@ name and the remote."
           ;; If the user chose a package name, find remotes from
           ;; `package-archive-contents' and allow the user to choose one.
           (setq pkg-name name-or-remote)
-          (let* ((remotes (stp-archive-find-remotes pkg-name)))
-            (cons pkg-name
-                  (stp-comp-read-remote "Remote: " remotes :default (car remotes)))))
+          (let* ((archives (stp-archives pkg-name))
+                 (archive-alist (mapcar (lambda (archive)
+                                          (cons (format "%s (package archive)" archive)
+                                                (intern archive)))
+                                        archives))
+                 (remotes (stp-archive-find-remotes pkg-name))
+                 (remote-or-archive (stp-comp-read-remote "Remote or archive: "
+                                                          (append remotes (mapcar #'car archive-alist))
+                                                          :default (car remotes))))
+            (cons pkg-name (or (map-elt archive-alist remote-or-archive)
+                               remote-or-archive))))
       ;; Otherwise the user chose a remote so prompt for its package name.
       (let ((remote (stp-normalize-remote name-or-remote)))
         (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote)))
@@ -427,8 +436,7 @@ is negated relative to the default."
   ;; greatly improves efficiency).
   (stp-with-package-source-directory
     (stp-with-memoization
-      (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :line-pkg nil)))
-    ))
+      (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :line-pkg nil)))))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
   "Install a package named pkg-name that has the alist pkg-alist. If
