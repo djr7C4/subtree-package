@@ -1130,7 +1130,7 @@ prefix argument, go forward that many packages."
                                       (stp-git-count-remote-commits .remote .version latest-stable :branch .branch :both t)))
               (commits-to-unstable (and latest-unstable
                                         (stp-git-count-remote-commits .remote .version latest-unstable :branch .branch :both t)))
-              (time (rem-seconds)))
+              (time (float-time)))
          (when (or latest-stable latest-unstable commits-to-stable commits-to-unstable)
            (append (list pkg-name)
                    (and latest-stable (list `(latest-stable . ,latest-stable)))
@@ -1141,7 +1141,7 @@ prefix argument, go forward that many packages."
       (elpa
        (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))
               (versions-to-stable (and latest-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable)))
-              (time (rem-seconds)))
+              (time (float-time)))
          (unless latest-stable
            (error "Failed to get the latest stable version for %s" pkg-name))
          ;; Occasionally, it is possible we may run into a package when
@@ -1341,14 +1341,14 @@ the same time unless PARALLEL is non-nil."
                  ;; Don't refresh too often. This prevents the main
                  ;; process from locking up when there are a large
                  ;; number of asynchronous processes.
-                 (if (< (- (rem-seconds) last-refresh)
+                 (if (< (- (float-time) last-refresh)
                         stp-list-latest-versions-min-refresh-interval)
                      (setq skipped-refresh pkg-name)
                    (when focus
                      (stp-list-focus-package pkg-name :recenter-arg -1))
                    (stp-list-refresh :quiet t)
                    (setq skipped-refresh nil
-                         last-refresh (rem-seconds)))))
+                         last-refresh (float-time)))))
              (lambda (latest-versions)
                (when skipped-refresh
                  (when focus
@@ -1416,7 +1416,7 @@ the same time unless PARALLEL is non-nil."
       (> (- seconds updated) stp-latest-versions-stale-interval)))
 
 (defun stp-stale-packages (&optional seconds)
-  (setq seconds (or seconds (rem-seconds)))
+  (setq seconds (or seconds (float-time)))
   (--> stp-latest-versions-cache
        (-filter (lambda (latest-version-data)
                   (let-alist (cdr latest-version-data)
@@ -1484,7 +1484,7 @@ asynchronously."
     (let ((win (get-buffer-window buf)))
       (with-current-buffer buf
         (let ((column (current-column))
-              (seconds (rem-seconds))
+              (seconds (float-time))
               (line (line-number-at-pos))
               (window-line (when (and focus-window-line win)
                              (beginning-of-line)

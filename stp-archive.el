@@ -41,11 +41,11 @@ refresh even if the last refresh was less than
   ;; Only refresh when it has been at least `stp-archive-refresh-interval'
   ;; seconds since the last refresh.
   (if (or force
-          (> (- (rem-seconds) stp-archive-last-refreshed)
+          (> (- (float-time) stp-archive-last-refreshed)
              stp-archive-refresh-interval))
       (progn
         (setq stp-archive-async-refresh-running t
-              stp-archive-last-refreshed (rem-seconds))
+              stp-archive-last-refreshed (float-time))
         (unless quiet
           (message "Refreshing package archives asynchronously"))
         (async-start

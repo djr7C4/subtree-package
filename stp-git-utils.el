@@ -480,7 +480,7 @@ number of commits n in REF2..REF and return -n."
           ;; :force t is required in case a branch is deleted upstream.
           (stp-git-fetch remote :force t :refspec "*:*"))
       (stp-git-minimal-clone remote path branch))
-    (f-write (format "%f" (rem-seconds)) 'utf-8 tpath)
+    (f-write (format "%f" (float-time)) 'utf-8 tpath)
     path))
 
 (defvar stp-git-stale-cached-repo-interval (timer-duration "1 year")
@@ -491,7 +491,7 @@ number of commits n in REF2..REF and return -n."
              (lambda (file)
                (and (s-ends-with-p stp-git-cached-repo-timestamp-suffix file)
                     (let ((updated (string-to-number (f-read file 'utf-8))))
-                      (when (> (- (rem-seconds) updated)
+                      (when (> (- (float-time) updated)
                                stp-git-stale-cached-repo-interval)
                         (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
                         (f-delete file)))))))
