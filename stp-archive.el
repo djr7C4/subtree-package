@@ -19,6 +19,7 @@
 (require 'package)
 (require 'rem)
 (require 'stp-headers)
+(require 'stp-url)
 (require 'stp-utils)
 
 (defvar stp-archive-async-refresh-running nil)
@@ -40,11 +41,11 @@ refresh even if the last refresh was less than
   ;; Only refresh when it has been at least `stp-archive-refresh-interval'
   ;; seconds since the last refresh.
   (if (or force
-          (> (- (rem-seconds) stp-archive-last-refreshed)
+          (> (- (float-time) stp-archive-last-refreshed)
              stp-archive-refresh-interval))
       (progn
         (setq stp-archive-async-refresh-running t
-              stp-archive-last-refreshed (rem-seconds))
+              stp-archive-last-refreshed (float-time))
         (unless quiet
           (message "Refreshing package archives asynchronously"))
         (async-start
@@ -75,17 +76,25 @@ refresh even if the last refresh was less than
   ;; `package-archive-contents' needs to be initialized in order for this
   ;; comment to work. Ideally, we would run `package-refresh-contents' but that
   ;; would make everything very slow.
-  (stp-archive-ensure-loaded)
   (->> package-archive-contents
        (mapcar (-compose #'symbol-name #'car))
        (-sort #'string<)))
+
+;; This function is useful due to memoization.
+(defun stp-achive-get-descs (pkg-name)
+  (map-elt package-archive-contents (intern pkg-name)))
+
+(defun stp-archive-get-desc (pkg-name archive)
+  "Find the `package-desc' for PKG-NAME in ARCHIVE."
+  (cl-find-if (lambda (desc)
+                (string= (package-desc-archive desc) archive))
+              (stp-achive-get-descs pkg-name)))
 
 (cl-defun stp-archive-find-remotes (pkg-name &key keep-methods)
   "Find remotes for PKG-NAME in `package-archive-contents'. The
 result is returned as an alist that maps methods to valid
 remotes."
-  (stp-archive-ensure-loaded)
-  (--> (map-elt package-archive-contents (intern pkg-name))
+  (--> (stp-achive-get-descs pkg-name)
        (mapcar (lambda (desc)
                  (map-elt (package-desc-extras desc) :url))
                it)
@@ -98,6 +107,52 @@ remotes."
        (-filter #'identity it)
        (stp-sort-remotes it)
        (mapcar (if keep-methods #'identity #'cdr) it)))
+
+(defun stp-archives (pkg-name)
+  "Find the archives that PKG-NAME is available on according to
+`package-archive-contents'."
+  (seq-sort-by (lambda (archive)
+                 (cl-position archive (mapcar #'car package-archives) :test #'string=))
+               #'<
+               (mapcar #'package-desc-archive (stp-achive-get-descs pkg-name))))
+
+(defun stp-archive-url (desc)
+  "Return the url that the package described by the `package-desc'
+DESC can be downloaded from."
+  (format "%s%s.%s"
+          (package-archive-base desc)
+          (package-desc-full-name desc)
+          (symbol-name (package-desc-kind desc))))
+
+(cl-defun stp-archive-install-or-upgrade (pkg-name archive action)
+  "Install or upgrade to the current version of PKG-NAME from
+ARCHIVE into `stp-source-directory'. The current version is used
+instead of allowing the version to be specified because generic
+archives do not support installing older versions. type should be
+either \\='install or \\='upgrade depending on which operation
+should be performed."
+  (let* ((desc (or (stp-archive-get-desc pkg-name archive)
+                   (error "Failed to find %s in the %s package archive" pkg-name archive)))
+         (old-version (stp-get-attribute pkg-name 'version))
+         (new-version (package-version-join (package-desc-version desc))))
+    (when (and (eq action 'upgrade) (string= old-version new-version))
+      (user-error "Version %s of %s is already installed" old-version pkg-name))
+    (stp-url-install-or-upgrade-basic pkg-name
+                                      (stp-archive-url desc)
+                                      new-version
+                                      action)
+    (when (eq action 'install)
+      (stp-set-attribute pkg-name 'method 'archive))))
+
+(defun stp-archive-install (pkg-name archive)
+  "Install the specified version of PKG-NAME from ARCHIVE into
+`stp-source-directory'."
+  (stp-archive-install-or-upgrade pkg-name archive 'install))
+
+(defun stp-archive-upgrade (pkg-name archive)
+  "Upgrade the specified version of PKG-NAME from ARCHIVE into
+`stp-source-directory'."
+  (stp-archive-install-or-upgrade pkg-name archive 'upgrade))
 
 (provide 'stp-archive)
 ;;; stp-archive.el ends here
