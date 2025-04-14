@@ -70,10 +70,11 @@ packages. There is no way to retrieve any version information at all for URL
 packages so the latest version is omitted entirely.
 
 For git packages, the number of commits required to reach the latest version
-from the currently installed version is shown in parentheses. Negative numbers
-mean that the currently installed version is newer by that many commits. For
-ELPA packages, the number in parentheses is the number of stable versions since
-the currently installed version.
+from the currently installed version is shown in parentheses followed by the
+amount of time between the commits for the installed version and the new
+version. Negative numbers mean that the currently installed version is newer by
+that many commits. For ELPA packages, the number in parentheses is the number of
+stable versions since the currently installed version.
 
 Latest versions are considered stale when they haven't been updated for more
 than =stp-latest-versions-stale-interval= seconds and are highlighted in orange.
