@@ -343,10 +343,11 @@ the refs. By default all refs are returned."
 
 (defun stp-git-remote-hash-head-alist (remote)
   "Return an alist that maps hashes to heads."
-  ;; HEAD is different from refs/heads/HEAD and is more up to date for some
-  ;; repositories.
+  ;; Manually add HEAD instead of using the branch refs/heads/HEAD. This branch
+  ;; should not exist as it is likely to create confusion but some repositories
+  ;; may have created it by mistake.
   (cons (cons (stp-git-remote-head remote) "HEAD")
-        ;; A few repositories have a head that is named HEAD. This should be
+        ;; A few repositories have a branch that is named HEAD. This should be
         ;; ignored.
         (map-remove (lambda (_hash head)
                       (string= head "HEAD"))
