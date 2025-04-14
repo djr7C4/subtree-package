@@ -63,7 +63,7 @@ are not abbreviated."
        'stp-remote-history)
       stp-normalize-remote))
 
-(cl-defun stp-read-name-and-remote (prompt &key pkg-name default-remote (prompt-prefix ""))
+(cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix ""))
   "Read a package name and remote of any type or a package archive.
 When the input is ambiguous and could be package name or a local
 path, it will be treated as a package name unless it contains a
@@ -94,9 +94,9 @@ remote or archive. Archives are represented as symbols."
               remote)))))
 
 (cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix ""))
-  (plet* ((`(,pkg-name . ,remote) (stp-read-name-and-remote (stp-prefix-prompt prompt-prefix "Package name or remote: ")
-                                                            :pkg-name pkg-name
-                                                            :default-remote (map-elt pkg-alist 'remote)))
+  (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
+                                                              :pkg-name pkg-name
+                                                              :default-remote (map-elt pkg-alist 'remote)))
           (method (stp-remote-method remote)))
     (let (version update branch)
       (cl-ecase method
