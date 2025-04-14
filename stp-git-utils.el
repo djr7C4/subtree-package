@@ -514,7 +514,13 @@ will be considered which may improve efficiency."
 repository at PATH."
   (let ((default-directory path))
     (db (exit-code output)
-        (rem-call-process-shell-command (format "git show --no-patch --format=%%ct '%s'" ref))
+        ;; Pipe to /dev/null to suppress warnings about ambiguous refs. These
+        ;; can occur when the git repository contains a branch or tag called
+        ;; HEAD.
+        ;;
+        ;; The ^{commit} syntax forces git to show the commit object pointed to
+        ;; by a tag rather than the tag.
+        (rem-call-process-shell-command (format "git show --no-patch --format=%%ct '%s^{commit}' 2>/dev/null" ref))
       (if (= exit-code 0)
           (string-to-number (s-trim output))
         (error "Failed to obtain the UNIX timestamp for %s at %s" ref path)))))

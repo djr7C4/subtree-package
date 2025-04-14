@@ -26,7 +26,7 @@
 
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
-(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-elpa-version-url-alist stp-achive-get-descs))
+(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-git-timestamp stp-elpa-version-url-alist stp-achive-get-descs))
 
 (defvar stp-package-info nil)
 
@@ -54,15 +54,17 @@ each type per interactive command."
 
 (defun stp-short-format-seconds (seconds)
   (concat (if (< seconds 0) "-" "")
-          (cond
-           ((= seconds 0)
-            "now")
-           ((< seconds 60)
-            (format-seconds "%ss" (abs seconds)))
-           ((< seconds (* 24 60 60))
-            (format-seconds "%hh%mm%z" (abs seconds)))
-           (t
-            (format-seconds "%yy%dd%z" (abs seconds))))))
+          (progn
+            (setq seconds (abs seconds))
+            (cond
+             ((= seconds 0)
+              "now")
+             ((< seconds 60)
+              (format-seconds "%ss" seconds))
+             ((< seconds (* 24 60 60))
+              (format-seconds "%hh%mm%z" seconds))
+             (t
+              (format-seconds "%yy%dd%z" seconds))))))
 
 (defun stp-prefix-prompt (prompt-prefix prompt)
   (if (or (not prompt-prefix) (string= prompt-prefix ""))
