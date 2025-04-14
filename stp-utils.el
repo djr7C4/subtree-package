@@ -52,6 +52,18 @@ each type per interactive command."
 
 (def-edebug-spec stp-with-memoization t)
 
+(defun stp-short-format-seconds (seconds)
+  (concat (if (< seconds 0) "-" "")
+          (cond
+           ((= seconds 0)
+            "now")
+           ((< seconds 60)
+            (format-seconds "%ss" (abs seconds)))
+           ((< seconds (* 24 60 60))
+            (format-seconds "%hh%mm%z" (abs seconds)))
+           (t
+            (format-seconds "%yy%dd%z" (abs seconds))))))
+
 (defun stp-prefix-prompt (prompt-prefix prompt)
   (if (or (not prompt-prefix) (string= prompt-prefix ""))
       prompt
