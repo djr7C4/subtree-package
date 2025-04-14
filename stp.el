@@ -958,8 +958,6 @@ info files in the directory for that package."
 
 (defvar stp-list-stale-version-string "?")
 
-(defvar stp-list-latest-version-separator (propertize "/" 'face 'bold))
-
 (define-derived-mode stp-list-mode special-mode "STP"
   "Major mode for managing source packages. \\{stp-list-mode-map}"
   (visual-line-mode 0)
@@ -1480,13 +1478,7 @@ the same time unless PARALLEL is non-nil."
              (stable-version-string (stp-list-annotated-version method .latest-stable .count-to-stable .version-timestamp .stable-timestamp))
              (unstable-version-string (stp-list-annotated-version method .latest-unstable .count-to-unstable .version-timestamp .unstable-timestamp))
              (version-string
-              (cond
-               ((and .latest-stable .latest-unstable)
-                (format "%s%s%s%s" stable-version-string stp-list-latest-version-separator unstable-version-string stale-string))
-               ((or .latest-stable .latest-unstable)
-                (or stable-version-string unstable-version-string))
-               (t
-                "\t"))))
+              (format "%s %s%s" (or stable-version-string "\t") (or unstable-version-string "\t") stale-string)))
         (when stale
           (setq version-string (propertize (concat version-string stale-string) 'face stp-list-stale-face)))
         version-string))))
@@ -1522,7 +1514,7 @@ asynchronously."
           (erase-buffer)
           (insert (format "Package Version%s Method Update Branch Remote\n"
                           (if stp-latest-versions-cache
-                              " Latest"
+                              (format " Latest%sstable Latest%sunstable" stp-no-break-space stp-no-break-space)
                             "")))
           (dolist (pkg-name (stp-info-names))
             (let ((version-alist (map-elt stp-latest-versions-cache pkg-name)))
@@ -1536,7 +1528,7 @@ asynchronously."
                                 (or (when stp-latest-versions-cache
                                       (or (when version-alist
                                             (stp-list-latest-field .method version-alist seconds))
-                                          "\t"))
+                                          "\t \t"))
                                     "")
                                 (if .method
                                     (symbol-name .method)
