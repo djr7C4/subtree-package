@@ -199,7 +199,7 @@ IGNORED-METHODS are not considered."
       (unless noerror
         (error "Invalid remote: %s" remote))))
 
-(defvar stp-methods-order (mapcar #'car stp-remote-valid-alist)
+(defvar stp-methods-order '(git elpa archive url)
   "Valid values for the METHOD attribute.")
 
 (defun stp-sort-remotes (remotes)

@@ -97,7 +97,9 @@ remote or archive. Archives are represented as symbols."
   (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
                                                               :pkg-name pkg-name
                                                               :default-remote (map-elt pkg-alist 'remote)))
-          (method (stp-remote-method remote)))
+          (method (if (symbolp remote)
+                      'archive
+                    (stp-remote-method remote))))
     (let (version update branch)
       (cl-ecase method
         (git
@@ -109,7 +111,17 @@ remote or archive. Archives are represented as symbols."
                     (not branch))
            (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))
          (unless version
-           (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (map-elt pkg-alist 'version) branch) :default (map-elt pkg-alist 'version)))))
+           (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (map-elt pkg-alist 'version) branch) :default (map-elt pkg-alist 'version))))
+         `(,pkg-name
+           (method . ,method)
+           (remote . ,remote)
+           (version . ,version)
+           (update . ,update)
+           (branch . ,branch)))
+        (archive
+         `(,pkg-name
+           (method . ,method)
+           (archive . ,(symbol-name remote))))
         ((elpa url)
          (unless (or (and (string-match-p rem-strict-url-regexp remote)
                           (url-file-exists-p remote))
@@ -119,17 +131,11 @@ remote or archive. Archives are represented as symbols."
          (unless version
            (cl-ecase method
              (elpa (setq version (stp-elpa-read-version (stp-prefix-prompt prompt-prefix "Version: ") pkg-name remote)))
-             (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: "))))))))
-      (cons pkg-name
-            (if (eq method 'git)
-                `((method . ,method)
-                  (remote . ,remote)
-                  (version . ,version)
-                  (update . ,update)
-                  (branch . ,branch))
-              `((method . ,method)
-                (remote . ,remote)
-                (version . ,version)))))))
+             (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: "))))))
+         `(,pkg-name
+           (method . ,method)
+           (remote . ,remote)
+           (version . ,version)))))))
 
 (defun stp-repair-default-callback (type pkg-name)
   (let-alist (stp-get-alist pkg-name)
@@ -634,8 +640,8 @@ package info to `stp-info-file'"
   "Edit the remote and other-remotes attributes of PKG-NAME using
 `completing-read-multiple'. The first chosen will be remotes and
 the rest will be other-remotes."
-  (when pkg-name
-    (let-alist (stp-get-alist pkg-name)
+  (let-alist (stp-get-alist pkg-name)
+    (when (and pkg-name .remote)
       (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
              (new-remote (car new-remotes))
              (new-other-remotes (cdr new-remotes))
