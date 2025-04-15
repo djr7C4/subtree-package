@@ -280,7 +280,7 @@ remote repository."
     (error "The directory %s does not exist" path))
   (let ((default-directory path))
     (db (exit-code output)
-        (rem-call-process-shell-command (format "git log --grep 'git-subtree-dir: ' -n 1 --oneline" (f-filename path)))
+        (rem-call-process-shell-command (format "git log --grep 'git-subtree-dir: %s' -n 1 --oneline" (f-relative path (stp-git-root))))
       (setq output (s-trim output))
       (and (= exit-code 0)
            (> (length output) 0)
