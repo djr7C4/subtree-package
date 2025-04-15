@@ -268,13 +268,13 @@ occurred."
                           ;; In this case, we obtain the information via callbacks.
                           ((nil)
                            (funcall callback 'unknown-package pkg-name)))
-                        (when (funcall callback 'ghost-package pkg-name)
-                          (stp-delete-alist pkg-name))
                         ;; Ensure that the package was installed as a subtree.
                         (when (and no-subtree
                                    (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
                                                         pkg-name)))
-                          (stp-reinstall pkg-name version))))))
+                          (stp-reinstall pkg-name version)))))
+                (when (funcall callback 'ghost-package pkg-name)
+                  (stp-delete-alist pkg-name)))
               (cl-incf i)
               ;; Ensure that the package info file is updated even on a keyboard
               ;; quit or other signal.
