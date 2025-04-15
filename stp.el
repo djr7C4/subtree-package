@@ -589,6 +589,7 @@ do-push and proceed arguments are as in `stp-install'."
 
 (defun stp-repair-command ()
   "Repair the stored information for a package interactively."
+  (interactive)
   (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
