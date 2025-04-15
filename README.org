@@ -1,6 +1,6 @@
 * Subtree package
 Subtree package (STP) is a package manager for Emacs that stores packages as git
-subtrees in the git repository for your Emacs configuration.
+subtrees in a git repository.
 * Motivation
 - Reproducing your configuration is trivial on a new machine using git clone
 - This works even if some of the repositories for packages it depends on no
