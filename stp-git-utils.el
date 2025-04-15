@@ -280,12 +280,12 @@ remote repository."
     (error "The directory %s does not exist" path))
   (let ((default-directory path))
     (db (exit-code output)
-        (rem-call-process-shell-command (format "git log | grep \"Squashed '\\(.*/\\)\\?%s/\\?'\" | head -n 1" (f-filename path)))
+        (rem-call-process-shell-command (format "git log --grep 'git-subtree-dir: ' -n 1 --oneline" (f-filename path)))
       (setq output (s-trim output))
       (and (= exit-code 0)
            (> (length output) 0)
            (save-match-data
-             (string-match "\\(?:[0-9a-fA-F]+..\\| \\)\\([0-9a-fA-F]+\\)$" output)
+             (string-match "\\(?:[0-9a-fA-F]+..\\|commit\\)\\([0-9a-fA-F]+\\)$" output)
              (match-string 1 output))))))
 
 (defun stp-git-subtree-p (path)
