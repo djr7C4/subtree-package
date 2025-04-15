@@ -1484,7 +1484,11 @@ the same time unless PARALLEL is non-nil."
              (stable-version-string (stp-list-annotated-version method .latest-stable .count-to-stable .version-timestamp .stable-timestamp))
              (unstable-version-string (stp-list-annotated-version method .latest-unstable .count-to-unstable .version-timestamp .unstable-timestamp))
              (version-string
-              (format "%s%s %s%s" (or stable-version-string "\t") stale-string (or unstable-version-string "\t") stale-string)))
+              (format "%s%s %s%s"
+                      (or stable-version-string "\t")
+                      (if stable-version-string stale-string "")
+                      (or unstable-version-string "\t")
+                      (if unstable-version-string stale-string ""))))
         (when stale
           (setq version-string (propertize version-string 'face stp-list-stale-face)))
         version-string))))
