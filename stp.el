@@ -1471,10 +1471,12 @@ the same time unless PARALLEL is non-nil."
     (url)))
 
 (defun stp-list-version-field (method version count-to-stable count-to-unstable update)
-  (let ((version-string (stp-list-abbreviate-version method version)))
-    (if (stp-version-upgradable-p method count-to-stable count-to-unstable update)
-        (propertize version-string 'face stp-list-upgradable-face)
-      version-string)))
+  (if version
+      (let ((version-string (stp-list-abbreviate-version method version)))
+        (if (stp-version-upgradable-p method count-to-stable count-to-unstable update)
+            (propertize version-string 'face stp-list-upgradable-face)
+          version-string))
+    stp-list-missing-field-string))
 
 (defun stp-list-latest-field (method version-alist seconds)
   (when version-alist
