@@ -490,8 +490,7 @@ the package has been installed."
   (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
-      (apply #'stp-uninstall (stp-command-args)))
-    ))
+      (apply #'stp-uninstall (stp-command-args)))))
 
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
   "Uninstall the package named pkg-name. The do-commit and do-push arguments are
@@ -523,8 +522,7 @@ as in `stp-install'."
   (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
-      (apply #'stp-upgrade (stp-command-args :actions t)))
-    ))
+      (apply #'stp-upgrade (stp-command-args :actions t)))))
 
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-actions (refresh t))
   "Change the version of the package named pkg-name. The do-commit,
