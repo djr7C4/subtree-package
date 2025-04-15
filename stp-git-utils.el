@@ -203,11 +203,10 @@ the new name."
   (and (not (stp-git-status)) t))
 
 (defun stp-git-unpushed-p ()
-  (let* ((branch (stp-git-current-branch))
-         (target (stp-git-push-target branch)))
+  (let* ((branch (stp-git-current-branch)))
     (and branch
          (db (exit-code output)
-             (rem-call-process-shell-command (format "git cherry %s %s" target branch))
+             (rem-call-process-shell-command (format "git cherry %s" branch))
            (unless (= exit-code 0)
              (error "git cherry failed: %s" (s-trim output)))
            (not (string= (s-trim output) ""))))))
