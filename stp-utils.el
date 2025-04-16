@@ -220,9 +220,10 @@ the order in `stp-methods-order'."
 
 (defun stp-normalize-remote (remote)
   ;; Use absolute paths for local repositories.
-  (if (f-exists-p remote)
-      (setq remote (f-slash (f-full remote)))
-    remote))
+  (let ((default-directory stp-read-remote-default-directory))
+    (if (f-exists-p remote)
+        (setq remote (f-slash (f-full remote)))
+      remote)))
 
 (defvar stp-read-remote-default-directory nil)
 
