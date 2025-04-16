@@ -148,7 +148,13 @@ remote or archive. Archives are represented as symbols."
                     (cl-ecase .method
                       (elpa (setq .version (stp-elpa-read-version prompt pkg-name .remote)))
                       (url (setq .version (stp-url-read-version prompt))))
-                    (stp-set-attribute pkg-name 'version .version)))))
+                    (stp-set-attribute pkg-name 'version .version))))
+              (handle-partial-archive (pkg-name)
+                (stp-archive-ensure-loaded)
+                (unless .remote
+                  (let ((prompt (format "[%s] archive: " pkg-name)))
+                    (setq .remote (stp-comp-read-remote prompt (stp-archives pkg-name)))
+                    (stp-set-attribute pkg-name 'remote .remote)))))
       (cl-case type
         (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
         (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " .remote pkg-name)))
@@ -158,6 +164,7 @@ remote or archive. Archives are represented as symbols."
         (unknown-git-update (stp-git-read-update (format "Unable to determine update for %s; enter update: " pkg-name)))
         (unknown-git-branch (stp-git-read-branch (format "Unable to determine branch for %s; enter branch: " pkg-name) .remote))
         (partial-elpa-package (handle-partial-elpa-url pkg-name))
+        (partial-archive-package (handle-partial-archive pkg-name))
         (partial-url-package (handle-partial-elpa-url pkg-name))
         (unknown-package (stp-set-alist pkg-name (cdr (stp-read-package :pkg-name pkg-name :prompt-prefix (format "Package info is missing for %s; " pkg-name)))))))))
 
@@ -260,6 +267,8 @@ occurred."
                                        (message "Failed to determine the update mechanism for %s" pkg-name)))))))
                           (elpa
                            (funcall callback 'partial-elpa-package pkg-name))
+                          (archive
+                           (funcall callback 'partial-archive-package pkg-name))
                           (url
                            (funcall callback 'partial-url-package pkg-name))
                           ;; nil means that we were unable to determine the method.
