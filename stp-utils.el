@@ -184,6 +184,7 @@ within that package."
 
 (defvar stp-remote-valid-alist '((git . stp-git-valid-remote-p)
                                  (elpa . stp-elpa-valid-remote-p)
+                                 (archive . stp-archive-valid-remote-p)
                                  (url . stp-url-valid-remote-p))
   "This alist maps predicates for testing if a remote is valid for a
 given method to methods.")
@@ -196,12 +197,10 @@ IGNORED-METHODS are not considered."
                          (and (not (memq (car cell) ignored-methods))
                               (funcall (cdr cell) remote)))
                        stp-remote-valid-alist))
-      ;; Archives are represented as symbols whose `symbol-name' is the archive.
-      (and (symbolp remote) 'archive)
       (unless noerror
         (error "Invalid remote: %s" remote))))
 
-(defvar stp-methods-order '(git elpa archive url)
+(defvar stp-methods-order (mapcar #'car stp-remote-valid-alist)
   "Valid values for the METHOD attribute.")
 
 (defun stp-sort-remotes (remotes)

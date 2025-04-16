@@ -22,6 +22,10 @@
 (require 'stp-url)
 (require 'stp-utils)
 
+(defun stp-archive-valid-remote-p (remote)
+  (and (symbolp remote)
+       (map-elt package-archives (symbol-name remote))))
+
 (defvar stp-archive-async-refresh-running nil)
 
 (defvar stp-archive-last-refreshed most-negative-fixnum)
@@ -131,6 +135,8 @@ instead of allowing the version to be specified because generic
 archives do not support installing older versions. type should be
 either \\='install or \\='upgrade depending on which operation
 should be performed."
+  (when (symbolp archive)
+    (setq archive (symbol-name archive)))
   (let* ((desc (or (stp-archive-get-desc pkg-name archive)
                    (error "Failed to find %s in the %s package archive" pkg-name archive)))
          (old-version (stp-get-attribute pkg-name 'version))

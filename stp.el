@@ -462,6 +462,7 @@ the package has been installed."
           (cl-ecase .method
             (git (stp-git-install pkg-name .remote .version .update :branch .branch))
             (elpa (stp-elpa-install pkg-name .remote .version))
+            (archive (stp-archive-install pkg-name .remote))
             (url (stp-url-install pkg-name .remote .version)))
           (stp-update-remotes pkg-name .remote .remote .other-remotes)
           (stp-write-info)
@@ -522,7 +523,7 @@ do-push and proceed arguments are as in `stp-install'."
   (when pkg-name
     (save-window-excursion
       (let-alist (stp-get-alist pkg-name)
-        (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
+        (let* ((chosen-remote (stp-choose-remote "Remote: " .method .remote .other-remotes))
                (extra-versions (and (eq .method 'git)
                                     (or stp-git-upgrade-always-offer-remote-heads
                                         (eq .update 'unstable))
@@ -537,6 +538,7 @@ do-push and proceed arguments are as in `stp-install'."
                         (stp-git-upgrade pkg-name chosen-remote it)))
               (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
                          (stp-elpa-upgrade pkg-name chosen-remote)))
+              (archive (stp-archive-upgrade pkg-name .remote))
               (url (->> (stp-url-read-version prompt)
                         (stp-url-upgrade pkg-name chosen-remote))))
             ;; The call to `stp-get-attribute' can't be replaced with
@@ -1700,4 +1702,4 @@ development or for opening packages from `stp-list-mode'."
           (message "%s was not found in the local filesystem" pkg-name))))))
 
 (provide 'stp)
-;;; stp.el ends here
+;;; stp.el ends her
