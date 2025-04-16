@@ -208,7 +208,7 @@ the new name."
     (and branch
          upstream
          (db (exit-code output)
-             (rem-call-process-shell-command (format "git cherry %s" branch))
+             (rem-call-process-shell-command (format "git cherry %s %s" upstream branch))
            (unless (= exit-code 0)
              (error "git cherry failed: %s" (s-trim output)))
            (not (string= (s-trim output) ""))))))
