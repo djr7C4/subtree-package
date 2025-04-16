@@ -427,6 +427,12 @@ active."
   (when stp-latest-versions-cache
     (stp-list-update-latest-version pkg-name :quiet t :async stp-latest-version-async)))
 
+(defun stp-prune-cached-latest-versions ()
+  (let ((pkg-names (stp-info-names)))
+    (setq stp-latest-versions-cache (map-filter (lambda (pkg-name _pkg-alist)
+                                                  (member pkg-name pkg-names))
+                                                stp-latest-versions-cache))))
+
 (defun stp-install-command ()
   "Install a package interactively as a git subtree. If
 `stp-auto-commit', `stp-auto-push', and `stp-auto-post-actions'
@@ -1311,6 +1317,7 @@ the same time unless PARALLEL is non-nil."
                        :async async
                        :focus (not async))))
   (stp-refresh-info)
+  (stp-prune-cached-latest-versions)
   (db (quiet-toplevel quiet-packages)
       (cl-case quiet
         ((nil)
@@ -1360,7 +1367,7 @@ the same time unless PARALLEL is non-nil."
                    (stp-list-refresh :quiet t)
                    (setq skipped-refresh nil
                          last-refresh (float-time)))))
-             (lambda (latest-versions)
+             (lambda (_latest-versions)
                (when skipped-refresh
                  (when focus
                    (stp-list-focus-package skipped-refresh :recenter-arg -1))
