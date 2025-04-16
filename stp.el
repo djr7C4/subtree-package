@@ -427,11 +427,13 @@ active."
   (when stp-latest-versions-cache
     (stp-list-update-latest-version pkg-name :quiet t :async stp-latest-version-async)))
 
-(defun stp-prune-cached-latest-versions ()
+(defun stp-prune-cached-latest-versions (&optional pkg-name)
   (let ((pkg-names (stp-info-names)))
-    (setq stp-latest-versions-cache (map-filter (lambda (pkg-name _pkg-alist)
-                                                  (member pkg-name pkg-names))
-                                                stp-latest-versions-cache))))
+    (if pkg-name
+        (setq stp-latest-versions-cache (map-delete stp-latest-versions-cache pkg-name))
+      (setq stp-latest-versions-cache (map-filter (lambda (pkg-name _pkg-alist)
+                                                    (member pkg-name pkg-names))
+                                                  stp-latest-versions-cache)))))
 
 (defun stp-install-command ()
   "Install a package interactively as a git subtree. If
@@ -509,8 +511,8 @@ as in `stp-install'."
                                    do-commit
                                    do-push)
               (when refresh
-                (stp-update-cached-latest pkg-name)
-                (stp-list-refresh :quiet t)))
+                (stp-list-refresh :quiet t))
+              (stp-prune-cached-latest-versions pkg-name))
           (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
