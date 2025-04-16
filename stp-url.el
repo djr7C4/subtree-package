@@ -30,6 +30,7 @@
 
 (defun stp-url-safe-remote-p (remote)
   (or (not remote)
+      (symbolp remote)
       (let ((domain (if (f-exists-p remote)
                         ;; Handle local paths which cannot be parsed by
                         ;; `url-generic-parse-url'.

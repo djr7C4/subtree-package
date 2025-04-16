@@ -26,6 +26,30 @@
   (and (symbolp remote)
        (map-elt package-archives (symbol-name remote))))
 
+(defvar stp-archive-stable-archives '("gnu" "nongnu" "melpa-stable"))
+
+(defun stp-archive-stable-p (remote)
+  (when (symbolp remote)
+    (setq remote (symbol-name remote)))
+  (member remote stp-archive-stable-archives))
+
+(defun stp-archive-latest-version (pkg-name remote)
+  (let ((desc (stp-archive-get-desc pkg-name (symbol-name remote))))
+    (and desc (package-version-join (package-desc-version desc)))))
+
+(defun stp-archive-latest-stable-version (pkg-name remote)
+  (when (stp-archive-stable-p remote)
+    (stp-archive-latest-version pkg-name remote)))
+
+(defun stp-archive-latest-unstable-version (pkg-name remote)
+  (unless (stp-archive-stable-p remote)
+    (stp-archive-latest-version pkg-name remote)))
+
+(defun stp-archive-version-upgradable-p (pkg-name remote)
+  (let-alist (stp-get-alist pkg-name)
+    (let ((latest-version (stp-archive-latest-version pkg-name remote)))
+      (and latest-version (version< .version latest-version)))))
+
 (defvar stp-archive-async-refresh-running nil)
 
 (defvar stp-archive-last-refreshed most-negative-fixnum)
@@ -90,6 +114,8 @@ refresh even if the last refresh was less than
 
 (defun stp-archive-get-desc (pkg-name archive)
   "Find the `package-desc' for PKG-NAME in ARCHIVE."
+  (when (symbolp archive)
+    (setq archive (symbol-name archive)))
   (cl-find-if (lambda (desc)
                 (string= (package-desc-archive desc) archive))
               (stp-achive-get-descs pkg-name)))

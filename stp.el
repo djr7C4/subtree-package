@@ -483,6 +483,9 @@ the package has been installed."
             (url (stp-url-install pkg-name .remote .version)))
           (stp-update-remotes pkg-name .remote .remote .other-remotes)
           (stp-write-info)
+          ;; For archives, the version is determined automatically instead of
+          ;; being read and so .version will be nil here.
+          (setq .version (stp-get-attribute pkg-name 'version))
           (stp-git-commit-push (format "Installed version %s of %s"
                                        (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                        pkg-name)
@@ -1100,7 +1103,7 @@ that many packages."
   (let-alist (map-merge 'alist
                         (map-elt stp-latest-versions-cache pkg-name)
                         (stp-get-alist pkg-name))
-    (stp-version-upgradable-p .method .count-to-stable .count-to-unstable .update)))
+    (stp-version-upgradable-p pkg-name .method .remote .count-to-stable .count-to-unstable .update)))
 
 (defun stp-list-next-upgradable (&optional n)
   "Go to the next package that can be repaired. With a prefix
@@ -1151,43 +1154,49 @@ prefix argument, go forward that many packages."
 
 (defun stp-latest-version (pkg-name pkg-alist)
   (let-alist pkg-alist
-    (cl-ecase .method
-      (git
-       (let* ((latest-stable (stp-git-latest-stable-version .remote))
-              (latest-unstable (stp-git-latest-unstable-version .remote (or .branch "HEAD")))
-              (commits-to-stable (and latest-stable
-                                      (stp-git-count-remote-commits .remote .version latest-stable :branch .branch :both t)))
-              (commits-to-unstable (and latest-unstable
-                                        (stp-git-count-remote-commits .remote .version latest-unstable :branch .branch :both t)))
-              (version-timestamp (and .version (stp-git-remote-timestamp .remote .version)))
-              (stable-timestamp (and latest-stable (stp-git-remote-timestamp .remote latest-stable)))
-              (unstable-timestamp (and latest-unstable (stp-git-remote-timestamp .remote latest-unstable)))
-              (timestamp (float-time)))
-         (when (or latest-stable latest-unstable commits-to-stable commits-to-unstable)
+    (let ((timestamp (float-time)))
+      (cl-ecase .method
+        (git
+         (let* ((latest-stable (stp-git-latest-stable-version .remote))
+                (latest-unstable (stp-git-latest-unstable-version .remote (or .branch "HEAD")))
+                (commits-to-stable (and latest-stable
+                                        (stp-git-count-remote-commits .remote .version latest-stable :branch .branch :both t)))
+                (commits-to-unstable (and latest-unstable
+                                          (stp-git-count-remote-commits .remote .version latest-unstable :branch .branch :both t)))
+                (version-timestamp (and .version (stp-git-remote-timestamp .remote .version)))
+                (stable-timestamp (and latest-stable (stp-git-remote-timestamp .remote latest-stable)))
+                (unstable-timestamp (and latest-unstable (stp-git-remote-timestamp .remote latest-unstable))))
+           (when (or latest-stable latest-unstable commits-to-stable commits-to-unstable)
+             (append (list pkg-name)
+                     (and latest-stable (list `(latest-stable . ,latest-stable)))
+                     (and latest-unstable (list `(latest-unstable . ,latest-unstable)))
+                     (and commits-to-stable (list `(count-to-stable . ,commits-to-stable)))
+                     (and commits-to-unstable (list `(count-to-unstable . ,commits-to-unstable)))
+                     (and version-timestamp (list `(version-timestamp . ,version-timestamp)))
+                     (and stable-timestamp (list `(stable-timestamp . ,stable-timestamp)))
+                     (and unstable-timestamp (list `(unstable-timestamp . ,unstable-timestamp)))
+                     (list `(updated . ,timestamp))))))
+        (elpa
+         (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))
+                (versions-to-stable (and latest-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable))))
+           (unless latest-stable
+             (error "Failed to get the latest stable version for %s" pkg-name))
+           ;; Occasionally, it is possible we may run into a package when
+           ;; versions-to-stable is nil because the current version is invalid and
+           ;; does not appear in the list of versions on ELPA.
+           (append `(,pkg-name
+                     (latest-stable . ,latest-stable))
+                   (and versions-to-stable (list `(count-to-stable . ,versions-to-stable)))
+                   (list `(updated . ,timestamp)))))
+        (archive
+         (let ((latest-stable (stp-archive-latest-stable-version pkg-name .remote))
+               (latest-unstable (stp-archive-latest-unstable-version pkg-name .remote)))
            (append (list pkg-name)
                    (and latest-stable (list `(latest-stable . ,latest-stable)))
                    (and latest-unstable (list `(latest-unstable . ,latest-unstable)))
-                   (and commits-to-stable (list `(count-to-stable . ,commits-to-stable)))
-                   (and commits-to-unstable (list `(count-to-unstable . ,commits-to-unstable)))
-                   (and version-timestamp (list `(version-timestamp . ,version-timestamp)))
-                   (and stable-timestamp (list `(stable-timestamp . ,stable-timestamp)))
-                   (and unstable-timestamp (list `(unstable-timestamp . ,unstable-timestamp)))
-                   (list `(updated . ,timestamp))))))
-      (elpa
-       (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))
-              (versions-to-stable (and latest-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable)))
-              (timestamp (float-time)))
-         (unless latest-stable
-           (error "Failed to get the latest stable version for %s" pkg-name))
-         ;; Occasionally, it is possible we may run into a package when
-         ;; versions-to-stable is nil because the current version is invalid and
-         ;; does not appear in the list of versions on ELPA.
-         (append `(,pkg-name
-                   (latest-stable . ,latest-stable))
-                 (and versions-to-stable (list `(count-to-stable . ,versions-to-stable)))
-                 (list `(updated . ,timestamp)))))
-      (url
-       nil))))
+                   (list `(updated . ,timestamp)))))
+        (url
+         nil)))))
 
 (defvar stp-latest-num-processes 16
   "The number of processes to use in parallel to compute the latest
@@ -1477,21 +1486,23 @@ the same time unless PARALLEL is non-nil."
                           it
                           :test #'equal)))
 
-(defun stp-version-upgradable-p (method count-to-stable count-to-unstable update)
+(defun stp-version-upgradable-p (pkg-name method remote count-to-stable count-to-unstable update)
   "Check if the package can be upgraded to a newer version."
   (cl-ecase method
     (git
      (stp-git-version-upgradable-p count-to-stable count-to-unstable update))
     (elpa
      (stp-elpa-version-upgradable-p count-to-stable))
+    (archive
+     (stp-archive-version-upgradable-p pkg-name remote))
     ;; URL packages are treated as never being upgradable but this isn't
     ;; reliable since they have no version information available.
     (url)))
 
-(defun stp-list-version-field (method version count-to-stable count-to-unstable update)
+(defun stp-list-version-field (pkg-name method remote version count-to-stable count-to-unstable update)
   (if version
       (let ((version-string (stp-list-abbreviate-version method version)))
-        (if (stp-version-upgradable-p method count-to-stable count-to-unstable update)
+        (if (stp-version-upgradable-p pkg-name method remote count-to-stable count-to-unstable update)
             (propertize version-string 'face stp-list-upgradable-face)
           version-string))
     stp-list-missing-field-string))
@@ -1553,7 +1564,7 @@ asynchronously."
               (let-alist (map-merge 'alist version-alist (stp-get-alist pkg-name))
                 (insert (format "%s %s %s %s %s %s %s\n"
                                 (stp-name pkg-name)
-                                (or (stp-list-version-field .method .version .count-to-stable .count-to-unstable .update)
+                                (or (stp-list-version-field pkg-name .method .remote .version .count-to-stable .count-to-unstable .update)
                                     (propertize stp-list-missing-field-string 'face stp-list-error-face))
                                 (or (when stp-latest-versions-cache
                                       (or (when version-alist
