@@ -442,7 +442,7 @@ is negated relative to the default."
     (stp-with-memoization
       (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :line-pkg nil)))))
 
-(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t) prompt-for-remote)
+(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t))
   "Install a package named pkg-name that has the alist pkg-alist. If
 do-commit is non-nil, then automatically commit to the Git
 repository after installing the package. If both do-commit and
@@ -454,33 +454,27 @@ the package has been installed."
   (when pkg-name
     (save-window-excursion
       (let-alist pkg-alist
-        ;; Don't prompt for the remote when one is already known. This
-        ;; prevents prompting the user twice in `stp-git-upgrade' when
-        ;; pulling the new subtree in fails and the package has to be
-        ;; uninstalled and reinstalled manually.
-        (let ((chosen-remote (or (and (not prompt-for-remote) .remote)
-                                 (stp-choose-remote "Remote: " .remote .other-remotes))))
-          ;; Guess the method if it isn't already known.
-          (unless .method
-            (setq .method (stp-remote-method chosen-remote))
-            (stp-set-attribute pkg-name 'method .method))
-          (when (stp-url-safe-remote-p chosen-remote)
-            (cl-ecase .method
-              (git (stp-git-install pkg-name chosen-remote .version .update :branch .branch))
-              (elpa (stp-elpa-install pkg-name chosen-remote .version))
-              (url (stp-url-install pkg-name chosen-remote .version)))
-            (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
-            (stp-write-info)
-            (stp-git-commit-push (format "Installed version %s of %s"
-                                         (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
-                                         pkg-name)
-                                 do-commit
-                                 do-push)
-            (when do-actions
-              (stp-post-actions pkg-name))
-            (when refresh
-              (stp-update-cached-latest pkg-name)
-              (stp-list-refresh :quiet t))))))))
+        ;; Guess the method if it isn't already known.
+        (unless .method
+          (setq .method (stp-remote-method .remote))
+          (stp-set-attribute pkg-name 'method .method))
+        (when (stp-url-safe-remote-p .remote)
+          (cl-ecase .method
+            (git (stp-git-install pkg-name .remote .version .update :branch .branch))
+            (elpa (stp-elpa-install pkg-name .remote .version))
+            (url (stp-url-install pkg-name .remote .version)))
+          (stp-update-remotes pkg-name .remote .remote .other-remotes)
+          (stp-write-info)
+          (stp-git-commit-push (format "Installed version %s of %s"
+                                       (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                       pkg-name)
+                               do-commit
+                               do-push)
+          (when do-actions
+            (stp-post-actions pkg-name))
+          (when refresh
+            (stp-update-cached-latest pkg-name)
+            (stp-list-refresh :quiet t)))))))
 
 (defun stp-uninstall-command ()
   "Uninstall a package interactively."
