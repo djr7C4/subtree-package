@@ -531,6 +531,9 @@ do-push and proceed arguments are as in `stp-install'."
   (when pkg-name
     (save-window-excursion
       (let-alist (stp-get-alist pkg-name)
+        ;; Automatically determine missing other remotes for archive packages.
+        (when (eq .method 'archive)
+          (setq .other-remotes (cl-set-difference (stp-archives pkg-name) (cons .remote .other-remotes))))
         (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
                (extra-versions (and (eq .method 'git)
                                     (or stp-git-upgrade-always-offer-remote-heads
@@ -642,32 +645,36 @@ package info to `stp-info-file'"
 `completing-read-multiple'. The first chosen will be remotes and
 the rest will be other-remotes."
   (let-alist (stp-get-alist pkg-name)
-    (when (and pkg-name .remote)
-      (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
-             (new-remote (car new-remotes))
-             (new-other-remotes (cdr new-remotes))
-             (invalid-remotes (-filter (lambda (remote)
-                                         (not (stp-valid-remote-p remote .method)))
-                                       new-remotes)))
-        (unless new-remotes
-          (user-error "At least one remote must be specified"))
-        (when invalid-remotes
-          (user-error "%s %s not valid for method %s"
-                      (if (= (length invalid-remotes) 1) "is" "are")
-                      (rem-join-and invalid-remotes) .method))
-        (stp-set-attribute pkg-name 'remote new-remote)
-        (if new-other-remotes
-            (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
-          (stp-delete-attribute pkg-name 'other-remotes))
-        (stp-write-info)
-        (stp-git-commit-push (format "Set remote to %s and other remotes to %S for %s"
-                                     new-remote
-                                     new-other-remotes
-                                     pkg-name)
-                             do-commit
-                             do-push)
-        (when refresh
-          (stp-list-refresh :quiet t))))))
+    (if (and pkg-name .remote (not (eq .method 'archive)))
+        (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
+               (new-remote (car new-remotes))
+               (new-other-remotes (cdr new-remotes))
+               (invalid-remotes (-filter (lambda (remote)
+                                           (not (stp-valid-remote-p remote .method)))
+                                         new-remotes)))
+          (unless new-remotes
+            (user-error "At least one remote must be specified"))
+          (when invalid-remotes
+            (user-error "%s %s not valid for method %s"
+                        (if (= (length invalid-remotes) 1) "is" "are")
+                        (rem-join-and invalid-remotes) .method))
+          (stp-set-attribute pkg-name 'remote new-remote)
+          (if new-other-remotes
+              (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
+            (stp-delete-attribute pkg-name 'other-remotes))
+          (stp-write-info)
+          (stp-git-commit-push (format "Set remote to %s and other remotes to %S for %s"
+                                       new-remote
+                                       new-other-remotes
+                                       pkg-name)
+                               do-commit
+                               do-push)
+          (when refresh
+            (stp-list-refresh :quiet t)))
+      (message "There are no remotes to edit%s"
+               (if pkg-name
+                   (format "for %s" pkg-name)
+                 "")))))
 
 (defun stp-toggle-update-command ()
   "Toggle the update attribute of a package interactively."
