@@ -119,7 +119,7 @@ remote or archive. Archives are represented as symbols."
         (archive
          `(,pkg-name
            (method . ,method)
-           (archive . ,(symbol-name remote))))
+           (remote . ,remote)))
         ((elpa url)
          (unless (or (and (string-match-p rem-strict-url-regexp remote)
                           (url-file-exists-p remote))
