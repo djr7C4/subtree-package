@@ -196,6 +196,8 @@ IGNORED-METHODS are not considered."
                          (and (not (memq (car cell) ignored-methods))
                               (funcall (cdr cell) remote)))
                        stp-remote-valid-alist))
+      ;; Archives are represented as symbols whose `symbol-name' is the archive.
+      (and (symbolp remote) 'archive)
       (unless noerror
         (error "Invalid remote: %s" remote))))
 

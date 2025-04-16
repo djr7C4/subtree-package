@@ -97,9 +97,7 @@ remote or archive. Archives are represented as symbols."
   (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
                                                               :pkg-name pkg-name
                                                               :default-remote (map-elt pkg-alist 'remote)))
-          (method (if (symbolp remote)
-                      'archive
-                    (stp-remote-method remote))))
+          (method (stp-remote-method remote)))
     (let (version update branch)
       (cl-ecase method
         (git
