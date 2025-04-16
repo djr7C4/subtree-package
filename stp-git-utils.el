@@ -203,8 +203,10 @@ the new name."
   (and (not (stp-git-status)) t))
 
 (defun stp-git-unpushed-p ()
-  (let* ((branch (stp-git-current-branch)))
+  (let* ((branch (stp-git-current-branch))
+         (upstream (stp-git-upstream-branch)))
     (and branch
+         upstream
          (db (exit-code output)
              (rem-call-process-shell-command (format "git cherry %s" branch))
            (unless (= exit-code 0)
@@ -228,6 +230,15 @@ the new name."
 (defun stp-git-merge-conflict-p ()
   "Determine if there are unmerged changes."
   (and (stp-git-conflicted-files) t))
+
+(defun stp-git-upstream-branch (&optional branch)
+  "Get the upstream branch of BRANCH if it exists. Otherwise, return
+nil. BRANCH defualts to the current branch."
+  (setq branch (or branch ""))
+  (db (exit-code output)
+      (rem-call-process-shell-command (format "git rev-parse --abbrev-ref %s@{upstream}" branch))
+    (when (= exit-code 0)
+      (s-trim output))))
 
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
