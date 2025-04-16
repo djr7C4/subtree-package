@@ -63,7 +63,8 @@
 
 (defun stp-git-valid-remote-p (remote)
   "Determine if remote is a valid git repository."
-  (= (call-process-shell-command (format "git ls-remote -h '%s'" remote)) 0))
+  (and (stringp remote)
+       (= (call-process-shell-command (format "git ls-remote -h '%s'" remote)) 0)))
 
 (cl-defun stp-git-valid-remote-ref-p (remote ref-or-hash &optional ask-p)
   ;; Check if ref-or-hash is a ref on remote or if it is a hash that matches a

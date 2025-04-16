@@ -20,9 +20,10 @@
 (require 'url-parse)
 
 (defun stp-url-valid-remote-p (remote)
-  (or (f-exists-p remote)
-      (let ((url (url-generic-parse-url remote)))
-        (and url remote))))
+  (and (stringp remote)
+       (or (f-exists-p remote)
+           (let ((url (url-generic-parse-url remote)))
+             (and url remote)))))
 
 (defvar stp-url-unsafe-regexps '("emacswiki\\.org")
   "The user should be warned before downloading from an unsafe URL.")

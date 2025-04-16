@@ -19,18 +19,19 @@
 (require 'url-parse)
 
 (defun stp-elpa-valid-remote-p (remote)
-  (let ((url (url-generic-parse-url remote)))
-    (and url
-         (let* ((host (url-host url))
-                (filename (url-filename url))
-                (dir (f-dirname filename)))
-           (and host
-                filename
-                (cond
-                 ((string= host "elpa.gnu.org")
-                  (string= dir "/packages"))
-                 ((string= host "elpa.nongnu.org")
-                  (string= dir "/nongnu"))))))))
+  (and (stringp remote)
+       (let ((url (url-generic-parse-url remote)))
+         (and url
+              (let* ((host (url-host url))
+                     (filename (url-filename url))
+                     (dir (f-dirname filename)))
+                (and host
+                     filename
+                     (cond
+                      ((string= host "elpa.gnu.org")
+                       (string= dir "/packages"))
+                      ((string= host "elpa.nongnu.org")
+                       (string= dir "/nongnu")))))))))
 
 (defvar stp-elpa-remote-history nil)
 
