@@ -523,7 +523,7 @@ do-push and proceed arguments are as in `stp-install'."
   (when pkg-name
     (save-window-excursion
       (let-alist (stp-get-alist pkg-name)
-        (let* ((chosen-remote (stp-choose-remote "Remote: " .method .remote .other-remotes))
+        (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
                (extra-versions (and (eq .method 'git)
                                     (or stp-git-upgrade-always-offer-remote-heads
                                         (eq .update 'unstable))
