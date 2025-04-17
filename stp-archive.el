@@ -34,7 +34,9 @@
   (member remote stp-archive-stable-archives))
 
 (defun stp-archive-latest-version (pkg-name remote)
-  (let ((desc (stp-archive-get-desc pkg-name (symbol-name remote))))
+  (when (symbolp remote)
+    (setq remote (symbol-name remote)))
+  (let ((desc (stp-archive-get-desc pkg-name remote)))
     (and desc (package-version-join (package-desc-version desc)))))
 
 (defun stp-archive-latest-stable-version (pkg-name remote)
