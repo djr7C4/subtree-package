@@ -221,65 +221,64 @@ occurred."
                         (stp-set-attribute pkg-name 'other-remotes valid-other-remotes)))
                     (db (version update)
                         (stp-git-subtree-version pkg-name)
-                      (let ((no-subtree (not version)))
-                        (cl-case .method
-                          (git
-                           ;; First make sure that the remote is valid. This has to
-                           ;; be done first since `stp-git-subtree-version' needs to
-                           ;; know the remote.
-                           (unless (stp-git-valid-remote-p .remote)
-                             (setq .remote (funcall callback 'invalid-git-remote pkg-name)))
-                           (if .remote
-                               (stp-set-attribute pkg-name 'remote .remote)
-                             (unless quiet
-                               (message "Failed to determine the remote of %s" pkg-name)))
-                           ;; Use callback to determine the version if it could not
-                           ;; be deduced above.
-                           (setq version (or version (funcall callback 'unknown-git-version pkg-name)))
-                           (if version
-                               ;; Only update hashes if they are different. Shorter
-                               ;; versions of hashes are acceptable if
-                               ;; `stp-repair-allow-abbreviated-hashes' is non-nil.
-                               (unless (and stp-repair-allow-abbreviated-hashes
-                                            (stp-git-hash= version .version))
-                                 (stp-set-attribute pkg-name 'version version))
-                             (unless quiet
-                               (message "Failed to determine the version of %s" pkg-name)))
-                           ;; Use callback to determine update if it could not be
-                           ;; deduced above.
-                           (setq update (or update (funcall callback 'unknown-git-update pkg-name)))
-                           (if update
-                               (progn
-                                 (stp-set-attribute pkg-name 'update update)
-                                 (when (eq update 'unstable)
-                                   ;; If the 'update attribute is 'unstable, there
-                                   ;; should be a 'branch attribute. If it is
-                                   ;; missing, we try to get it from the callback
-                                   ;; function. If that doesn't work, we assume that
-                                   ;; it should be the master branch.
-                                   (setq .branch
-                                         (or .branch
-                                             (funcall callback 'unknown-git-branch pkg-name)))
-                                   (if .branch
-                                       (progn
-                                         (stp-set-attribute pkg-name 'branch .branch))
-                                     (unless quiet
-                                       (message "Failed to determine the update mechanism for %s" pkg-name)))))))
-                          (elpa
-                           (funcall callback 'partial-elpa-package pkg-name))
-                          (archive
-                           (funcall callback 'partial-archive-package pkg-name))
-                          (url
-                           (funcall callback 'partial-url-package pkg-name))
-                          ;; nil means that we were unable to determine the method.
-                          ;; In this case, we obtain the information via callbacks.
-                          ((nil)
-                           (funcall callback 'unknown-package pkg-name)))
-                        ;; Ensure that the package was installed as a subtree.
-                        (when (and no-subtree
-                                   (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
-                                                        pkg-name)))
-                          (stp-reinstall pkg-name version)))))
+                      (cl-case .method
+                        (git
+                         ;; First make sure that the remote is valid. This has to
+                         ;; be done first since `stp-git-subtree-version' needs to
+                         ;; know the remote.
+                         (unless (stp-git-valid-remote-p .remote)
+                           (setq .remote (funcall callback 'invalid-git-remote pkg-name)))
+                         (if .remote
+                             (stp-set-attribute pkg-name 'remote .remote)
+                           (unless quiet
+                             (message "Failed to determine the remote of %s" pkg-name)))
+                         ;; Use callback to determine the version if it could not
+                         ;; be deduced above.
+                         (setq version (or version (funcall callback 'unknown-git-version pkg-name)))
+                         (if version
+                             ;; Only update hashes if they are different. Shorter
+                             ;; versions of hashes are acceptable if
+                             ;; `stp-repair-allow-abbreviated-hashes' is non-nil.
+                             (unless (and stp-repair-allow-abbreviated-hashes
+                                          (stp-git-hash= version .version))
+                               (stp-set-attribute pkg-name 'version version))
+                           (unless quiet
+                             (message "Failed to determine the version of %s" pkg-name)))
+                         ;; Use callback to determine update if it could not be
+                         ;; deduced above.
+                         (setq update (or update (funcall callback 'unknown-git-update pkg-name)))
+                         (if update
+                             (progn
+                               (stp-set-attribute pkg-name 'update update)
+                               (when (eq update 'unstable)
+                                 ;; If the 'update attribute is 'unstable, there
+                                 ;; should be a 'branch attribute. If it is
+                                 ;; missing, we try to get it from the callback
+                                 ;; function. If that doesn't work, we assume that
+                                 ;; it should be the master branch.
+                                 (setq .branch
+                                       (or .branch
+                                           (funcall callback 'unknown-git-branch pkg-name)))
+                                 (if .branch
+                                     (progn
+                                       (stp-set-attribute pkg-name 'branch .branch))
+                                   (unless quiet
+                                     (message "Failed to determine the update mechanism for %s" pkg-name)))))))
+                        (elpa
+                         (funcall callback 'partial-elpa-package pkg-name))
+                        (archive
+                         (funcall callback 'partial-archive-package pkg-name))
+                        (url
+                         (funcall callback 'partial-url-package pkg-name))
+                        ;; nil means that we were unable to determine the method.
+                        ;; In this case, we obtain the information via callbacks.
+                        ((nil)
+                         (funcall callback 'unknown-package pkg-name)))
+                      ;; Ensure that the package was installed as a subtree.
+                      (when (and (not (stp-git-subtree-package-hash pkg-name))
+                                 (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
+                                                      pkg-name)))
+                        (stp-reinstall pkg-name version))))
                 (when (funcall callback 'ghost-package pkg-name)
                   (stp-delete-alist pkg-name)))
               (cl-incf i)
