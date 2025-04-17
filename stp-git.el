@@ -189,7 +189,7 @@ are converted to hashes before they are returned."
       (and count-to-stable (> count-to-stable 0) t)
     (and count-to-unstable (> count-to-unstable 0) t)))
 
-(cl-defun stp-git-install (pkg-name remote version update &key branch (squash t))
+(cl-defun stp-git-install (pkg-name remote version update &key branch (squash t) (set-pkg-info t))
   "Install the specified version of pkg-name from remote in
 `stp-source-directory'."
   (let* ((git-root (stp-git-root stp-source-directory))
@@ -222,7 +222,7 @@ are converted to hashes before they are returned."
                             (list version))))
           (if (= exit-code 0)
               ;; If installation was successful, add the information for the package
-              (progn
+              (when set-pkg-info
                 (setq version (stp-normalize-version pkg-name remote version))
                 (stp-set-alist pkg-name
                                `((method . git)
@@ -237,7 +237,7 @@ are converted to hashes before they are returned."
   "When this is non-nil and git subtree pull fails, attempt to uninstall the
 package and install the new version instead.")
 
-(cl-defun stp-git-upgrade (pkg-name remote version &key (squash t))
+(cl-defun stp-git-upgrade (pkg-name remote version &key (squash t) (set-pkg-info t))
   "Upgrade pkg-name in `stp-source-directory' to the specified version
 from remote."
   (let* ((git-root (stp-git-root stp-source-directory))
@@ -306,27 +306,28 @@ from remote."
           ;; If we get this far it means that either the merge succeeded or
           ;; there was a merge conflict which will be resolved manually by the
           ;; user. Either way, we update the package database.
-          (if (stp-git-remote-head-p remote version)
-              ;; If we update to a head (i.e. a branch), update the branch
-              ;; parameter and store the current hash as the version. Since
-              ;; branches are constantly updated as more commits are pushed to
-              ;; the remote, storing a branch name does not make sense.
-              (progn
-                (stp-set-attribute pkg-name 'version version-hash)
-                (stp-set-attribute pkg-name 'branch version)
-                (stp-set-attribute pkg-name 'update 'unstable))
-            ;; For tags or hashes, use the tag or hash.
-            (setq version (stp-normalize-version pkg-name remote version))
-            (stp-set-attribute pkg-name 'version version)
-            (if (stp-git-remote-tag-p remote version)
-                ;; Tags do not have a branch to update from and are considered
-                ;; stable.
+          (when set-pkg-info
+            (if (stp-git-remote-head-p remote version)
+                ;; If we update to a head (i.e. a branch), update the branch
+                ;; parameter and store the current hash as the version. Since
+                ;; branches are constantly updated as more commits are pushed to
+                ;; the remote, storing a branch name does not make sense.
                 (progn
-                  (stp-delete-attribute pkg-name 'branch)
-                  (stp-set-attribute pkg-name 'update 'stable))
-              ;; If there is a 'branch attribute when updating to a hash,
-              ;; leave it as is.
-              (stp-set-attribute pkg-name 'update 'unstable))))))))
+                  (stp-set-attribute pkg-name 'version version-hash)
+                  (stp-set-attribute pkg-name 'branch version)
+                  (stp-set-attribute pkg-name 'update 'unstable))
+              ;; For tags or hashes, use the tag or hash.
+              (setq version (stp-normalize-version pkg-name remote version))
+              (stp-set-attribute pkg-name 'version version)
+              (if (stp-git-remote-tag-p remote version)
+                  ;; Tags do not have a branch to update from and are considered
+                  ;; stable.
+                  (progn
+                    (stp-delete-attribute pkg-name 'branch)
+                    (stp-set-attribute pkg-name 'update 'stable))
+                ;; If there is a 'branch attribute when updating to a hash,
+                ;; leave it as is.
+                (stp-set-attribute pkg-name 'update 'unstable)))))))))
 
 (provide 'stp-git)
 ;;; stp-git.el ends here

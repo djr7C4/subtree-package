@@ -68,8 +68,8 @@
           ;; Note that squashing is necessary because otherwise git will refuse
           ;; to merge unrelated histories.
           (if (eq action 'install)
-              (stp-git-install pkg-name repo branch 'unstable  :squash t)
-            (stp-git-upgrade pkg-name repo branch :squash t))
+              (stp-git-install pkg-name repo branch 'unstable :squash t :set-pkg-info nil)
+            (stp-git-upgrade pkg-name repo branch :squash t :set-pkg-info nil))
         (f-delete repo t)))
     (stp-set-attribute pkg-name 'remote remote)
     (stp-set-attribute pkg-name 'version version)))
