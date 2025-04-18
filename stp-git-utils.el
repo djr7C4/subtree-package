@@ -137,7 +137,7 @@ repository."
 
 (cl-defun stp-git-fetch (remote &key force refspec)
   (db (exit-code output)
-      (rem-call-process-shell-command (format "git fetch%s \"%s\"%s"
+      (rem-call-process-shell-command (format "git fetch --no-tags%s \"%s\"%s"
                                               (if force
                                                   " --force"
                                                 "")
