@@ -318,19 +318,24 @@ automatically loaded.")
   (when (stp-git-merge-conflict-p)
     (user-error "Merge conflicts must be resolved before running this command")))
 
+(defun stp-maybe-ensure-clean ()
+  (unless (stp-git-clean-or-ask-p)
+    (user-error "Aborted: the repository is unclean")))
+
 (defun stp-commit-push-args ()
   (stp-ensure-no-merge-conflicts)
-  (if current-prefix-arg
-      (list :do-commit (not stp-auto-commit)
-            :do-push (and (not stp-auto-commit) (not stp-auto-push)))
-    (list :do-commit stp-auto-commit :do-push stp-auto-push)))
+  (let ((args (if current-prefix-arg
+                  (list :do-commit (not stp-auto-commit)
+                        :do-push (and (not stp-auto-commit) (not stp-auto-push)))
+                (list :do-commit stp-auto-commit :do-push stp-auto-push))))
+    (when (plist-get args :do-commit)
+      (stp-maybe-ensure-clean))))
 
 (defun stp-commit-push-action-args ()
-  (stp-ensure-no-merge-conflicts)
   (append (stp-commit-push-args)
           (list :do-actions (if current-prefix-arg
                                 (not stp-auto-post-actions)
-                                stp-auto-post-actions))))
+                              stp-auto-post-actions))))
 
 (defvar stp-list-version-length 16)
 
@@ -402,21 +407,15 @@ default), any data that would normally be read from the user will
 be inferred from the cursor position when `stp-list-mode' is
 active."
   (stp-with-package-source-directory
-    (stp-ensure-no-merge-conflicts)
     (plet* ((args (if actions
                       (stp-commit-push-action-args)
                     (stp-commit-push-args)))
             (do-commit (plist-get args :do-commit))
-            (proceed (or (not do-commit)
-                         (stp-git-clean-or-ask-p)))
-            (`(,pkg-name . ,pkg-alist) (and proceed
-                                            read-pkg-alist
-                                            (stp-read-package)))
-            (pkg-name (and proceed
-                           (or pkg-name
-                               (if line-pkg
-                                   (stp-list-read-package "Package name: ")
-                                 (stp-read-name "Package name: "))))))
+            (`(,pkg-name . ,pkg-alist) (and read-pkg-alist (stp-read-package)))
+            (pkg-name (or pkg-name
+                          (if line-pkg
+                              (stp-list-read-package "Package name: ")
+                            (stp-read-name "Package name: ")))))
       (append (list pkg-name)
               (when read-pkg-alist
                 (list pkg-alist))
@@ -627,20 +626,18 @@ arguments are as in `stp-install'."
   (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
-      (apply #'stp-repair-all (append (stp-commit-push-args) (list :interactive-p t))))))
+      (apply #'stp-repair-all (stp-commit-push-args)))))
 
-(cl-defun stp-repair-all (&key do-commit do-push (refresh t) interactive-p)
+(cl-defun stp-repair-all (&key do-commit do-push (refresh t))
   "Run `stp-repair-info' and write the repaired package info to
 `stp-info-file'."
-  (when (and interactive-p
-             (stp-git-clean-or-ask-p))
-    (stp-refresh-info)
-    (save-window-excursion
-      (stp-repair-info :quiet nil)
-      (stp-write-info)
-      (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
-      (when refresh
-        (stp-list-refresh :quiet t)))))
+  (stp-refresh-info)
+  (save-window-excursion
+    (stp-repair-info :quiet nil)
+    (stp-write-info)
+    (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
+    (when refresh
+      (stp-list-refresh :quiet t))))
 
 (defun stp-edit-remotes-command ()
   "Edit the remotes of a package interactively and write the new
