@@ -285,8 +285,8 @@ nil. BRANCH defualts to the current branch."
   (s-left stp-git-abbreviated-hash-length hash))
 
 (defun stp-git-subtree-hash (path)
-  "Determine the hash that was last merged into the subtree at pkg-name from the
-remote repository."
+  "Determine the hash that was last added or merged into the subtree
+at pkg-name from the remote repository."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (let ((default-directory path))
