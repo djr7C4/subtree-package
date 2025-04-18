@@ -311,8 +311,8 @@ upgraded. The value t indicates that all post actions should be
 performed.")
 
 (defvar stp-auto-load t
-  "This variable indicates if newly installed packages should be
-automatically loaded.")
+  "This variable indicates if newly installed or upgraded packages
+should be automatically loaded.")
 
 (defun stp-ensure-no-merge-conflicts ()
   (when (stp-git-merge-conflict-p)
