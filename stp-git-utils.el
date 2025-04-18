@@ -291,12 +291,12 @@ at pkg-name from the remote repository."
     (error "The directory %s does not exist" path))
   (let ((default-directory path))
     (db (exit-code output)
-        (rem-call-process-shell-command (format "git log --grep 'git-subtree-dir: %s' -n 1 --oneline" (rem-no-slash (f-relative path (stp-git-root)))))
+        (rem-call-process-shell-command (format "git log --grep '^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$' -n 1" (rem-no-slash (f-relative path (stp-git-root)))))
       (setq output (s-trim output))
       (and (= exit-code 0)
            (> (length output) 0)
            (save-match-data
-             (string-match "\\(?:[0-9a-fA-F]+..\\|commit \\)\\([0-9a-fA-F]+\\)$" output)
+             (string-match "^[ \t]*git-subtree-split:[ \t]*\\([A-Fa-f0-9]+\\)[ \t]*" output)
              (match-string 1 output))))))
 
 (defun stp-git-subtree-p (path)
