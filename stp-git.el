@@ -34,9 +34,9 @@
   (let ((pkg-path (stp-canonical-path pkg-name)))
     (stp-git-tree pkg-path)))
 
-(defun stp-git-subtree-package-modified-p (pkg-name)
+(defun stp-git-subtree-package-modified-p (pkg-name &optional remote ref)
   (let ((pkg-path (stp-canonical-path pkg-name)))
-    (stp-git-subtree-modified-p pkg-path)))
+    (stp-git-subtree-modified-p pkg-path remote ref)))
 
 (defun stp-git-tree-package-modified-p (pkg-name)
   (let ((pkg-path (stp-canonical-path pkg-name)))
@@ -314,7 +314,7 @@ from remote."
                          (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
               (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
               nil)
-            (stp-reinstall pkg-name version :skip-subtree-check t))
+            (stp-reinstall pkg-name version))
            ;; Handle git subtree merge/pull errors and when the user chose not
            ;; to proceed with uninstalling and reinstalling the package.
            (t

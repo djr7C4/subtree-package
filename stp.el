@@ -278,7 +278,7 @@ occurred."
                       (when (and (not (stp-git-subtree-package-commit pkg-name))
                                  (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
                                                       pkg-name)))
-                        (stp-reinstall pkg-name version :skip-subtree-check t))))
+                        (stp-reinstall pkg-name version))))
                 (when (funcall callback 'ghost-package pkg-name)
                   (stp-delete-alist pkg-name)))
               (cl-incf i)
@@ -597,21 +597,22 @@ do-push and proceed arguments are as in `stp-install'."
   ;; loss of their customizations to the package. This is done by checking the
   ;; git history, the worktree and the staged changes for modifications to the
   ;; package.
-  (when (and (or (and (not skip-subtree-check)
-                      (stp-git-subtree-package-modified-p pkg-name))
-                 (stp-git-tree-package-modified-p pkg-name))
-             (not (yes-or-no-p (format "The package %s has been manually modified. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
-    (user-error "Reinstall aborted"))
-  (let ((pkg-alist (stp-get-alist pkg-name)))
-    ;; Committing is required here because otherwise `git-install' will fail.
-    ;; Refreshing the stp-list-buffer-name buffer is suppressed since that will
-    ;; be done by stp-upgrade (which calls this command).
-    (stp-uninstall pkg-name :do-commit t :refresh nil)
-    (setf (map-elt pkg-alist 'version) version)
-    ;; The :do-commit argument is not required here. The decisions to
-    ;; commit, push or perform post actions will be handled at a
-    ;; higher level by `stp-upgrade'.
-    (stp-install pkg-name pkg-alist :do-commit do-commit :do-push do-push :do-actions do-actions :refresh refresh)))
+  (let-alist (stp-get-alist pkg-name)
+    (when (and (or (and (not skip-subtree-check)
+                        (stp-git-subtree-package-modified-p pkg-name .remote .version))
+                   (stp-git-tree-package-modified-p pkg-name))
+               (not (yes-or-no-p (format "The package %s has been manually modified. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+      (user-error "Reinstall aborted"))
+    (let ((pkg-alist (stp-get-alist pkg-name)))
+      ;; Committing is required here because otherwise `git-install' will fail.
+      ;; Refreshing the stp-list-buffer-name buffer is suppressed since that will
+      ;; be done by stp-upgrade (which calls this command).
+      (stp-uninstall pkg-name :do-commit t :refresh nil)
+      (setf (map-elt pkg-alist 'version) version)
+      ;; The :do-commit argument is not required here. The decisions to
+      ;; commit, push or perform post actions will be handled at a
+      ;; higher level by `stp-upgrade'.
+      (stp-install pkg-name pkg-alist :do-commit do-commit :do-push do-push :do-actions do-actions :refresh refresh))))
 
 (defun stp-repair-command (&optional arg)
   "Repair the stored information for a package interactively. With a

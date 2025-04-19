@@ -333,7 +333,7 @@ that was merged when --squash is used."
     (db (exit-code output)
         (rem-call-process-shell-command
          (format "git log --grep '^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$' -n 1%s"
-                 (rem-no-slash (f-relative path (stp-git-root)))
+                 (rem-no-slash (rem-relative-path path (stp-git-root)))
                  (if format
                      (format " --format='%s'" format)
                    "")))
@@ -353,13 +353,37 @@ merged into the subtree at PATH from the remote repository."
 the subtree at PATH."
   (rem-empty-nil (stp-git-subtree-commit-message path "%T") #'s-trim))
 
-(defun stp-git-subtree-modified-p (path)
+(defun stp-git-rev-parse (path spec)
+  (let ((default-directory path))
+    (db (exit-code output)
+        (rem-call-process-shell-command (format "git rev-parse '%s'" spec))
+      (and (= exit-code 0)
+           (s-trim output)))))
+
+(defun stp-git-commit-tree (path ref)
+  "Determine the hash for the tree associated with REF in the git
+repository at PATH."
+  (stp-git-rev-parse path (format "%s^{tree}" ref)))
+
+(defun stp-git-subtree-modified-p (path &optional remote ref)
   "Determine if the git subtree at PATH has been modified outside of
-git subtree add and merge commands."
+git subtree add and merge commands. If REMOTE and REF are
+provided then they will be used to compute the hash for the
+subtree in the event that it cannot be determined from git log.
+This occurs for example when the subtree was not actually
+installed as a git subtree."
   (let ((tree (stp-git-tree path))
-        (last-tree (stp-git-subtree-tree path)))
-    (unless (and tree last-tree)
-      (error "Unable to find the tree and/or the merged subtree for %s" path))
+        (last-tree (or (stp-git-subtree-tree path)
+                       (and remote
+                            ref
+                            ;; This is slow but should work even when the
+                            ;; subtree was not installed using git subtree add.
+                            (progn
+                              (stp-git-fetch remote)
+                              (stp-git-commit-tree path ref)))
+                       (error "Unable to find the merged git subtree"))))
+    (unless tree
+      (error "Unable to find the git tree for %s" path))
     (not (string= tree last-tree))))
 
 (defun stp-git-subtree-p (path)
