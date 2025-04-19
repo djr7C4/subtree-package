@@ -337,7 +337,7 @@ that was merged when --squash is used."
                  (if format
                      (format " --format='%s'" format)
                    "")))
-      (and (/= exit-code 0) output))))
+      (and (= exit-code 0) output))))
 
 (defun stp-git-subtree-commit (path)
   "Determine the hash of the remote commit that was last added or
@@ -360,7 +360,7 @@ git subtree add and merge commands."
         (last-tree (stp-git-subtree-tree path)))
     (unless (and tree last-tree)
       (error "Unable to find the tree and/or the merged subtree for %s" path))
-    (string= tree last-tree)))
+    (not (string= tree last-tree))))
 
 (defun stp-git-subtree-p (path)
   (and (stp-git-subtree-commit path) t))
