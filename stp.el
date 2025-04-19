@@ -1367,6 +1367,7 @@ the same time unless PARALLEL is non-nil."
         (t
          (list t t)))
     (let* (skipped-refresh
+           updated-pkgs
            (last-refresh most-negative-fixnum)
            (pkg-names (if (eq pkg-names t)
                           (stp-info-names)
@@ -1393,6 +1394,7 @@ the same time unless PARALLEL is non-nil."
              (lambda (latest-version-data)
                (db (pkg-name . version-alist)
                    latest-version-data
+                 (push pkg-name updated-pkgs)
                  (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
                  ;; Don't refresh too often. This prevents the main
                  ;; process from locking up when there are a large
@@ -1413,9 +1415,13 @@ the same time unless PARALLEL is non-nil."
                (unless parallel
                  (setq stp-list-update-latest-versions-running nil))
                (unless quiet-toplevel
-                 (if plural
-                     (message "Finished updating the latest versions for %d packages" (length pkg-names))
-                   (message "Updated the latest version for %s" (car pkg-names)))))
+                 (cond
+                  (plural
+                   (message "Finished updating the latest versions for %d packages (%d failed)" (length updated-pkgs) (- (length pkg-names) (length updated-pkgs))))
+                  (updated-pkgs
+                   (message "Updated the latest version for %s" (car pkg-names)))
+                  (t
+                   (message "Failed to update the latest version for %s" (car pkg-names))))))
              pkg-names
              :quiet quiet-packages
              :async async))
@@ -1621,7 +1627,12 @@ asynchronously."
 (defvar stp-list-auto-refresh-package-archives t)
 
 (defun stp-list (&optional arg)
-  "List the packages installed in `stp-source-directory'. When `stp-list-auto-update-latest-versions', `stp-list-auto-delete-stale-cached-repos' and `stp-list-auto-refresh-package-archives' are non-nil update the latest versions, delete stale cached repositories and refresh the package archives asynchronously."
+  "List the packages installed in `stp-source-directory'. When
+ `stp-list-auto-update-latest-versions',
+ `stp-list-auto-delete-stale-cached-repos' and
+ `stp-list-auto-refresh-package-archives' are non-nil update the
+ latest versions, delete stale cached repositories and refresh
+ the package archives asynchronously."
   (interactive "P")
   (stp-refresh-info)
   (let* ((default-directory stp-source-directory)

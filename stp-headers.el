@@ -15,8 +15,9 @@
 
 (require 'lisp-mnt)
 (require 'rem)
-(require 'stp-utils)
+(require 'stp-git)
 (require 'stp-git-utils)
+(require 'stp-utils)
 
 (defun stp-headers-elisp-requirements ()
   "Return the packages required by the current buffer according to
@@ -145,7 +146,7 @@ non-nil if the header did not exist and was inserted."
                          (last-year (buffer-substring-no-properties (point) last-year-end)))
                     (unless (string= current-year last-year)
                       ;; Detect ranges and change the last year.
-                      (if (looking-back "-[ \t]*")
+                      (if (looking-back "-[ \t]*" nil)
                           (rem-replace-region (point) last-year-end current-year)
                         ;; When the last separator was a comma (e.g. for the years
                         ;; 2020, 2022), we append the current year as a range.

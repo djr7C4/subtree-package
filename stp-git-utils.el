@@ -38,6 +38,34 @@
 
 (def-edebug-spec stp-with-git-root t)
 
+(defun stp-relative-path (pkg-name &optional top-level)
+  "Return the path to pkg-name relative to `stp-source-directory'.
+The return value always ends with a slash. If TOP-LEVEL is
+non-nil, make the path relative to the root of the git repository
+instead."
+  (rem-slash (if top-level
+                 (let ((path (f-join stp-source-directory pkg-name)))
+                   (s-chop-prefix (rem-slash (f-canonical (stp-git-root path)))
+                                  (f-canonical path)))
+               pkg-name)))
+
+(defun stp-split-current-package ()
+  "Return a list containing the name of the package for the current
+file and the relative path to the current file or directory
+within that package."
+  (stp-refresh-info)
+  (let ((path (or buffer-file-name default-directory)))
+    (db (pkg-name k)
+        (->> (stp-info-names)
+             (mapcar (lambda (pkg-name)
+                       (list pkg-name
+                             (->> path
+                                  (s-matched-positions-all (regexp-quote (concat "/" (stp-relative-path pkg-name))))
+                                  last
+                                  caar))))
+             (cl-find-if #'cadr))
+      (list pkg-name (apply #'f-join (cddr (f-split (substring path k))))))))
+
 (defun stp-git-tracked-p (path)
   "Determine if a file in a git repository is tracked."
   ;; This is needed to handle the case when path is a file in
@@ -469,7 +497,7 @@ number of commits n in REF2..REF and return -n."
   ;; (unless (stp-git-valid-ref-p path ref2)
   ;;   (error "%s is not a valid ref for %s" ref2 path))
   (cl-flet ((stp-git-count-commits-forward (ref ref2)
-              (string-to-number (rem-run-command (format "git rev-list --count %s..%s" ref ref2)) :error t)))
+              (string-to-number (rem-run-command (format "git rev-list --count %s..%s" ref ref2) :error t))))
     (let ((default-directory path))
       (or (--first (/= it 0)
                    (append (list (stp-git-count-commits-forward ref ref2))

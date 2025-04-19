@@ -98,17 +98,6 @@ ends with a slash."
       (setq path (f-canonical path)))
     (f-slash path)))
 
-(defun stp-relative-path (pkg-name &optional top-level)
-  "Return the path to pkg-name relative to `stp-source-directory'.
-The return value always ends with a slash. If TOP-LEVEL is
-non-nil, make the path relative to the root of the git repository
-instead."
-  (rem-slash (if top-level
-                 (let ((path (f-join stp-source-directory pkg-name)))
-                   (s-chop-prefix (rem-slash (f-canonical (stp-git-root path)))
-                                  (f-canonical path)))
-               pkg-name)))
-
 (defun stp-git-relative-path (path)
   "Return PATH relative to the git root."
   (rem-relative-path path (stp-git-root)))
@@ -130,23 +119,6 @@ never ends with a slash (nor does it contain any slashes)."
                        (directory-files-recursively pkg-path (regexp-quote pkg-file))))
          (path (car paths)))
     (or path pkg-path)))
-
-(defun stp-split-current-package ()
-  "Return a list containing the name of the package for the current
-file and the relative path to the current file or directory
-within that package."
-  (stp-refresh-info)
-  (let ((path (or buffer-file-name default-directory)))
-    (db (pkg-name k)
-        (->> (stp-info-names)
-             (mapcar (lambda (pkg-name)
-                       (list pkg-name
-                             (->> path
-                                  (s-matched-positions-all (regexp-quote (concat "/" (stp-relative-path pkg-name))))
-                                  last
-                                  caar))))
-             (cl-find-if #'cadr))
-      (list pkg-name (apply #'f-join (cddr (f-split (substring path k))))))))
 
 (defmacro stp-with-package-source-directory (&rest body)
   (declare (indent 0))
