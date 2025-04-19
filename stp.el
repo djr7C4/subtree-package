@@ -278,7 +278,7 @@ occurred."
                       (when (and (not (stp-git-subtree-package-commit pkg-name))
                                  (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
                                                       pkg-name)))
-                        (stp-reinstall pkg-name version))))
+                        (stp-reinstall pkg-name version :skip-subtree-check t))))
                 (when (funcall callback 'ghost-package pkg-name)
                   (stp-delete-alist pkg-name)))
               (cl-incf i)
@@ -590,8 +590,18 @@ do-push and proceed arguments are as in `stp-install'."
   (stp-refresh-info)
   (stp-reinstall pkg-name (stp-get-attribute pkg-name 'version) :do-commit do-commit :do-push do-push :do-actions do-actions :refresh refresh))
 
-(cl-defun stp-reinstall (pkg-name version &key do-commit do-push do-actions refresh)
+(cl-defun stp-reinstall (pkg-name version &key do-commit do-push do-actions refresh skip-subtree-check)
   "Uninstall and reinstall PKG-NAME as VERSION."
+  ;; Warn the user about reinstalling if there are modifications to the subtree
+  ;; that were not the result of git subtree merge as this will result in the
+  ;; loss of their customizations to the package. This is done by checking the
+  ;; git history, the worktree and the staged changes for modifications to the
+  ;; package.
+  (when (and (or (and (not skip-subtree-check)
+                      (stp-git-subtree-package-modified-p pkg-name))
+                 (stp-git-tree-package-modified-p pkg-name))
+             (not (yes-or-no-p (format "The package %s has been manually modified. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+    (user-error "Reinstall aborted"))
   (let ((pkg-alist (stp-get-alist pkg-name)))
     ;; Committing is required here because otherwise `git-install' will fail.
     ;; Refreshing the stp-list-buffer-name buffer is suppressed since that will
@@ -603,13 +613,16 @@ do-push and proceed arguments are as in `stp-install'."
     ;; higher level by `stp-upgrade'.
     (stp-install pkg-name pkg-alist :do-commit do-commit :do-push do-push :do-actions do-actions :refresh refresh)))
 
-(defun stp-repair-command ()
-  "Repair the stored information for a package interactively."
-  (interactive)
+(defun stp-repair-command (&optional arg)
+  "Repair the stored information for a package interactively. With a
+prefix argument, repair all packages."
+  (interactive "P")
   (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
-      (apply #'stp-repair (stp-command-args)))))
+      (if arg
+          (stp-repair-all-command)
+        (apply #'stp-repair (stp-command-args))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
   "Repair the package named pkg-name. The do-commit, do-push and proceed
@@ -1439,7 +1452,7 @@ the same time unless PARALLEL is non-nil."
               "M-<" #'stp-list-first-package
               "M->" #'stp-list-last-package
               "r" #'stp-repair-command
-              "R" #'stp-repair-all
+              "R" #'stp-reinstall-command
               "t" #'stp-toggle-update-command
               "u" #'stp-upgrade-command
               "v" #'stp-list-update-latest-version
