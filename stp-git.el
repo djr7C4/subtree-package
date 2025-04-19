@@ -22,13 +22,29 @@
 (defvar stp-auto-commit)
 (declare-function stp-reinstall "stp")
 
-(defun stp-git-subtree-package-hash (pkg-name)
+(defun stp-git-subtree-package-commit (pkg-name)
   (let ((pkg-path (stp-canonical-path pkg-name)))
-    (stp-git-subtree-hash pkg-path)))
+    (stp-git-subtree-commit pkg-path)))
+
+(defun stp-git-subtree-package-tree (pkg-name)
+  (let ((pkg-path (stp-canonical-path pkg-name)))
+    (stp-git-subtree-tree pkg-path)))
+
+(defun stp-git-package-tree (pkg-name)
+  (let ((pkg-path (stp-canonical-path pkg-name)))
+    (stp-git-tree pkg-path)))
+
+(defun stp-git-subtree-package-modified-p (pkg-name)
+  (let ((pkg-path (stp-canonical-path pkg-name)))
+    (stp-git-subtree-modified-p pkg-path)))
+
+(defun stp-git-tree-package-modified-p (pkg-name)
+  (let ((pkg-path (stp-canonical-path pkg-name)))
+    (stp-git-tree-modified-p pkg-path)))
 
 (defun stp-git-subtree-package-p (pkg-name)
   "Determine if there is a git subtree for this package."
-  (and (stp-git-subtree-package-hash pkg-name) t))
+  (and (stp-git-subtree-package-commit pkg-name) t))
 
 (defun stp-normalize-version (pkg-name remote version)
   ;; If version is a hash, it might be shortened if the user entered it
@@ -36,7 +52,7 @@
   ;; subtree.
   (if (stp-git-valid-remote-ref-p remote version)
       version
-    (stp-git-subtree-package-hash pkg-name)))
+    (stp-git-subtree-package-commit pkg-name)))
 
 (defun stp-git-subtree-version (pkg-name)
   "Determine the version and the update type of the package that was
@@ -45,7 +61,7 @@ otherwise, use the hash."
   (let* ((pkg-name (stp-name pkg-name)))
     (let-alist (stp-get-alist pkg-name)
       (if (stp-git-valid-remote-p .remote)
-          (let ((cur-hash (stp-git-subtree-package-hash pkg-name))
+          (let ((cur-hash (stp-git-subtree-package-commit pkg-name))
                 (hash-tags (stp-git-remote-hash-tag-alist .remote)))
             (if cur-hash
                 (aif (cl-assoc-if (lambda (hash)
@@ -255,7 +271,7 @@ from remote."
                          "merge"
                        "pull"))
              (version-hash (stp-git-ref-to-hash remote version)))
-        (when (stp-git-hash= (stp-git-subtree-package-hash pkg-name) version-hash)
+        (when (stp-git-hash= (stp-git-subtree-package-commit pkg-name) version-hash)
           (user-error "Commit %s of %s is already installed"
                       (if (stp-git-hash= version version-hash)
                           (stp-git-abbreviate-hash version-hash)

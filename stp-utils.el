@@ -28,7 +28,7 @@
 
 (defvar stp-no-break-space (propertize " " 'display " "))
 
-(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-git-timestamp stp-elpa-version-url-alist stp-achive-get-descs))
+(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-git-timestamp stp-git-tree-alist-basic stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
 
 (defvar stp-package-info nil)
 
@@ -98,10 +98,20 @@ ends with a slash."
       (setq path (f-canonical path)))
     (f-slash path)))
 
-(defun stp-relative-path (pkg-name)
+(defun stp-relative-path (pkg-name &optional top-level)
   "Return the path to pkg-name relative to `stp-source-directory'.
-The return value always ends with a slash."
-  (rem-slash pkg-name))
+The return value always ends with a slash. If TOP-LEVEL is
+non-nil, make the path relative to the root of the git repository
+instead."
+  (rem-slash (if top-level
+                 (let ((path (f-join stp-source-directory pkg-name)))
+                   (s-chop-prefix (rem-slash (f-canonical (stp-git-root path)))
+                                  (f-canonical path)))
+               pkg-name)))
+
+(defun stp-git-relative-path (path)
+  "Return PATH relative to the git root."
+  (rem-relative-path path (stp-git-root)))
 
 (defun stp-name (pkg-path)
   "Returns the name of the package. Unlike `stp-relative-path', this

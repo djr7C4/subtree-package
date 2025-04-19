@@ -31,7 +31,7 @@
       (and (= exit-code 0)
            (> (length root) 0)
            (f-dir-p root)
-           (f-canonical root)))))
+           (f-slash (f-canonical root))))))
 
 (defmacro stp-with-git-root (&rest body)
   "Executes body in the git root for `stp-source-directory'."
@@ -169,7 +169,7 @@ repository."
     (when do-push
       (stp-git-push))))
 
-(cl-defun stp-git-status (&key full keep-ignored keep-untracked)
+(cl-defun stp-git-status (&key keep-ignored keep-untracked)
   "Return a list of the status of each file in the repository. Each
 status is a list containing three or four elements. The first
 element is the character status code for the index used in
@@ -196,7 +196,7 @@ the new name."
                               ;; split the strings.
                               (cl-list* (substring line 0 1)
                                         (substring line 1 2)
-                                        (and full (s-split " " (substring line 2)))))
+                                        (and (mapcar #'s-trim (s-split "->" (substring line 2))))))
                             (s-split "\n" output t))))))
 
 (defun stp-git-clean-p ()
@@ -216,7 +216,7 @@ the new name."
 
 (defun stp-git-conflicted-files ()
   "Return the list of files with merge conflicts."
-  (->> (stp-git-status :full t)
+  (->> (stp-git-status)
        (-filter (lambda (status)
                   (db (index-status worktree-status &rest args)
                       status
@@ -231,6 +231,20 @@ the new name."
 (defun stp-git-merge-conflict-p ()
   "Determine if there are unmerged changes."
   (and (stp-git-conflicted-files) t))
+
+(defun stp-git-modified-files ()
+  (mapcar (lambda (entry) (caddr entry)) (stp-git-status)))
+
+(defun stp-git-tree-modified-p (path)
+  "Determine if any files in the tree rooted at PATH have been
+modified since the last commit."
+  (setq path (f-canonical path))
+  (let ((default-directory (stp-git-root path)))
+    (cl-some (lambda (file)
+               (setq file (f-canonical file))
+               (or (f-same-p path file)
+                   (f-ancestor-of-p path file)))
+             (stp-git-modified-files))))
 
 (defun stp-git-upstream-branch (&optional branch)
   "Get the upstream branch of BRANCH if it exists. Otherwise, return
@@ -284,23 +298,72 @@ nil. BRANCH defualts to the current branch."
 (defun stp-git-abbreviate-hash (hash)
   (s-left stp-git-abbreviated-hash-length hash))
 
-(defun stp-git-subtree-hash (path)
-  "Determine the hash that was last added or merged into the subtree
-at pkg-name from the remote repository."
+;; This function helps with memoization.
+(defun stp-git-tree-alist-basic (dir)
+  "Return the hashes of the git trees in the current repository as an alist."
+  (let ((default-directory dir))
+    (db (exit-code output)
+        (rem-call-process-shell-command "git ls-tree -r -d HEAD --format='%(objectname) %(path)'")
+      (unless (= exit-code 0)
+        (error "git ls-tree failed at %s: %s" default-directory (s-trim output)))
+      (mapcar (lambda (line)
+                (db (tree path)
+                    (rem-split-first " " line)
+                  (cons (rem-no-slash path) tree)))
+              (s-split "\n" (s-trim output))))))
+
+(defun stp-git-tree-alist ()
+  "Return the hashes of the git trees in the current repository as an alist."
+  (stp-git-tree-alist-basic (stp-git-root default-directory)))
+
+(defun stp-git-tree (path)
+  "Determine the hashes of the git trees in the current repository."
+  (unless (f-dir-p path)
+    (error "The directory %s does not exist" path))
+  (let ((default-directory path))
+    (map-elt (stp-git-tree-alist) (rem-no-slash (stp-git-relative-path path)))))
+
+(defun stp-git-subtree-commit-message (path &optional format)
+  "Return the message for the last local commit that was added or
+merged by git subtree. This is different from the remote commit
+that was merged when --squash is used."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (let ((default-directory path))
     (db (exit-code output)
-        (rem-call-process-shell-command (format "git log --grep '^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$' -n 1" (rem-no-slash (f-relative path (stp-git-root)))))
-      (setq output (s-trim output))
-      (and (= exit-code 0)
-           (> (length output) 0)
-           (save-match-data
-             (string-match "^[ \t]*git-subtree-split:[ \t]*\\([A-Fa-f0-9]+\\)[ \t]*" output)
-             (match-string 1 output))))))
+        (rem-call-process-shell-command
+         (format "git log --grep '^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$' -n 1%s"
+                 (rem-no-slash (f-relative path (stp-git-root)))
+                 (if format
+                     (format " --format='%s'" format)
+                   "")))
+      (and (/= exit-code 0) output))))
+
+(defun stp-git-subtree-commit (path)
+  "Determine the hash of the remote commit that was last added or
+merged into the subtree at PATH from the remote repository."
+  (let ((output (rem-empty-nil (stp-git-subtree-commit-message path) #'s-trim)))
+    (and output
+         (save-match-data
+           (string-match "^[ \t]*git-subtree-split:[ \t]*\\([A-Fa-f0-9]+\\)[ \t]*" output)
+           (match-string 1 output)))))
+
+(defun stp-git-subtree-tree (path)
+  "Determine the hash of the tree that was last added or merged into
+the subtree at PATH."
+  (rem-empty-nil (stp-git-subtree-commit-message path "%T") #'s-trim))
+
+(defun stp-git-subtree-modified-p (path)
+  "Determine if the git subtree at PATH has been modified outside of
+git subtree add and merge commands."
+  (let ((tree (stp-git-tree path))
+        (last-tree (stp-git-subtree-tree path)))
+    (unless (and tree last-tree)
+      (error "Unable to find the tree and/or the merged subtree for %s" path))
+    (string= tree last-tree)))
 
 (defun stp-git-subtree-p (path)
-  (and (stp-git-subtree-hash path) t))
+  (and (stp-git-subtree-commit path) t))
 
 (defun stp-git-head ()
   (stp-git-remote-head (stp-git-root stp-source-directory)))

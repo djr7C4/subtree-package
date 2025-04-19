@@ -275,7 +275,7 @@ occurred."
                         ((nil)
                          (funcall callback 'unknown-package pkg-name)))
                       ;; Ensure that the package was installed as a subtree.
-                      (when (and (not (stp-git-subtree-package-hash pkg-name))
+                      (when (and (not (stp-git-subtree-package-commit pkg-name))
                                  (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
                                                       pkg-name)))
                         (stp-reinstall pkg-name version))))
@@ -329,7 +329,8 @@ should be automatically loaded.")
                         :do-push (and (not stp-auto-commit) (not stp-auto-push)))
                 (list :do-commit stp-auto-commit :do-push stp-auto-push))))
     (when (plist-get args :do-commit)
-      (stp-maybe-ensure-clean))))
+      (stp-maybe-ensure-clean))
+    args))
 
 (defun stp-commit-push-action-args ()
   (append (stp-commit-push-args)
