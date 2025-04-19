@@ -217,37 +217,35 @@ are converted to hashes before they are returned."
     (let ((default-directory git-root))
       ;; Install the package.
       (let ((hash-p (stp-git-maybe-fetch remote version)))
-        (db (exit-code output)
-            (rem-call-process-shell-command
-             (apply #'format
-                    (concat "git subtree add --prefix \"%s\"%s "
-                            ;; When the version is a hash, don't provide a
-                            ;; remote to git subtree add. This forces git to
-                            ;; look for the commit locally instead which is
-                            ;; possible since we previously ran git fetch.
-                            (if hash-p
-                                " "
-                              "\"%s\" ")
-                            "\"%s\"")
-                    (append (list prefix
-                                  (if squash
-                                      " --squash"
-                                    ""))
-                            (unless hash-p
-                              (list remote))
-                            (list version))))
-          (if (= exit-code 0)
-              ;; If installation was successful, add the information for the package
-              (when set-pkg-info
-                (setq version (stp-normalize-version pkg-name remote version))
-                (stp-set-alist pkg-name
-                               `((method . git)
-                                 (remote . ,remote)
-                                 (version . ,version)
-                                 (update . ,update)))
-                (when branch
-                  (stp-set-attribute pkg-name 'branch branch)))
-            (error "Failed to install %s as a git subtree: %s" pkg-name (s-trim output))))))))
+        (rem-run-command
+         (apply #'format
+                (concat "git subtree add --prefix \"%s\"%s "
+                        ;; When the version is a hash, don't provide a
+                        ;; remote to git subtree add. This forces git to
+                        ;; look for the commit locally instead which is
+                        ;; possible since we previously ran git fetch.
+                        (if hash-p
+                            " "
+                          "\"%s\" ")
+                        "\"%s\"")
+                (append (list prefix
+                              (if squash
+                                  " --squash"
+                                ""))
+                        (unless hash-p
+                          (list remote))
+                        (list version)))
+         :error t)
+        ;; If installation was successful, add the information for the package
+        (when set-pkg-info
+          (setq version (stp-normalize-version pkg-name remote version))
+          (stp-set-alist pkg-name
+                         `((method . git)
+                           (remote . ,remote)
+                           (version . ,version)
+                           (update . ,update)))
+          (when branch
+            (stp-set-attribute pkg-name 'branch branch)))))))
 
 (defvar stp-subtree-pull-fallback t
   "When this is non-nil and git subtree pull fails, attempt to uninstall the
@@ -277,24 +275,23 @@ from remote."
                           (stp-git-abbreviate-hash version-hash)
                         (format "%s (%s)" (stp-git-abbreviate-hash version-hash) version))
                       pkg-name))
-        (db (exit-code output)
-            (rem-call-process-shell-command
-             (apply #'format
-                    (concat "git subtree %s --prefix \"%s\"%s "
-                            ;; When the version is a hash, don't provide a
-                            ;; remote since git subtree merge doesn't need one.
-                            (if hash-p
-                                " "
-                              "\"%s\" ")
-                            "\"%s\"")
-                    (append (list action
-                                  prefix
-                                  (if squash
-                                      " --squash"
-                                    ""))
-                            (unless hash-p
-                              (list remote))
-                            (list version))))
+        (let ((output (rem-run-command
+                       (apply #'format
+                              (concat "git subtree %s --prefix \"%s\"%s "
+                                      ;; When the version is a hash, don't provide a
+                                      ;; remote since git subtree merge doesn't need one.
+                                      (if hash-p
+                                          " "
+                                        "\"%s\" ")
+                                      "\"%s\"")
+                              (append (list action
+                                            prefix
+                                            (if squash
+                                                " --squash"
+                                              ""))
+                                      (unless hash-p
+                                        (list remote))
+                                      (list version))))))
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
            ;; the user.
@@ -303,7 +300,9 @@ from remote."
                      (if (> (length (stp-git-conflicted-files)) 1)
                          "Merge conflicts"
                        "A merge conflict")))
-           ((= exit-code 0))
+           ;; If the command succeeded and there are no merge conflicts then we
+           ;; don't need to do anything.
+           (output)
            ;; Sometimes git subtree merge/pull fails. This can happen if the
            ;; prefix has been changed since the subtree was created. In this
            ;; case, we attempt to uninstall the package and install the new

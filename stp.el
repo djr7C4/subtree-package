@@ -877,7 +877,7 @@ there were no errors."
                     (message "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
                     (let ((cmd (format "make %s" target)))
                       (stp-before-build-command cmd output-buffer)
-                      (if (= (call-process-shell-command cmd nil output-buffer) 0)
+                      (if (eql (call-process-shell-command cmd nil output-buffer) 0)
                           (progn
                             (message "Built the info manual for %s using make" pkg-name)
                             (cl-return t))
@@ -900,7 +900,7 @@ there were no errors."
                       (cl-return t))
                      ((progn
                         (stp-before-build-command cmd output-buffer)
-                        (= (call-process-shell-command cmd nil output-buffer) 0))
+                        (eql (call-process-shell-command cmd nil output-buffer) 0))
                       (message "Built the info manual for %s using makeinfo" pkg-name)
                       (cl-return t))
                      (t

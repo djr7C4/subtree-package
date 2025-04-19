@@ -24,14 +24,11 @@
 (defun stp-git-root (&optional path)
   "Return the absolute path to the root of the git directory that path is in."
   (setq path (or path default-directory))
-  (let ((default-directory path))
-    (db (exit-code root)
-        (rem-call-process-shell-command "git rev-parse --show-toplevel")
-      (setq root (s-trim root))
-      (and (= exit-code 0)
-           (> (length root) 0)
-           (f-dir-p root)
-           (f-slash (f-canonical root))))))
+  (let* ((default-directory path)
+         (root (rem-run-command "git rev-parse --show-toplevel")))
+    (and (> (length root) 0)
+         (f-dir-p root)
+         (f-slash (f-canonical root)))))
 
 (defmacro stp-with-git-root (&rest body)
   "Executes body in the git root for `stp-source-directory'."
@@ -52,19 +49,17 @@
     (unless (stp-git-root dir)
       (error "Not in a git repository"))
     (let ((default-directory dir))
-      (= (call-process-shell-command (format "git ls-files --error-unmatch \"%s\"" file)) 0))))
+      (eql (call-process-shell-command (format "git ls-files --error-unmatch \"%s\"" file)) 0))))
 
 (defun stp-git-remotes ()
-  (db (exit-code output)
-      (rem-call-process-shell-command "git remote")
-    (if (= exit-code 0)
-        (s-split rem-positive-whitespace-regexp output t)
-      (error "Failed to list the remotes for the git repository"))))
+  (s-split rem-positive-whitespace-regexp
+           (rem-run-command "git remote")
+           t))
 
 (defun stp-git-valid-remote-p (remote)
   "Determine if remote is a valid git repository."
   (and (stringp remote)
-       (= (call-process-shell-command (format "git ls-remote -h '%s'" remote)) 0)))
+       (eql (call-process-shell-command (format "git ls-remote -h '%s'" remote)) 0)))
 
 (cl-defun stp-git-valid-remote-ref-p (remote ref-or-hash &optional ask-p)
   ;; Check if ref-or-hash is a ref on remote or if it is a hash that matches a
@@ -79,12 +74,12 @@
 (cl-defun stp-git-valid-ref-p (path ref)
   "Check if REF is a valid ref for the local git repository at PATH."
   (let ((default-directory path))
-    (= (call-process-shell-command (format "git rev-parse --verify '%s'" ref)) 0)))
+    (eql (call-process-shell-command (format "git rev-parse --verify '%s'" ref)) 0)))
 
 (defun stp-git-init (path)
   "Run \"git init\" on PATH."
   (let ((default-directory path))
-    (unless (= (call-process-shell-command "git init") 0)
+    (unless (eql (call-process-shell-command "git init") 0)
       (error "git init failed"))))
 
 (cl-defun stp-git-add (path)
@@ -95,10 +90,7 @@
           (list path ".")
         (list (f-dirname path) (f-filename path)))
     (let ((default-directory dir))
-      (db (exit-code output)
-          (rem-call-process-shell-command (format "git add '%s'" target))
-        (unless (= exit-code 0)
-          (error "Failed to add %s to the git repository: %s" path (s-trim output)))))))
+      (rem-run-command (format "git add '%s'" target) :error t))))
 
 (defun stp-git-download-as-synthetic-repo (pkg-name remote)
   "Create a new git repository for PKG-NAME by downloading REMOTE
@@ -127,26 +119,21 @@ repository."
   (setq msg (or msg ""))
   (if (stp-git-clean-p)
       (message "There are no changes to commit. Skipping...")
-    (db (exit-code output)
-        (rem-call-process-shell-command (format "git commit --allow-empty-message -am '%s'" msg))
-      (unless (= exit-code 0)
-        (error "Failed to commit to git repository: %s" (s-trim output))))))
+    (rem-run-command (format "git commit --allow-empty-message -am '%s'" msg) :error t)))
 
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
 
 (cl-defun stp-git-fetch (remote &key force refspec)
-  (db (exit-code output)
-      (rem-call-process-shell-command (format "git fetch --no-tags%s \"%s\"%s"
-                                              (if force
-                                                  " --force"
-                                                "")
-                                              remote
-                                              (if refspec
-                                                  (format " \"%s\"" refspec)
-                                                "")))
-    (unless (= exit-code 0)
-      (error "git fetch failed: %s" (s-trim output)))))
+  (rem-run-command (format "git fetch --no-tags%s \"%s\"%s"
+                           (if force
+                               " --force"
+                             "")
+                           remote
+                           (if refspec
+                               (format " \"%s\"" refspec)
+                             ""))
+                   :error t))
 
 (defun stp-git-maybe-fetch (remote version)
   (when (and stp-subtree-fetch
@@ -156,10 +143,7 @@ repository."
 
 (defun stp-git-push ()
   (if (stp-git-unpushed-p)
-      (db (exit-code output)
-          (rem-call-process-shell-command "git push")
-        (unless (= exit-code 0)
-          (error "Failed to push to remote: %s" (s-trim output))))
+      (rem-run-command "git push" :error t)
     (message "There are no commits to push. Skipping...")))
 
 (cl-defun stp-git-commit-push (msg &optional (do-commit t) (do-push t))
@@ -178,26 +162,22 @@ git-status) and the second element is the character status code
 for the worktree. The third is the file name. When a file is
 renamed or copied, there is also a fourth element that indicates
 the new name."
-  (let ((cmd "git status --porcelain"))
-    (db (exit-code output)
-        (rem-call-process-shell-command cmd)
-      (unless (= exit-code 0)
-        (error "%s failed: %s" cmd (s-trim output)))
-      (cl-remove-if (lambda (status)
-                      (db (index-status worktree-status &rest args)
-                          status
-                        (and (string= index-status worktree-status)
-                             (member index-status
-                                     (append (and (not keep-ignored) (list "!"))
-                                             (and (not keep-untracked) (list "?")))))))
-                    (mapcar (lambda (line)
-                              ;; The first two characters can be spaces which have
-                              ;; a specific meaning and should not be used to
-                              ;; split the strings.
-                              (cl-list* (substring line 0 1)
-                                        (substring line 1 2)
-                                        (and (mapcar #'s-trim (s-split "->" (substring line 2))))))
-                            (s-split "\n" output t))))))
+  (let ((output (rem-run-command "git status --porcelain" :error t)))
+    (cl-remove-if (lambda (status)
+                    (db (index-status worktree-status &rest args)
+                        status
+                      (and (string= index-status worktree-status)
+                           (member index-status
+                                   (append (and (not keep-ignored) (list "!"))
+                                           (and (not keep-untracked) (list "?")))))))
+                  (mapcar (lambda (line)
+                            ;; The first two characters can be spaces which have
+                            ;; a specific meaning and should not be used to
+                            ;; split the strings.
+                            (cl-list* (substring line 0 1)
+                                      (substring line 1 2)
+                                      (and (mapcar #'s-trim (s-split "->" (substring line 2))))))
+                          (s-split "\n" output t)))))
 
 (defun stp-git-clean-p ()
   "Determine if the git repository is clean (i.e. has no uncommitted changes)."
@@ -208,11 +188,7 @@ the new name."
          (upstream (stp-git-upstream-branch)))
     (and branch
          upstream
-         (db (exit-code output)
-             (rem-call-process-shell-command (format "git cherry %s %s" upstream branch))
-           (unless (= exit-code 0)
-             (error "git cherry failed: %s" (s-trim output)))
-           (not (string= (s-trim output) ""))))))
+         (not (string= (rem-run-command (format "git cherry %s %s" upstream branch) :error t) "")))))
 
 (defun stp-git-conflicted-files ()
   "Return the list of files with merge conflicts."
@@ -250,41 +226,26 @@ modified since the last commit."
   "Get the upstream branch of BRANCH if it exists. Otherwise, return
 nil. BRANCH defualts to the current branch."
   (setq branch (or branch ""))
-  (db (exit-code output)
-      (rem-call-process-shell-command (format "git rev-parse --abbrev-ref %s@{upstream}" branch))
-    (when (= exit-code 0)
-      (s-trim output))))
+  (rem-run-command (format "git rev-parse --abbrev-ref %s@{upstream}" branch)))
 
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
-  (db (exit-code output)
-      (rem-call-process-shell-command "git symbolic-ref --short HEAD")
-    (unless (= exit-code 0)
-      (error "Failed to get the current branch"))
-    (s-trim output)))
+  (rem-run-command "git symbolic-ref --short HEAD" :error t))
 
 ;; Based on `magit-get-push-remote'.
 (defun stp-git-push-target (&optional branch)
   (setq branch (or branch (stp-git-current-branch)))
-  ;; git config --get returns a non-zero exit status and does not print
-  ;; anything when the value does not exist so we do not treat a non-zero exit
-  ;; code as an error.
-  (let ((push-default (s-trim (cadr (rem-call-process-shell-command "git config --get remote.pushDefault")))))
-    (when (string= push-default "")
-      (setq push-default nil))
+  ;; git config --get returns a non-zero exit status when the value does not
+  ;; exist. This will result in `rem-run-command' returning nil.
+  (let ((push-default (rem-run-command "git config --get remote.pushDefault")))
     (or push-default
-        (let ((push-remote (cadr (rem-call-process-shell-command (format "git config --get %s" (s-join "." (list "branch" branch "pushRemote")))))))
-          (setq push-remote (s-trim push-remote))
-          (when (string= push-remote "")
+        (let ((push-remote (rem-run-command (format "git config --get %s" (s-join "." (list "branch" branch "pushRemote"))))))
+          (when (equal push-remote "")
             (setq push-remote nil))
           push-remote))))
 
 (defun stp-git-remote-url (remote)
-  (db (exit-code output)
-      (rem-call-process-shell-command (format "git remote get-url \"%s\"" remote))
-    (if (= exit-code 0)
-        (s-trim output)
-      (error "Unable to find the URL for the git remote %s" remote))))
+  (rem-run-command (format "git remote get-url \"%s\"" remote) :error t))
 
 (defvar stp-git-ask-when-unclean-p t)
 
@@ -301,16 +262,13 @@ nil. BRANCH defualts to the current branch."
 ;; This function helps with memoization.
 (defun stp-git-tree-alist-basic (dir)
   "Return the hashes of the git trees in the current repository as an alist."
-  (let ((default-directory dir))
-    (db (exit-code output)
-        (rem-call-process-shell-command "git ls-tree -r -d HEAD --format='%(objectname) %(path)'")
-      (unless (= exit-code 0)
-        (error "git ls-tree failed at %s: %s" default-directory (s-trim output)))
-      (mapcar (lambda (line)
-                (db (tree path)
-                    (rem-split-first " " line)
-                  (cons (rem-no-slash path) tree)))
-              (s-split "\n" (s-trim output))))))
+  (let* ((default-directory dir)
+         (output (rem-run-command "git ls-tree -r -d HEAD --format='%(objectname) %(path)'" :error t)))
+    (mapcar (lambda (line)
+              (db (tree path)
+                  (rem-split-first " " line)
+                (cons (rem-no-slash path) tree)))
+            (s-split "\n" (s-trim output)))))
 
 (defun stp-git-tree-alist ()
   "Return the hashes of the git trees in the current repository as an alist."
@@ -330,14 +288,12 @@ that was merged when --squash is used."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (let ((default-directory path))
-    (db (exit-code output)
-        (rem-call-process-shell-command
-         (format "git log --grep '^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$' -n 1%s"
-                 (rem-no-slash (rem-relative-path path (stp-git-root)))
-                 (if format
-                     (format " --format='%s'" format)
-                   "")))
-      (and (= exit-code 0) output))))
+    (rem-run-command
+     (format "git log --grep '^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$' -n 1%s"
+             (rem-no-slash (rem-relative-path path (stp-git-root)))
+             (if format
+                 (format " --format='%s'" format)
+               "")))))
 
 (defun stp-git-subtree-commit (path)
   "Determine the hash of the remote commit that was last added or
@@ -355,10 +311,7 @@ the subtree at PATH."
 
 (defun stp-git-rev-parse (path spec)
   (let ((default-directory path))
-    (db (exit-code output)
-        (rem-call-process-shell-command (format "git rev-parse '%s'" spec))
-      (and (= exit-code 0)
-           (s-trim output)))))
+    (rem-run-command (format "git rev-parse '%s'" spec))))
 
 (defun stp-git-commit-tree (path ref)
   "Determine the hash for the tree associated with REF in the git
@@ -392,9 +345,9 @@ installed as a git subtree."
 (defun stp-git-head ()
   (stp-git-remote-head (stp-git-root stp-source-directory)))
 
-;; This function exists to make memoization more efficient.
+;; This function exists to facilitate memoization.
 (defun stp-git-remote-hash-alist-basic (remote)
-  (rem-call-process-shell-command (format "git ls-remote %s 2> /dev/null" remote)))
+  (rem-run-command (format "git ls-remote %s 2> /dev/null" remote) :error t))
 
 (cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p))
   "Return an alist that maps hashes to refs. If supplied, prefixes
@@ -404,30 +357,26 @@ the refs. By default all refs are returned."
   ;; significant performance penalty even with caching.
   ;; (unless (stp-git-valid-remote-p remote)
   ;;   (error "%s is not a valid remote" remote))
-  (db (exit-code output)
-      (stp-git-remote-hash-alist-basic remote)
-    (setq output (s-trim output))
-    (if (= exit-code 0)
-        ;; Handle empty repositories that do not have any tags.
-        (unless (string= output "")
-          (mapcar (lambda (list)
-                    (db (hash ref)
-                        list
-                      (cons hash
-                            (s-chop-prefixes prefixes
-                                             ref))))
-                  (-filter (lambda (list)
-                             (if prefixes-supplied-p
-                                 (-any (lambda (prefix)
-                                         (db (_hash ref)
-                                             list
-                                           (s-starts-with-p prefix ref)))
-                                       prefixes)
-                               t))
-                           (mapcar (lambda (line)
-                                     (s-split rem-positive-whitespace-regexp line))
-                                   (s-split "\n" output)))))
-      (error "Failed to fetch the hashes for each ref from the remote %s: %s" remote (s-trim output)))))
+  ;; Handle empty repositories that do not have any tags.
+  (let ((output (stp-git-remote-hash-alist-basic remote)))
+    (unless (equal output "")
+      (mapcar (lambda (list)
+                (db (hash ref)
+                    list
+                  (cons hash
+                        (s-chop-prefixes prefixes
+                                         ref))))
+              (-filter (lambda (list)
+                         (if prefixes-supplied-p
+                             (-any (lambda (prefix)
+                                     (db (_hash ref)
+                                         list
+                                       (s-starts-with-p prefix ref)))
+                                   prefixes)
+                           t))
+                       (mapcar (lambda (line)
+                                 (s-split rem-positive-whitespace-regexp line))
+                               (s-split "\n" output)))))))
 
 (defun stp-git-remote-hash-tag-alist (remote)
   "Return an alist that maps hashes to tags."
@@ -477,13 +426,12 @@ will be returned."
              (t
               ref)))
   (let ((default-directory path))
-    (db (exit-code output)
-        (rem-call-process-shell-command (format "git reflog show %s%s --pretty='%%H'"
-                                                ref
-                                                (if max (format " -n %d" max) "")))
-      (if (= exit-code 0)
-          (s-split "\n" output t)
-        (error "Failed to get the hashes that are reachable from %s at %s" ref path)))))
+    (s-split "\n"
+             (rem-run-command (format "git reflog show %s%s --pretty='%%H'"
+                                      ref
+                                      (if max (format " -n %d" max) ""))
+                              :error t)
+             t)))
 
 (defun stp-git-ref-to-hash (remote ref-or-hash)
   "Convert REF-OR-HASH to a hash if it isn't one already. Refs that
@@ -513,19 +461,15 @@ do not match any hash will remain unchanged."
 before REF2 for the local git repository at PATH. If BOTH is
 non-nil and the number of commits in REF..REF2 is zero, find the
 number of commits n in REF2..REF and return -n."
-  ;; This has a significant performance penalty.
-  ;; `rem-call-process-shell-command' will produce an error below anyway if a
-  ;; ref is invalid.
+  ;; This has a significant performance penalty. `rem-run-command' will produce
+  ;; an error below anyway if a ref is invalid.
+  ;;
   ;; (unless (stp-git-valid-ref-p path ref)
   ;;   (error "%s is not a valid ref for %s" ref path))
   ;; (unless (stp-git-valid-ref-p path ref2)
   ;;   (error "%s is not a valid ref for %s" ref2 path))
   (cl-flet ((stp-git-count-commits-forward (ref ref2)
-              (db (exit-code output)
-                  (rem-call-process-shell-command (format "git rev-list --count %s..%s" ref ref2))
-                (if (= exit-code 0)
-                    (string-to-number (s-trim output))
-                  (error "Failed to count the commits between %s and %s: %s" ref ref2 (s-trim output))))))
+              (string-to-number (rem-run-command (format "git rev-list --count %s..%s" ref ref2)) :error t)))
     (let ((default-directory path))
       (or (--first (/= it 0)
                    (append (list (stp-git-count-commits-forward ref ref2))
@@ -535,18 +479,15 @@ number of commits n in REF2..REF and return -n."
 (defvar stp-git-cache-directory (f-join user-emacs-directory "stp/cache/git-repos/"))
 
 (defun stp-git-minimal-clone (remote path &optional branch)
-  (db (exit-code output)
-      ;; Make the call to git clone as lightweight as possible.
-      (rem-call-process-shell-command
-       (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
-               (if branch
-                   (format " --single-branch --branch '%s'" branch)
-                 "")
-               remote
-               path))
-    (unless (= exit-code 0)
-      (error "Failed to clone %s: %s" remote (s-trim output)))
-    path))
+  ;; Make the call to git clone as lightweight as possible.
+  (rem-run-command
+   (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
+           (if branch
+               (format " --single-branch --branch '%s'" branch)
+             "")
+           remote
+           path)
+   :error t))
 
 (defun stp-git-cache-hash-directory (remote)
   (when (f-dir-p remote)
@@ -611,17 +552,13 @@ will be considered which may improve efficiency."
   "Return the UNIX timestamp for when REF was commited to the git
 repository at PATH."
   (let ((default-directory path))
-    (db (exit-code output)
-        ;; Pipe to /dev/null to suppress warnings about ambiguous refs. These
-        ;; can occur when the git repository contains a branch or tag called
-        ;; HEAD.
-        ;;
-        ;; The ^{commit} syntax forces git to show the commit object pointed to
-        ;; by a tag rather than the tag.
-        (rem-call-process-shell-command (format "git show --no-patch --format=%%ct '%s^{commit}' 2>/dev/null" ref))
-      (if (= exit-code 0)
-          (string-to-number (s-trim output))
-        (error "Failed to obtain the UNIX timestamp for %s at %s" ref path)))))
+    ;; Pipe to /dev/null to suppress warnings about ambiguous refs. These
+    ;; can occur when the git repository contains a branch or tag called
+    ;; HEAD.
+    ;;
+    ;; The ^{commit} syntax forces git to show the commit object pointed to
+    ;; by a tag rather than the tag.
+    (string-to-number (rem-run-command (format "git show --no-patch --format=%%ct '%s^{commit}' 2>/dev/null" ref) :error t))))
 
 (defun stp-git-remote-timestamp (remote ref)
   "This is similar to `stp-git-timestamp' except that it works with

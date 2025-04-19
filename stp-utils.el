@@ -636,15 +636,13 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
 (defvar stp-make-target-command "make -qp | awk -F':' '/^[a-zA-Z0-9][^$#\\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}' | sort -u")
 
 (defun stp-make-targets (&optional makefile)
-  (let ((directory (or (and makefile
-                            (f-dirname makefile))
-                       default-directory)))
-    (let ((default-directory directory))
-      (db (exit-code output)
-          (rem-call-process-shell-command stp-make-target-command)
-        (when (/= exit-code 0)
-          (error "Failed to obtain make targets in %s" directory))
-        (s-split rem-positive-whitespace-regexp output t)))))
+  (let* ((directory (or (and makefile
+                             (f-dirname makefile))
+                        default-directory))
+         (default-directory directory))
+    (s-split rem-positive-whitespace-regexp
+             (rem-run-command stp-make-target-command :error t)
+             t)))
 
 (defun stp-before-build-command (cmd buf)
   ;; Using `with-current-buffer' can change the default directory.
