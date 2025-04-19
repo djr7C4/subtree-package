@@ -1237,11 +1237,13 @@ to TRIES times."
     (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
    (t
     (let (latest-versions
-          (queue (make-queue)))
+          (queue (make-queue))
+          (running 0))
       (dolist (pkg-name pkg-names)
         (queue-enqueue queue (list pkg-name 0)))
       (cl-labels
           ((process-latest-version (data)
+             (cl-decf running)
              ;; Process the result of the last call to `stp-latest-version' and
              ;; put the package information back into the queue if there was an
              ;; error.
@@ -1267,10 +1269,11 @@ to TRIES times."
              ;; the latest version for pkg-name. This is done asynchronously if
              ;; async is non-nil.
              (if (queue-empty queue)
-                 (when final-callback
+                 (when (and final-callback (= running 0))
                    (funcall final-callback latest-versions))
                (db (pkg-name tries)
                    (queue-dequeue queue)
+                 (cl-incf running)
                  (if async
                      ;; Binding `async-prompt-for-password' to nil avoids a bug
                      ;; on certain packages (in particular password-store).
@@ -1417,7 +1420,17 @@ the same time unless PARALLEL is non-nil."
                (unless quiet-toplevel
                  (cond
                   (plural
-                   (message "Finished updating the latest versions for %d packages (%d failed)" (length updated-pkgs) (- (length pkg-names) (length updated-pkgs))))
+                   (let* ((num-failed (- (length pkg-names) (length updated-pkgs)))
+                          (ignored-failed-string (cond
+                                                  ((and (= num-ignored 0) (= num-failed 0))
+                                                   "")
+                                                  ((= num-ignored 0)
+                                                   (format " (%d failed)" num-failed))
+                                                  ((= num-failed 0)
+                                                   ignored-string)
+                                                  (t
+                                                   (format " (%d ignored; %d failed)" num-ignored num-failed)))))
+                     (message "Finished updating the latest versions for %d packages%s" (length updated-pkgs) ignored-failed-string)))
                   (updated-pkgs
                    (message "Updated the latest version for %s" (car pkg-names)))
                   (t
