@@ -287,27 +287,17 @@ nil. BRANCH defualts to the current branch."
 (defun stp-git-abbreviate-hash (hash)
   (s-left stp-git-abbreviated-hash-length hash))
 
-;; This function helps with memoization.
-(defun stp-git-tree-alist-basic (dir)
-  "Return the hashes of the git trees in the current repository as an alist."
-  (let* ((default-directory dir)
-         (output (rem-run-command "git ls-tree -r -d HEAD --format='%(objectname) %(path)'" :error t)))
-    (mapcar (lambda (line)
-              (db (tree path)
-                  (rem-split-first " " line)
-                (cons (rem-no-slash path) tree)))
-            (s-split "\n" (s-trim output)))))
-
-(defun stp-git-tree-alist ()
-  "Return the hashes of the git trees in the current repository as an alist."
-  (stp-git-tree-alist-basic (stp-git-root default-directory)))
-
 (defun stp-git-tree (path)
   "Determine the hashes of the git trees in the current repository."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
-  (let ((default-directory path))
-    (map-elt (stp-git-tree-alist) (rem-no-slash (stp-git-relative-path path)))))
+  (let ((default-directory (stp-git-root path)))
+    (rem-run-command (format "git ls-tree -d HEAD --format='%%(objectname)' '%s'"
+                             ;; Git will show the children of the directory even
+                             ;; when -d is specified when the directory ends
+                             ;; with a slash.
+                             (rem-no-slash (stp-git-relative-path path)))
+                     :error t)))
 
 (defun stp-git-subtree-commit-message (path &optional format)
   "Return the message for the last local commit that was added or

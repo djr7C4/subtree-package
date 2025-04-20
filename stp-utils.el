@@ -28,7 +28,7 @@
 
 (defvar stp-no-break-space (propertize " " 'display " "))
 
-(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-git-timestamp stp-git-tree-alist-basic stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
+(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-git-timestamp stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
 
 (defvar stp-package-info nil)
 
