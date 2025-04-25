@@ -321,7 +321,8 @@ from remote."
                          (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
               (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
               nil)
-            (stp-reinstall pkg-name version))
+            (stp-with-package-source-directory
+              (stp-reinstall pkg-name version)))
            ;; Handle git subtree merge/pull errors and when the user chose not
            ;; to proceed with uninstalling and reinstalling the package.
            (t
