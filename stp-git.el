@@ -292,7 +292,13 @@ from remote."
                                     ""))
                             (unless hash-p
                               (list remote))
-                            (list version)))
+                            ;; Use the hash when performing a merge since if the
+                            ;; version is the main branch on the remote the
+                            ;; local main branch will be different than the one
+                            ;; on the remote.
+                            (if (string= action "merge")
+                                (list version-hash)
+                              (list version))))
              :return 'both)
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
