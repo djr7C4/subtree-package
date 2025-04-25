@@ -275,23 +275,25 @@ from remote."
                           (stp-git-abbreviate-hash version-hash)
                         (format "%s (%s)" (stp-git-abbreviate-hash version-hash) version))
                       pkg-name))
-        (let ((output (rem-run-command
-                       (apply #'format
-                              (concat "git subtree %s --prefix \"%s\"%s "
-                                      ;; When the version is a hash, don't provide a
-                                      ;; remote since git subtree merge doesn't need one.
-                                      (if hash-p
-                                          " "
-                                        "\"%s\" ")
-                                      "\"%s\"")
-                              (append (list action
-                                            prefix
-                                            (if squash
-                                                " --squash"
-                                              ""))
-                                      (unless hash-p
-                                        (list remote))
-                                      (list version))))))
+        (db (exit-code output)
+            (rem-run-command
+             (apply #'format
+                    (concat "git subtree %s --prefix \"%s\"%s "
+                            ;; When the version is a hash, don't provide a
+                            ;; remote since git subtree merge doesn't need one.
+                            (if hash-p
+                                " "
+                              "\"%s\" ")
+                            "\"%s\"")
+                    (append (list action
+                                  prefix
+                                  (if squash
+                                      " --squash"
+                                    ""))
+                            (unless hash-p
+                              (list remote))
+                            (list version)))
+             :return 'both)
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
            ;; the user.
@@ -302,7 +304,7 @@ from remote."
                        "A merge conflict")))
            ;; If the command succeeded and there are no merge conflicts then we
            ;; don't need to do anything.
-           (output)
+           ((= exit-code 0))
            ;; Sometimes git subtree merge/pull fails. This can happen if the
            ;; prefix has been changed since the subtree was created. In this
            ;; case, we attempt to uninstall the package and install the new
