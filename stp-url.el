@@ -61,16 +61,16 @@
       (error "%s already exists" pkg-name))
      ((and (not (eq action 'install)) (not (f-exists-p pkg-path)))
       (error "%s does not exist" pkg-name)))
+    ;; Cleanup of repo is handled by `stp-with-memoization' in higher-level
+    ;; commands.
     (let* ((repo (stp-git-download-as-synthetic-repo pkg-name remote))
            (branch (let ((default-directory repo))
                      (stp-git-current-branch))))
-      (unwind-protect
-          ;; Note that squashing is necessary because otherwise git will refuse
-          ;; to merge unrelated histories.
-          (if (eq action 'install)
-              (stp-git-install pkg-name repo branch 'unstable :squash t :set-pkg-info nil)
-            (stp-git-upgrade pkg-name repo branch :squash t :set-pkg-info nil))
-        (f-delete repo t)))
+      ;; Note that squashing is necessary because otherwise git will refuse to
+      ;; merge unrelated histories.
+      (if (eq action 'install)
+          (stp-git-install pkg-name repo branch 'unstable :squash t :set-pkg-info nil)
+        (stp-git-upgrade pkg-name repo branch :squash t :set-pkg-info nil)))
     (stp-set-attribute pkg-name 'remote remote)
     (stp-set-attribute pkg-name 'version version)))
 

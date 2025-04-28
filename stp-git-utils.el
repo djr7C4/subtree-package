@@ -121,6 +121,8 @@ repository at PATH."
     (let ((default-directory dir))
       (rem-run-command (format "git add '%s'" target) :error t))))
 
+(defvar stp-git-synthetic-repos nil)
+
 (defun stp-git-download-as-synthetic-repo (pkg-name remote)
   "Create a new git repository for PKG-NAME by downloading REMOTE
 and adding it to the repository. Return the path to the
@@ -137,6 +139,7 @@ repository."
           (setq success t))
       (unless success
         (f-delete dir t)))
+    (push dir stp-git-synthetic-repos)
     dir))
 
 (defun stp-git-commit (&optional msg)

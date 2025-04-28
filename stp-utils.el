@@ -28,31 +28,7 @@
 
 (defvar stp-no-break-space (propertize " " 'display " "))
 
-(defvar stp-memoized-functions '(stp-refresh-info stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-basic stp-git-remote-hash-alist stp-git-valid-ref-p stp-git-timestamp stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
-
 (defvar stp-package-info nil)
-
-(defvar stp-memoization-active nil)
-
-(defmacro stp-with-memoization (&rest body)
-  "Evaluate BODY with memoization active for expensive functions.
-Cached results are only retained while within the scope of this
-macro. This allows functions that would otherwise make many
-duplicate queries to remote Git repositories to only make one of
-each type per interactive command."
-  (declare (indent 0))
-  (with-gensyms (memoization-active-orig)
-    `(let ((,memoization-active-orig stp-memoization-active)
-           (stp-memoization-active t))
-       (unwind-protect
-           (progn
-             (unless ,memoization-active-orig
-               (mapc (-rpartial #'memoize nil) stp-memoized-functions))
-             ,@body)
-         (unless ,memoization-active-orig
-           (mapc #'memoize-restore stp-memoized-functions))))))
-
-(def-edebug-spec stp-with-memoization t)
 
 (defun stp-short-format-seconds (seconds)
   (concat (if (< seconds 0) "-" "")
