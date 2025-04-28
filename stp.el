@@ -584,11 +584,13 @@ do-push and proceed arguments are as in `stp-install'."
                 (stp-update-cached-latest pkg-name)
                 (stp-list-refresh :quiet t)))))))))
 
-(cl-defun stp-reinstall-command (pkg-name &key do-commit do-push do-actions (refresh t))
-  "Uninstall and reinstall PKG-NAME as the same version."
-  (interactive (stp-command-args :actions t))
+(cl-defun stp-reinstall-command ()
+  "Uninstall and reinstall a package interactively as the same version."
+  (interactive)
   (stp-refresh-info)
-  (stp-reinstall pkg-name (stp-get-attribute pkg-name 'version) :do-commit do-commit :do-push do-push :do-actions do-actions :refresh refresh))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (apply #'stp-reinstall (stp-command-args :actions t)))))
 
 (cl-defun stp-reinstall (pkg-name version &key do-commit do-push do-actions refresh skip-subtree-check)
   "Uninstall and reinstall PKG-NAME as VERSION."
@@ -730,19 +732,22 @@ unstable."
               (stp-list-refresh :quiet t)))
         (user-error "The update attribute can only be toggled for git packages.")))))
 
-(defun stp-post-actions (pkg-name)
+(defun stp-post-actions-command ()
   "Perform actions that are necessary after a package is installed
 or upgraded such as building, updating info directories loading
 the package and updating the load path."
-  (interactive (list (stp-list-read-package "Package name: ")))
+  (interactive)
   (stp-refresh-info)
   (stp-with-memoization
-    (stp-update-load-path (stp-full-path pkg-name))
-    (when stp-auto-load
-      (stp-reload pkg-name))
-    (stp-build pkg-name)
-    (stp-build-info pkg-name)
-    (stp-update-info-directories pkg-name)))
+    (stp-post-actions (stp-list-read-package "Package name: "))))
+
+(defun stp-post-actions (pkg-name)
+  (stp-update-load-path (stp-full-path pkg-name))
+  (when stp-auto-load
+    (stp-reload pkg-name))
+  (stp-build pkg-name)
+  (stp-build-info pkg-name)
+  (stp-update-info-directories pkg-name))
 
 (defvar stp-build-output-buffer-name "*STP Build Output*")
 
@@ -751,109 +756,124 @@ the package and updating the load path."
 naively. This might cause problems if the packages need to be
 byte-compiled in some special way.")
 
+(defun stp-build-command ()
+  "Build a package interactively. When
+`stp-allow-naive-byte-compile' is non-nil, byte compilation will
+be performed even when no build system is present. The meaning of
+`stp-allow-naive-byte-compile' is inverted with a prefix
+argument."
+  (interactive)
+  (stp-refresh-info)
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-build (stp-list-read-package "Package name: ")
+                 (xor stp-allow-naive-byte-compile current-prefix-arg)))))
+
 (defun stp-build (pkg-name &optional allow-naive-byte-compile)
   "If needed, build the package PKG-NAME by running the appropriate
-build systems or performing byte compilation. When
-ALLOW-NAIVE-BYTE-COMPILE is non-nil, byte compilation will be
-performed even when no build system is present. Interactively, Return non-nil if
+build systems or performing byte compilation. Return non-nil if
 there were no errors."
-  (interactive (list (stp-list-read-package "Package name: ")
-                     (xor stp-allow-naive-byte-compile current-prefix-arg)))
-  (stp-refresh-info)
   (save-window-excursion
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (let* ((output-buffer stp-build-output-buffer-name)
-               (pkg-path (stp-canonical-path pkg-name))
-               (build-dir pkg-path))
-          ;; Setup output buffer
-          (get-buffer-create output-buffer)
-          ;; Handle CMake separately. Since it generates makefiles, make may need
-          ;; to be run afterwards.
-          (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
-            (message "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
-            ;; Try to use the directory build by default. It is fine if
-            ;; this directory already exists as long as it is not tracked
-            ;; by git.
-            (setq build-dir (f-expand "build" pkg-path))
-            (when (and (f-exists-p build-dir)
-                       (stp-git-tracked-p build-dir))
-              (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
-            (unless (f-exists-p build-dir)
-              (make-directory build-dir))
-            (let ((default-directory build-dir))
-              (let ((cmd "cmake .."))
-                (stp-before-build-command cmd output-buffer)
-                ;; This will use `build-dir' as the build directory and
-                ;; `pkg-path' as the source directory so there is no
-                ;; ambiguity as to which CMakeLists.txt file should be
-                ;; used.
-                (unless (eql (call-process-shell-command cmd nil output-buffer) 0)
-                  (message "Failed to run cmake on %s" build-dir)))))
-          (let ((success
-                 ;; Try different methods of building the package until one
-                 ;; succeeds.
-                 (or nil
-                     ;; Handle GNU make. We use a separate binding for
-                     ;; `default-directory' here because the cmake code above
-                     ;; can change build-dir.
-                     (let ((default-directory build-dir))
-                       (when (-any (lambda (file)
-                                     (f-exists-p file))
-                                   stp-gnu-makefile-names)
-                         (message "A makefile was found in %s. Attempting to run make..." build-dir)
-                         (let ((cmd "make"))
-                           (stp-before-build-command cmd output-buffer)
-                           ;; Make expects a makefile to be in the current directory
-                           ;; so there is no ambiguity over which makefile will be
-                           ;; used.
-                           (or (eql (call-process-shell-command cmd nil output-buffer) 0)
-                               (and (message "Failed to run make on %s" pkg-path)
-                                    nil)))))
-                     ;; Note that `byte-recompile-directory' won't recompile files
-                     ;; unless they are out of date.
-                     (and allow-naive-byte-compile
-                          (let ((default-directory pkg-path))
-                            (message "Attempting to byte compile files in %s..." pkg-path)
-                            (condition-case err
-                                (progn
-                                  ;; Put the messages from `byte-recompile-directory' in
-                                  ;; output-buffer.
-                                  (dflet ((message (&rest args)
-                                                   (with-current-buffer output-buffer
-                                                     (insert (apply #'format args)))))
-                                    (stp-before-build-command "Byte compiling files" output-buffer)
-                                    (byte-recompile-directory pkg-path 0))
-                                  t)
-                              (error (ignore err)
-                                     (message "Byte-compiling %s failed" pkg-path)
-                                     nil)))))))
-            ;; Return success or failure
-            (if success
-                (message "Successfully built %s" pkg-name)
-              (message "Build failed for %s" pkg-name))
-            success))))))
+    (let* ((output-buffer stp-build-output-buffer-name)
+           (pkg-path (stp-canonical-path pkg-name))
+           (build-dir pkg-path))
+      ;; Setup output buffer
+      (get-buffer-create output-buffer)
+      ;; Handle CMake separately. Since it generates makefiles, make may need
+      ;; to be run afterwards.
+      (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
+        (message "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
+        ;; Try to use the directory build by default. It is fine if
+        ;; this directory already exists as long as it is not tracked
+        ;; by git.
+        (setq build-dir (f-expand "build" pkg-path))
+        (when (and (f-exists-p build-dir)
+                   (stp-git-tracked-p build-dir))
+          (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
+        (unless (f-exists-p build-dir)
+          (make-directory build-dir))
+        (let ((default-directory build-dir))
+          (let ((cmd "cmake .."))
+            (stp-before-build-command cmd output-buffer)
+            ;; This will use `build-dir' as the build directory and
+            ;; `pkg-path' as the source directory so there is no
+            ;; ambiguity as to which CMakeLists.txt file should be
+            ;; used.
+            (unless (eql (call-process-shell-command cmd nil output-buffer) 0)
+              (message "Failed to run cmake on %s" build-dir)))))
+      (let ((success
+             ;; Try different methods of building the package until one
+             ;; succeeds.
+             (or nil
+                 ;; Handle GNU make. We use a separate binding for
+                 ;; `default-directory' here because the cmake code above
+                 ;; can change build-dir.
+                 (let ((default-directory build-dir))
+                   (when (-any (lambda (file)
+                                 (f-exists-p file))
+                               stp-gnu-makefile-names)
+                     (message "A makefile was found in %s. Attempting to run make..." build-dir)
+                     (let ((cmd "make"))
+                       (stp-before-build-command cmd output-buffer)
+                       ;; Make expects a makefile to be in the current directory
+                       ;; so there is no ambiguity over which makefile will be
+                       ;; used.
+                       (or (eql (call-process-shell-command cmd nil output-buffer) 0)
+                           (and (message "Failed to run make on %s" pkg-path)
+                                nil)))))
+                 ;; Note that `byte-recompile-directory' won't recompile files
+                 ;; unless they are out of date.
+                 (and allow-naive-byte-compile
+                      (let ((default-directory pkg-path))
+                        (message "Attempting to byte compile files in %s..." pkg-path)
+                        (condition-case err
+                            (progn
+                              ;; Put the messages from `byte-recompile-directory' in
+                              ;; output-buffer.
+                              (dflet ((message (&rest args)
+                                               (with-current-buffer output-buffer
+                                                 (insert (apply #'format args)))))
+                                (stp-before-build-command "Byte compiling files" output-buffer)
+                                (byte-recompile-directory pkg-path 0))
+                              t)
+                          (error (ignore err)
+                                 (message "Byte-compiling %s failed" pkg-path)
+                                 nil)))))))
+        ;; Return success or failure
+        (if success
+            (message "Successfully built %s" pkg-name)
+          (message "Build failed for %s" pkg-name))
+        success))))
 
 (defvar stp-build-blacklist nil
   "This is a list of packages that should not be built by
 `stp-build-all' when it is called interactively.")
 
-(defun stp-build-all (&optional pkg-names allow-naive-byte-compile)
-  "Build the packages that need it."
-  (interactive (list (cl-set-difference (stp-filesystem-names)
+(defun stp-build-all-command ()
+  "Build all packages that need it interactively. When
+`stp-allow-naive-byte-compile' is non-nil, byte compilation will
+be performed even when no build system is present. The meaning of
+`stp-allow-naive-byte-compile' is inverted with a prefix
+argument. Packages in `stp-build-blacklist' will not be built."
+  (stp-refresh-info)
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-build-all (cl-set-difference (stp-filesystem-names)
                                         stp-build-blacklist
                                         :test #'equal)
-                     (xor stp-allow-naive-byte-compile current-prefix-arg)))
-  (stp-refresh-info)
-  (stp-with-memoization
-    (let (failed)
-      (dolist (pkg-name pkg-names)
-        (message "Building %s" pkg-name)
-        (unless (stp-build pkg-name allow-naive-byte-compile)
-          (push pkg-name failed)))
-      (if failed
-          (message "Failed to build: %s" (s-join " " failed))
-        (message "Successfully built all packages")))))
+                     (xor stp-allow-naive-byte-compile current-prefix-arg)))))
+
+(defun stp-build-all (&optional pkg-names allow-naive-byte-compile)
+  "Build the packages that need it."
+  (interactive (list ))
+  (let (failed)
+    (dolist (pkg-name pkg-names)
+      (message "Building %s" pkg-name)
+      (unless (stp-build pkg-name allow-naive-byte-compile)
+        (push pkg-name failed)))
+    (if failed
+        (message "Failed to build: %s" (s-join " " failed))
+      (message "Successfully built all packages"))))
 
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."
@@ -1442,9 +1462,9 @@ the same time unless PARALLEL is non-nil."
           (message "No packages need their latest versions updated%s" ignored-string))))))
 
 (rem-set-keys stp-list-mode-map
-              "a" #'stp-post-actions
-              "b" #'stp-build
-              "B" #'stp-build-all
+              "a" #'stp-post-actions-command
+              "b" #'stp-build-command
+              "B" #'stp-build-all-command
               "m" #'stp-build-info
               "M" #'stp-build-all-info
               "d" #'stp-uninstall
