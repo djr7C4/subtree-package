@@ -99,7 +99,7 @@ within that package."
       (and ask-p
            (yes-or-no-p (format "%s was not found in %s (this is normal for hashes). Continue?" rev remote)))))
 
-(cl-defun stp-git-valid-ref-p (path rev)
+(cl-defun stp-git-valid-rev-p (path rev)
   "Check if REV is a valid revision for the local git repository at
 PATH."
   (let ((default-directory path))
@@ -488,9 +488,9 @@ match any hash will remain unchanged."
   ;; This has a significant performance penalty. `rem-run-command' will produce
   ;; an error below anyway if a rev is invalid.
   ;;
-  ;; (unless (stp-git-valid-ref-p path rev)
+  ;; (unless (stp-git-valid-rev-p path rev)
   ;;   (error "%s is not a valid ref or hash for %s" rev path))
-  ;; (unless (stp-git-valid-ref-p path rev2)
+  ;; (unless (stp-git-valid-rev-p path rev2)
   ;;   (error "%s is not a valid ref or hash for %s" rev2 path))
   (cl-flet ((stp-git-count-commits-forward (rev rev2)
               (string-to-number (rem-run-command (format "git rev-list --count %s..%s" rev rev2) :error t))))
