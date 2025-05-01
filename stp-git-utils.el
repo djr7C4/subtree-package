@@ -23,7 +23,7 @@
 
 (defun stp-git-root (&optional path)
   "Return the absolute path to the root of the git directory that path is in."
-  (setq path (or path default-directory))
+  (setq path (or (and path (f-canonical path)) default-directory))
   (let* ((default-directory path)
          (root (rem-run-command "git rev-parse --show-toplevel")))
     (and (> (length root) 0)
@@ -304,6 +304,18 @@ tree at PATH then nil will be returned."
                                           (rem-no-slash (stp-git-relative-path path)))
                                   :error t)))
     (and (not (string= output "")) output)))
+
+(defun stp-git-tree-paths (path rev)
+  "Compute the paths for the contents of the git tree at PATH for
+revision REV."
+  (unless (f-dir-p path)
+    (error "The directory %s does not exist" path))
+  (let ((default-directory (stp-git-root path)))
+    (--> (format "git ls-tree -r '%s' --name-only '%s'"
+                 rev
+                 (stp-git-relative-path path))
+         (rem-run-command it :error t)
+         (s-split "\n" it t))))
 
 (defun stp-git-subtree-commit-message (path &optional format)
   "Return the message for the last local commit that was added or
