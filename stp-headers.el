@@ -32,12 +32,12 @@ the Package-Requires field."
                     (list (car cell) (version-to-list (cadr cell))))
                   reqs))))))
 
-(defun stp-headers-package-requirements (pkg-name)
-  "Find all packages that are required by PKG-NAME according to the
+(defun stp-headers-directory-requirements (&optional dir)
+  "Find all packages that are required DIR according to the
 Package-Requires field of its elisp files."
+  (setq dir (or dir default-directory))
   (let* (reqs
-         (pkg-path (stp-canonical-path pkg-name))
-         (files (rem-elisp-files-to-load pkg-path :keep-extensions t :extensions '("el"))))
+         (files (rem-elisp-files-to-load dir :keep-extensions t :extensions '("el"))))
     (dolist (file files)
       (with-temp-buffer
         (insert-file-contents file)
@@ -52,6 +52,11 @@ Package-Requires field of its elisp files."
                                     (version-list-< v2 v1))
                                   (mapcar #'cadr pkg-reqs))))))
             (-group-by #'car reqs))))
+
+(defun stp-headers-package-requirements (pkg-name)
+  "Find all packages that are required by PKG-NAME according to the
+Package-Requires field of its elisp files."
+  (stp-headers-directory-requirements (stp-canonical-path pkg-name)))
 
 ;;; For archaic reasons, Emacs lisp packages require some redundant headers such
 ;;; as beginning and end of file headers. These are maintained automatically.
