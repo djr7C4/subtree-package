@@ -292,16 +292,18 @@ nil. BRANCH defualts to the current branch."
   (s-left stp-git-abbreviated-hash-length hash))
 
 (defun stp-git-tree (path)
-  "Determine the hash of the git tree at PATH."
+  "Determine the hash of the git tree at PATH. If there is no git
+tree at PATH then nil will be returned."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
-  (let ((default-directory (stp-git-root path)))
-    (rem-run-command (format "git ls-tree -d HEAD --object-only' '%s'"
-                             ;; Git will show the children of the directory even
-                             ;; when -d is specified when the directory ends
-                             ;; with a slash.
-                             (rem-no-slash (stp-git-relative-path path)))
-                     :error t)))
+  (let* ((default-directory (stp-git-root path))
+         (output (rem-run-command (format "git ls-tree -d HEAD --object-only '%s'"
+                                          ;; Git will show the children of the directory even
+                                          ;; when -d is specified when the directory ends
+                                          ;; with a slash.
+                                          (rem-no-slash (stp-git-relative-path path)))
+                                  :error t)))
+    (and (not (string= output "")) output)))
 
 (defun stp-git-subtree-commit-message (path &optional format)
   "Return the message for the last local commit that was added or
