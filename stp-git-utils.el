@@ -296,20 +296,22 @@ nil. BRANCH defualts to the current branch."
 tree at PATH then nil will be returned."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
+  (setq path (f-canonical path))
   (let* ((default-directory (stp-git-root path))
-         (output (rem-run-command (format "git ls-tree -d HEAD --object-only '%s'"
-                                          ;; Git will show the children of the directory even
-                                          ;; when -d is specified when the directory ends
-                                          ;; with a slash.
-                                          (rem-no-slash (stp-git-relative-path path)))
-                                  :error t)))
-    (and (not (string= output "")) output)))
+         ;; Git will show the children of the directory even when -d is
+         ;; specified when the directory ends with a slash.
+         (rel-path (rem-no-slash (stp-git-relative-path path))))
+    (when (f-same-p default-directory rel-path)
+      (error "Cannot determine the hash of the top-level git repository"))
+    (let ((output (rem-run-command (format "git ls-tree -d HEAD --object-only '%s'" rel-path) :error t)))
+      (and (not (string= output "")) output))))
 
 (defun stp-git-tree-paths (path rev)
   "Compute the paths for the contents of the git tree at PATH for
 revision REV."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
+  (setq path (f-canonical path))
   (let ((default-directory (stp-git-root path)))
     (--> (format "git ls-tree -r '%s' --name-only '%s'"
                  rev
