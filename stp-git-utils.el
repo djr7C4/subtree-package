@@ -89,21 +89,21 @@ within that package."
   (and (stringp remote)
        (eql (call-process-shell-command (format "git ls-remote -h '%s'" remote)) 0)))
 
-(cl-defun stp-git-valid-remote-ref-p (remote ref-or-hash &optional ask-p)
-  ;; Check if ref-or-hash is a ref on remote or if it is a hash that matches a
-  ;; ref on remote.
-  (or (member ref-or-hash (stp-git-remote-tags remote))
-      (member ref-or-hash (stp-git-remote-heads remote))
+(cl-defun stp-git-valid-remote-ref-p (remote rev &optional ask-p)
+  ;; Check if rev is a ref on remote or if it is a hash that matches a ref on
+  ;; remote.
+  (or (member rev (stp-git-remote-tags remote))
+      (member rev (stp-git-remote-heads remote))
       ;; There is no way to check if hash exists on a remote (only refs) so
       ;; we ask the user.
       (and ask-p
-           (yes-or-no-p (format "%s was not found in %s (this is normal for hashes). Continue?" ref-or-hash remote)))))
+           (yes-or-no-p (format "%s was not found in %s (this is normal for hashes). Continue?" rev remote)))))
 
-(cl-defun stp-git-valid-ref-p (path ref-or-hash)
-  "Check if REF-OR-HASH is a valid ref or hash for the local git
-repository at PATH."
+(cl-defun stp-git-valid-ref-p (path rev)
+  "Check if REV is a valid revision for the local git repository at
+PATH."
   (let ((default-directory path))
-    (eql (call-process-shell-command (format "git rev-parse --verify '%s'" ref-or-hash)) 0)))
+    (eql (call-process-shell-command (format "git rev-parse --verify '%s'" rev)) 0)))
 
 (defun stp-git-init (path)
   "Run \"git init\" on PATH."
@@ -333,18 +333,18 @@ merged into the subtree at PATH from the remote repository."
 the subtree at PATH."
   (rem-empty-nil (stp-git-subtree-commit-message path "%T") #'s-trim))
 
-(defun stp-git-rev-parse (path ref-or-hash)
+(defun stp-git-rev-parse (path rev)
   (let ((default-directory path))
-    (rem-run-command (format "git rev-parse '%s'" ref-or-hash))))
+    (rem-run-command (format "git rev-parse '%s'" rev))))
 
-(defun stp-git-commit-tree (path ref-or-hash)
-  "Determine the hash for the tree associated with REF-OR-HASH in
-the git repository at PATH."
-  (stp-git-rev-parse path (format "%s^{tree}" ref-or-hash)))
+(defun stp-git-commit-tree (path rev)
+  "Determine the hash for the tree associated with REV in the git
+repository at PATH."
+  (stp-git-rev-parse path (format "%s^{tree}" rev)))
 
-(defun stp-git-subtree-modified-p (path &optional remote ref-or-hash)
+(defun stp-git-subtree-modified-p (path &optional remote rev)
   "Determine if the git subtree at PATH has been modified outside of
-git subtree add and merge commands. If REMOTE and REF-OR-HASH are
+git subtree add and merge commands. If REMOTE and REV are
 provided then they will be used to compute the hash for the
 subtree in the event that it cannot be determined from git log.
 This occurs for example when the subtree was not actually
@@ -352,12 +352,12 @@ installed as a git subtree."
   (let ((tree (stp-git-tree path))
         (last-tree (or (stp-git-subtree-tree path)
                        (and remote
-                            ref-or-hash
+                            rev
                             ;; This is slow but should work even when the
                             ;; subtree was not installed using git subtree add.
                             (progn
                               (stp-git-fetch remote)
-                              (stp-git-commit-tree path ref-or-hash)))
+                              (stp-git-commit-tree path rev)))
                        (error "Unable to find the merged git subtree"))))
     (unless tree
       (error "Unable to find the git tree for %s" path))
@@ -436,33 +436,33 @@ the refs. By default all refs are returned."
 
 ;; Note that this will not work will minimal copies of a repositories created
 ;; using CLI options such as those used in `stp-git-count-remote-commits'.
-(cl-defun stp-git-hashes (path ref-or-hash &key max)
+(cl-defun stp-git-hashes (path rev &key max)
   "Return a list of the hashes starting with the most recent that
-are reachable from REF-OR-HASH for the local git repository at
-PATH. If REF-OR-HASH is nil then HEAD will be used. If
-REF-OR-HASH is t then all hashes will be returned. If MAX is
-non-nil then no more than MAX hashes will be returned."
-  (setq ref-or-hash (cond
-                     ((null ref-or-hash)
-                      "HEAD")
-                     ((eq ref-or-hash t)
-                      "--all")
-                     (t
-                      ref-or-hash)))
+are reachable from REV for the local git repository at PATH. If
+REV is nil then HEAD will be used. If REV is t then all hashes
+will be returned. If MAX is non-nil then no more than MAX hashes
+will be returned."
+  (setq rev (cond
+             ((null rev)
+              "HEAD")
+             ((eq rev t)
+              "--all")
+             (t
+              rev)))
   (let ((default-directory path))
     (s-split "\n"
              (rem-run-command (format "git reflog show %s%s --pretty='%%H'"
-                                      ref-or-hash
+                                      rev
                                       (if max (format " -n %d" max) ""))
                               :error t)
              t)))
 
-(defun stp-git-ref-to-hash (remote ref-or-hash)
-  "Convert REF-OR-HASH to a hash if it isn't one already. Refs that
-do not match any hash will remain unchanged."
-  (or (car (or (rassoc ref-or-hash (stp-git-remote-hash-head-alist remote))
-               (rassoc ref-or-hash (stp-git-remote-hash-tag-alist remote))))
-      ref-or-hash))
+(defun stp-git-ref-to-hash (remote rev)
+  "Convert REV to a hash if it isn't one already. Refs that do not
+match any hash will remain unchanged."
+  (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
+               (rassoc rev (stp-git-remote-hash-tag-alist remote))))
+      rev))
 
 (defun stp-git-head-to-hash (remote head-or-hash)
   "Convert HEAD-OR-HASH to a hash if it isn't one already."
@@ -480,25 +480,24 @@ do not match any hash will remain unchanged."
        (or (s-prefix-p hash hash2)
            (s-prefix-p hash2 hash))))
 
-(cl-defun stp-git-count-commits (path ref-or-hash ref-or-hash2 &key both)
-  "Count the number of commits that have been made after REF-OR-HASH
- but before REF-OR-HASH2 for the local git repository at PATH. If
- BOTH is non-nil and the number of commits in
- REF-OR-HASH..REF-OR-HASH2 is zero, find the number of commits n
- in REF-OR-HASH2..REF-OR-HASH and return -n."
+(cl-defun stp-git-count-commits (path rev rev2 &key both)
+  "Count the number of commits that have been made after REV but
+ before REV2 for the local git repository at PATH. If BOTH is
+ non-nil and the number of commits in REV..REV2 is zero, find the
+ number of commits n in REV2..REV and return -n."
   ;; This has a significant performance penalty. `rem-run-command' will produce
-  ;; an error below anyway if a ref-or-hash is invalid.
+  ;; an error below anyway if a rev is invalid.
   ;;
-  ;; (unless (stp-git-valid-ref-p path ref-or-hash)
-  ;;   (error "%s is not a valid ref or hash for %s" ref-or-hash path))
-  ;; (unless (stp-git-valid-ref-p path ref-or-hash2)
-  ;;   (error "%s is not a valid ref or hash for %s" ref-or-hash2 path))
-  (cl-flet ((stp-git-count-commits-forward (ref-or-hash ref-or-hash2)
-              (string-to-number (rem-run-command (format "git rev-list --count %s..%s" ref-or-hash ref-or-hash2) :error t))))
+  ;; (unless (stp-git-valid-ref-p path rev)
+  ;;   (error "%s is not a valid ref or hash for %s" rev path))
+  ;; (unless (stp-git-valid-ref-p path rev2)
+  ;;   (error "%s is not a valid ref or hash for %s" rev2 path))
+  (cl-flet ((stp-git-count-commits-forward (rev rev2)
+              (string-to-number (rem-run-command (format "git rev-list --count %s..%s" rev rev2) :error t))))
     (let ((default-directory path))
       (or (--first (/= it 0)
-                   (append (list (stp-git-count-commits-forward ref-or-hash ref-or-hash2))
-                           (and both (list (- (stp-git-count-commits-forward ref-or-hash2 ref-or-hash))))))
+                   (append (list (stp-git-count-commits-forward rev rev2))
+                           (and both (list (- (stp-git-count-commits-forward rev2 rev))))))
           0))))
 
 (defvar stp-git-cache-directory (f-join user-emacs-directory "stp/cache/git-repos/"))
@@ -561,7 +560,7 @@ do not match any hash will remain unchanged."
                         (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
                         (f-delete file)))))))
 
-(cl-defun stp-git-count-remote-commits (remote ref-or-hash ref-or-hash2 &key _branch both)
+(cl-defun stp-git-count-remote-commits (remote rev rev2 &key _branch both)
   "This is similar to `stp-git-count-commits' except that it counts
 the number of commits in the remote git repository REMOTE.
 Additionally, If BRANCH is non-nil, only refs from that branch
@@ -571,10 +570,10 @@ will be considered which may improve efficiency."
   ;; would result in multiple cached versions of the same repository if it was
   ;; changed from stable to unstable for example.
   (let ((path (stp-git-ensure-cached-repo remote)))
-    (stp-git-count-commits path ref-or-hash ref-or-hash2 :both both)))
+    (stp-git-count-commits path rev rev2 :both both)))
 
-(defun stp-git-timestamp (path ref-or-hash)
-  "Return the UNIX timestamp for when REF-OR-HASH was commited to the git
+(defun stp-git-timestamp (path rev)
+  "Return the UNIX timestamp for when REV was commited to the git
 repository at PATH."
   (let ((default-directory path))
     ;; Pipe to /dev/null to suppress warnings about ambiguous ref or hashs.
@@ -583,13 +582,13 @@ repository at PATH."
     ;;
     ;; The ^{commit} syntax forces git to show the commit object pointed to
     ;; by a tag rather than the tag.
-    (string-to-number (rem-run-command (format "git show --no-patch --format=%%ct '%s^{commit}' 2>/dev/null" ref-or-hash) :error t))))
+    (string-to-number (rem-run-command (format "git show --no-patch --format=%%ct '%s^{commit}' 2>/dev/null" rev) :error t))))
 
-(defun stp-git-remote-timestamp (remote ref-or-hash)
+(defun stp-git-remote-timestamp (remote rev)
   "This is similar to `stp-git-timestamp' except that it works with
 remote repositories."
   (let ((path (stp-git-ensure-cached-repo remote)))
-    (stp-git-timestamp path ref-or-hash)))
+    (stp-git-timestamp path rev)))
 
 (provide 'stp-git-utils)
 ;;; stp-git-utils.el ends here

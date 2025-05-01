@@ -34,9 +34,9 @@
   (let ((pkg-path (stp-canonical-path pkg-name)))
     (stp-git-tree pkg-path)))
 
-(defun stp-git-subtree-package-modified-p (pkg-name &optional remote ref-or-hash)
+(defun stp-git-subtree-package-modified-p (pkg-name &optional remote rev)
   (let ((pkg-path (stp-canonical-path pkg-name)))
-    (stp-git-subtree-modified-p pkg-path remote ref-or-hash)))
+    (stp-git-subtree-modified-p pkg-path remote rev)))
 
 (defun stp-git-tree-package-modified-p (pkg-name)
   (let ((pkg-path (stp-canonical-path pkg-name)))
@@ -194,11 +194,11 @@ are converted to hashes before they are returned."
   (let ((path (stp-git-ensure-cached-repo remote)))
     (stp-git-remote-latest-tag path)))
 
-(defun stp-git-latest-unstable-version (remote ref-or-hash)
+(defun stp-git-latest-unstable-version (remote rev)
   (let ((path (stp-git-ensure-cached-repo remote)))
-    (if (string= ref-or-hash "HEAD")
+    (if (string= rev "HEAD")
         (stp-git-remote-head path)
-      (car (rassoc ref-or-hash (stp-git-remote-hash-head-alist path))))))
+      (car (rassoc rev (stp-git-remote-hash-head-alist path))))))
 
 (defun stp-git-version-upgradable-p (count-to-stable count-to-unstable update)
   (if (eq update 'stable)
