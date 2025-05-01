@@ -292,7 +292,7 @@ nil. BRANCH defualts to the current branch."
   (s-left stp-git-abbreviated-hash-length hash))
 
 (defun stp-git-tree (path)
-  "Determine the hashes of the git trees in the current repository."
+  "Determine the hash of the git tree at PATH."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (let ((default-directory (stp-git-root path)))
