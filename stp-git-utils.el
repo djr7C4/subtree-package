@@ -296,7 +296,7 @@ nil. BRANCH defualts to the current branch."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (let ((default-directory (stp-git-root path)))
-    (rem-run-command (format "git ls-tree -d HEAD --format='%%(objectname)' '%s'"
+    (rem-run-command (format "git ls-tree -d HEAD --object-only' '%s'"
                              ;; Git will show the children of the directory even
                              ;; when -d is specified when the directory ends
                              ;; with a slash.
