@@ -1327,7 +1327,7 @@ to TRIES times."
                                        ;; Inject the STP variables and the
                                        ;; caller's load path into the
                                        ;; asynchronous process.
-                                       ,(async-inject-variables "^stp-")
+                                       ,(async-inject-variables "^stp-" nil stp-async-inject-variables-exclude-regexp)
                                        (setq load-path ',load-path)
                                        (require 'stp)
                                        ;; pkg-alist is read from disk every time

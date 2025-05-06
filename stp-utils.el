@@ -24,6 +24,9 @@
 (require 's)
 (require 'seq)
 
+;; This is required for Emacs 30+.
+(defvar stp-async-inject-variables-exclude-regexp "-abbrev-table\\'")
+
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
 (defvar stp-no-break-space (propertize " " 'display " "))
