@@ -92,12 +92,13 @@ within that package."
 (cl-defun stp-git-valid-remote-ref-p (remote rev &optional ask-p)
   ;; Check if rev is a ref on remote or if it is a hash that matches a ref on
   ;; remote.
-  (or (member rev (stp-git-remote-tags remote))
-      (member rev (stp-git-remote-heads remote))
-      ;; There is no way to check if hash exists on a remote (only refs) so
-      ;; we ask the user.
-      (and ask-p
-           (yes-or-no-p (format "%s was not found in %s (this is normal for hashes). Continue?" rev remote)))))
+  (and (or (member rev (stp-git-remote-tags remote t))
+           (member rev (stp-git-remote-heads remote))
+           ;; There is no way to check if hash exists on a remote (only refs) so
+           ;; we ask the user.
+           (and ask-p
+                (yes-or-no-p (format "%s was not found in %s (this is normal for hashes). Continue?" rev remote))))
+       t))
 
 (cl-defun stp-git-valid-rev-p (path rev)
   "Check if REV is a valid revision for the local git repository at
@@ -422,11 +423,14 @@ the refs. By default all refs are returned."
   "Return an alist that maps hashes to tags."
   (stp-git-remote-hash-alist remote :prefixes '("refs/tags/")))
 
-(defun stp-git-remote-tags (remote)
-  (mapcar #'cdr (stp-git-remote-hash-tag-alist remote)))
+(defun stp-git-remote-tags (remote &optional keep-dereferences)
+  (let ((tags (mapcar #'cdr (stp-git-remote-hash-tag-alist remote))))
+    (if keep-dereferences
+        tags
+      (cl-remove-if (-partial #'s-ends-with-p "^{}") tags))))
 
-(defun stp-git-remote-tag-p (remote ref)
-  (member ref (stp-git-remote-tags remote)))
+(defun stp-git-remote-tag-p (remote rev)
+  (member rev (stp-git-remote-tags remote t)))
 
 (defun stp-git-remote-hash-head-alist (remote)
   "Return an alist that maps hashes to heads."
@@ -473,22 +477,56 @@ will be returned."
                               :error t)
              t)))
 
-(defun stp-git-rev-to-hash (remote rev)
+(defun stp-git-rev-to-hash (remote rev &optional no-dereference)
   "Convert REV to a hash if it isn't one already. Refs that do not
 match any hash will remain unchanged."
   (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
-               (rassoc rev (stp-git-remote-hash-tag-alist remote))))
+               (rassoc (if no-dereference
+                           rev
+                         (stp-git-tag-append-dereference rev))
+                       (stp-git-remote-hash-tag-alist remote))))
       rev))
 
-(defun stp-git-head-to-hash (remote head-or-hash)
-  "Convert HEAD-OR-HASH to a hash if it isn't one already."
-  (or (car (rassoc head-or-hash (stp-git-remote-hash-head-alist remote)))
-      head-or-hash))
+(defun stp-git-head-to-hash (remote rev)
+  "If REV is a head, convert it to a hash. Otherwise, return REV."
+  (or (car (rassoc rev (stp-git-remote-hash-head-alist remote)))
+      rev))
 
-(defun stp-git-tag-to-hash (remote tag-or-hash)
-  "Convert TAG-OR-HASH to a hash if it isn't one already."
-  (or (car (rassoc tag-or-hash (stp-git-remote-hash-tag-alist remote)))
-      tag-or-hash))
+(defun stp-git-tag-to-hash (remote rev &optional no-dereference)
+  "If REV is a tag, convert it to a hash. Otherwise, return REV."
+  (or (car (rassoc (if no-dereference
+                       rev
+                     (stp-git-tag-append-dereference ref))
+                   (stp-git-remote-hash-tag-alist remote)))
+      rev))
+
+(defun stp-git-hash-to-head (remote rev)
+  "If REV is a hash that corresponds to a head, return the head.
+Otherwise, return REV."
+  (or (map-elt (stp-git-remote-hash-head-alist remote) rev)
+      rev))
+
+(defun stp-git-tag-strip-dereference (tag)
+  "When tag is non-nil, remove the ^{} following a tag object if it
+is present."
+  ;; A tag followed by ^{} means to dereference the tag until a commit is
+  ;; reached.
+  (s-chop-suffix "^{}" tag))
+
+(defun stp-git-tag-append-dereference (tag)
+  "Append ^{} to TAG unless it already has that suffix."
+  (if (s-ends-with-p "^{}" tag)
+      tag
+    (concat tag "^{}")))
+
+(defun stp-git-rev-to-tag (remote rev &optional keep-dereference)
+  "If REV is a hash that corresponds to a tag, return the tag.
+Otherwise, return REV."
+  (or (let ((tag (map-elt (stp-git-remote-hash-tag-alist remote) rev)))
+        (if keep-dereference
+            tag
+          (stp-git-tag-strip-dereference tag)))
+      rev))
 
 (defun stp-git-hash= (hash hash2)
   (and (>= (length hash) 6)

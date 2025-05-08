@@ -1215,7 +1215,9 @@ prefix argument, go forward that many packages."
       (cl-ecase .method
         (git
          (let* ((latest-stable (stp-git-latest-stable-version .remote))
-                (latest-unstable (stp-git-latest-unstable-version .remote (or .branch "HEAD")))
+                (latest-unstable (->> (or .branch "HEAD")
+                                      (stp-git-latest-unstable-version .remote)
+                                      (stp-git-rev-to-tag .remote)))
                 (commits-to-stable (and latest-stable
                                         (stp-git-count-remote-commits .remote .version latest-stable :branch .branch :both t)))
                 (commits-to-unstable (and latest-unstable
