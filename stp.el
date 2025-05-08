@@ -880,6 +880,7 @@ there were no errors."
 be performed even when no build system is present. The meaning of
 `stp-allow-naive-byte-compile' is inverted with a prefix
 argument. Packages in `stp-build-blacklist' will not be built."
+  (interactive)
   (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -890,7 +891,6 @@ argument. Packages in `stp-build-blacklist' will not be built."
 
 (defun stp-build-all (&optional pkg-names allow-naive-byte-compile)
   "Build the packages that need it."
-  (interactive (list ))
   (let (failed)
     (dolist (pkg-name pkg-names)
       (message "Building %s" pkg-name)
