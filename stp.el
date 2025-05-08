@@ -1208,7 +1208,8 @@ prefix argument, go forward that many packages."
   (interactive "p")
   (stp-list-next-repair (- n)))
 
-(defun stp-latest-version (pkg-name pkg-alist)
+(defun stp-latest-version (pkg-name &optional pkg-alist)
+  (setq pkg-alist (or pkg-alist (stp-get-alist pkg-name)))
   (let-alist pkg-alist
     (let ((timestamp (float-time)))
       (cl-ecase .method

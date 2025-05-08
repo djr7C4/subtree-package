@@ -473,7 +473,7 @@ will be returned."
                               :error t)
              t)))
 
-(defun stp-git-ref-to-hash (remote rev)
+(defun stp-git-rev-to-hash (remote rev)
   "Convert REV to a hash if it isn't one already. Refs that do not
 match any hash will remain unchanged."
   (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
