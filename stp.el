@@ -896,6 +896,7 @@ argument. Packages in `stp-build-blacklist' will not be built."
       (message "Building %s" pkg-name)
       (unless (stp-build pkg-name allow-naive-byte-compile)
         (push pkg-name failed)))
+    (setq failed (reverse failed))
     (if failed
         (message "Failed to build: %s" (s-join " " failed))
       (message "Successfully built all packages"))))
@@ -968,6 +969,7 @@ argument. Packages in `stp-build-blacklist' will not be built."
       (message "Building the info manual for %s" pkg-name)
       (unless (stp-build-info pkg-name)
         (push pkg-name failed)))
+    (setq failed (reverse failed))
     (if failed
         (message "Failed to build info manuals for: %s" (s-join " " failed))
       (message "Successfully built info manuals for all packages"))))
