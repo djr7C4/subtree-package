@@ -846,8 +846,6 @@ there were no errors."
                        (or (eql (call-process-shell-command cmd nil output-buffer) 0)
                            (and (message "Failed to run make on %s" pkg-path)
                                 nil)))))
-                 ;; Note that `byte-recompile-directory' won't recompile files
-                 ;; unless they are out of date.
                  (and allow-naive-byte-compile
                       (let ((default-directory pkg-path))
                         (message "Attempting to byte compile files in %s..." pkg-path)
@@ -859,7 +857,12 @@ there were no errors."
                                                (with-current-buffer output-buffer
                                                  (insert (apply #'format args)))))
                                 (stp-before-build-command "Byte compiling files" output-buffer)
-                                (byte-recompile-directory pkg-path 0))
+                                ;; Packages have to be compiled and loaded twice
+                                ;; to ensure that macros will work.
+                                (byte-recompile-directory pkg-path 0)
+                                (stp-reload-once pkg-name)
+                                (byte-recompile-directory pkg-path 0)
+                                (stp-reload-once pkg-name))
                               t)
                           (error (ignore err)
                                  (message "Byte-compiling %s failed" pkg-path)
