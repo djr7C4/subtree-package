@@ -335,9 +335,27 @@ which actions should be performed after a package is installed or
 upgraded. The value t indicates that all post actions should be
 performed.")
 
+(defvar stp-auto-update-load-path t
+  "This variable indicates if the load path should be automatically
+updated for newly installed or upgraded packages")
+
 (defvar stp-auto-load t
   "This variable indicates if newly installed or upgraded packages
 should be automatically loaded.")
+
+(defvar stp-auto-build nil
+  "This variable indicates if newly installed or upgraded packages
+should be automatically built or rebuilt. It uses general methods
+which may fail for some packages.")
+
+(defvar stp-auto-build-info t
+  "This variable indicates if info manuals for newly installed or
+upgraded packages should be automatically built or rebuilt.")
+
+(defvar stp-auto-update-info-directories t
+  "This variable indicates if info directories for newly installed
+or upgraded packages should be automatically added to the info
+search path.")
 
 (defun stp-ensure-no-merge-conflicts ()
   (when (stp-git-merge-conflict-p)
@@ -771,12 +789,16 @@ the package and updating the load path."
     (stp-post-actions (stp-list-read-package "Package name: "))))
 
 (defun stp-post-actions (pkg-name)
-  (stp-update-load-path (stp-full-path pkg-name))
+  (when stp-auto-update-load-path
+    (stp-update-load-path (stp-full-path pkg-name)))
   (when stp-auto-load
     (stp-reload pkg-name))
-  (stp-build pkg-name)
-  (stp-build-info pkg-name)
-  (stp-update-info-directories pkg-name))
+  (when stp-auto-build
+    (stp-build pkg-name))
+  (when stp-auto-build-info
+    (stp-build-info pkg-name))
+  (when stp-auto-update-info-directories
+    (stp-update-info-directories pkg-name)))
 
 (defvar stp-build-output-buffer-name "*STP Build Output*")
 
