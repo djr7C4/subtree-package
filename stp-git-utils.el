@@ -477,9 +477,12 @@ will be returned."
                               :error t)
              t)))
 
-(defun stp-git-rev-to-hash (remote rev &optional no-dereference)
+(cl-defun stp-git-rev-to-hash (remote rev &optional (no-dereference t))
   "Convert REV to a hash if it isn't one already. Refs that do not
-match any hash will remain unchanged."
+match any hash will remain unchanged. Be aware that some remotes
+will not return hashes for dereferenced tags. For these remotes,
+when NO-DEREFERENCE is nil it will not be possible to determine
+the hash for the tag."
   (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
                (rassoc (if no-dereference
                            rev
@@ -492,8 +495,11 @@ match any hash will remain unchanged."
   (or (car (rassoc rev (stp-git-remote-hash-head-alist remote)))
       rev))
 
-(defun stp-git-tag-to-hash (remote rev &optional no-dereference)
-  "If REV is a tag, convert it to a hash. Otherwise, return REV."
+(cl-defun stp-git-tag-to-hash (remote rev &optional (no-dereference t))
+  "If REV is a tag, convert it to a hash. Otherwise, return REV. Be
+aware that some remotes will not return hashes for dereferenced
+tags. For these remotes, when NO-DEREFERENCE is nil it will not
+be possible to determine the hash for the tag."
   (or (car (rassoc (if no-dereference
                        rev
                      (stp-git-tag-append-dereference ref))
