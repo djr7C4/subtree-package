@@ -602,7 +602,7 @@ do-push and proceed arguments are as in `stp-install'."
                            (if (> (length (stp-git-conflicted-files)) 1)
                                "Merge conflicts"
                              "A merge conflict"))
-                (stp-git-commit-push (format "Installed version %s of %s"
+                (stp-git-commit-push (format "Upgraded to version %s of %s"
                                              (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
                                              pkg-name)
                                      do-commit
