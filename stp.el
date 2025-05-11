@@ -597,7 +597,11 @@ do-push and proceed arguments are as in `stp-install'."
               (stp-write-info)
               ;; Don't commit, push or perform push actions when there are
               ;; merge conflicts.
-              (unless (stp-git-merge-conflict-p)
+              (if (stp-git-merge-conflict-p)
+                  (message "%s occurred. Please resolve and commit manually."
+                           (if (> (length (stp-git-conflicted-files)) 1)
+                               "Merge conflicts"
+                             "A merge conflict"))
                 (stp-git-commit-push (format "Installed version %s of %s"
                                              (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
                                              pkg-name)

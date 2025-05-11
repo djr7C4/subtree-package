@@ -302,12 +302,9 @@ from remote."
              :return 'both)
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
-           ;; the user.
-           ((stp-git-merge-conflict-p)
-            (message "%s occurred. Please resolve and commit manually."
-                     (if (> (length (stp-git-conflicted-files)) 1)
-                         "Merge conflicts"
-                       "A merge conflict")))
+           ;; the user. The message is displayed in higher-level code as
+           ;; otherwise it won't show here.
+           ((stp-git-merge-conflict-p))
            ;; If the command succeeded and there are no merge conflicts then we
            ;; don't need to do anything.
            ((= exit-code 0))
