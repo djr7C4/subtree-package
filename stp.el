@@ -792,8 +792,9 @@ the package and updating the load path."
   (when stp-auto-update-load-path
     (stp-update-load-path (stp-full-path pkg-name)))
   (when stp-auto-load
-    (with-demoted-errors (format "Error loading %s: %%s" pkg-name)
-      (stp-reload pkg-name)))
+    (condition-case err
+        (stp-reload pkg-name)
+      (error (warn "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
   (when stp-auto-build
     (stp-build pkg-name))
   (when stp-auto-build-info
