@@ -743,7 +743,7 @@ the rest will be other-remotes."
                                            new-remote
                                            new-other-remotes
                                            pkg-name)
-                                 (format "Reordered the remotes for %s" pkg-name))
+                                 (format "Edited the remotes for %s" pkg-name))
                                do-commit
                                do-push)
           (when refresh
