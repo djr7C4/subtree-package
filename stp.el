@@ -1560,15 +1560,25 @@ the same time unless PARALLEL is non-nil."
               "V" #'stp-list-update-latest-versions
               "RET" #'stp-find-package)
 
-(defun stp-list-annotated-version (method version count version-timestamp new-timestamp)
+(defvar stp-list-annotated-version 'time-delta
+  "This determines how versions are annotated with timestamps in
+`stp-list-mode'. When it is \\='timestamp, the timestamp for the
+version is used. When it is \\='time-delta, the amount of time
+from the installed version is used.")
+
+(defun stp-list-annotated-latest-version (method version count version-timestamp latest-timestamp)
   (let* ((count-string (if (and count (/= count 0))
                            (number-to-string count)
                          ""))
-         (time-string (if (and version-timestamp new-timestamp)
-                          (let ((seconds (- new-timestamp version-timestamp)))
-                            (if (/= (round seconds) 0)
-                                (stp-short-format-seconds seconds)
-                              ""))
+         (time-string (if (and version-timestamp latest-timestamp)
+                          (ecase stp-list-annotated-version
+                            (time-delta
+                             (let ((seconds (- latest-timestamp version-timestamp)))
+                               (if (/= (round seconds) 0)
+                                   (stp-short-format-seconds seconds)
+                                 "")))
+                            (timestamp
+                             (stp-short-format-date latest-timestamp)))
                         ""))
          (separator (if (and (not (string= count-string ""))
                              (not (string= time-string "")))
@@ -1610,21 +1620,25 @@ the same time unless PARALLEL is non-nil."
     ;; reliable since they have no version information available.
     (url)))
 
-(defun stp-list-version-field (pkg-name method remote version count-to-stable count-to-unstable update)
-  (if version
-      (let ((version-string (stp-list-abbreviate-version method version)))
-        (if (stp-version-upgradable-p pkg-name method remote count-to-stable count-to-unstable update)
-            (propertize version-string 'face stp-list-upgradable-face)
-          version-string))
-    stp-list-missing-field-string))
+(defun stp-list-version-field (pkg-name pkg-alist version-alist)
+  (let-alist (map-merge 'alist pkg-alist version-alist)
+    (if .version
+        (let ((version-string (stp-list-abbreviate-version .method .version)))
+          (setq version-string (if (stp-version-upgradable-p pkg-name .method .remote .count-to-stable .count-to-unstable .update)
+                                   (propertize version-string 'face stp-list-upgradable-face)
+                                 version-string))
+          (when (eq stp-list-annotated-version 'timestamp)
+            (setq version-string (format "%s(%s)" version-string (stp-short-format-date .version-timestamp))))
+          version-string)
+      stp-list-missing-field-string)))
 
 (defun stp-list-latest-field (method version-alist seconds)
   (when version-alist
     (let-alist version-alist
       (let* ((stale (stp-latest-stale-p seconds .updated))
              (stale-string (if stale stp-list-stale-version-string ""))
-             (stable-version-string (stp-list-annotated-version method .latest-stable .count-to-stable .version-timestamp .stable-timestamp))
-             (unstable-version-string (stp-list-annotated-version method .latest-unstable .count-to-unstable .version-timestamp .unstable-timestamp))
+             (stable-version-string (stp-list-annotated-latest-version method .latest-stable .count-to-stable .version-timestamp .stable-timestamp))
+             (unstable-version-string (stp-list-annotated-latest-version method .latest-unstable .count-to-unstable .version-timestamp .unstable-timestamp))
              (version-string
               (format "%s%s %s%s"
                       (or stable-version-string "\t")
@@ -1669,13 +1683,14 @@ asynchronously."
                               (format " Latest%sstable Latest%sunstable" stp-no-break-space stp-no-break-space)
                             "")))
           (dolist (pkg-name (stp-info-names))
-            (let ((version-alist (map-elt stp-latest-versions-cache pkg-name)))
+            (let ((pkg-alist (stp-get-alist pkg-name))
+                  (version-alist (map-elt stp-latest-versions-cache pkg-name)))
               ;; Nesting `let-alist' doesn't work nicely so we merge the alists
               ;; instead.
-              (let-alist (map-merge 'alist version-alist (stp-get-alist pkg-name))
+              (let-alist (map-merge 'alist pkg-alist version-alist)
                 (insert (format "%s %s %s %s %s %s %s\n"
                                 (stp-name pkg-name)
-                                (or (stp-list-version-field pkg-name .method .remote .version .count-to-stable .count-to-unstable .update)
+                                (or (stp-list-version-field pkg-name pkg-alist version-alist)
                                     (propertize stp-list-missing-field-string 'face stp-list-error-face))
                                 (or (when stp-latest-versions-cache
                                       (or (when version-alist

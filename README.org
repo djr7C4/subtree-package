@@ -74,7 +74,9 @@ from the currently installed version is shown in parentheses followed by the
 amount of time between the commits for the installed version and the new
 version. Negative numbers mean that the currently installed version is newer by
 that many commits. For ELPA packages, the number in parentheses is the number of
-stable versions since the currently installed version.
+stable versions since the currently installed version. To show the date a
+version was committed instead of the amount of time from the installed version,
+set =stp-list-annotated-version= to ='timestamp=.
 
 Latest versions are considered stale when they haven't been updated for more
 than =stp-latest-versions-stale-interval= seconds and are highlighted in orange.

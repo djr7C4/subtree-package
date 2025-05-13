@@ -47,6 +47,9 @@
              (t
               (format-seconds "%yy%dd%z" seconds))))))
 
+(defun stp-short-format-date (timestamp)
+  (format-time-string "%d/%m/%y" timestamp))
+
 (defun stp-prefix-prompt (prompt-prefix prompt)
   (if (or (not prompt-prefix) (string= prompt-prefix ""))
       prompt
