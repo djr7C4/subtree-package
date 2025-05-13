@@ -255,16 +255,22 @@ be selected.")
       (stp-comp-read-remote prompt (cons remote other-remotes) :default remote)
     remote))
 
+(defvar stp-prefer-chosen-remote nil
+  "When non-nil, always put the last chosen remote as the \\='remote
+attribute and relegate the others to \\'other-remotes. Otherwise,
+do not reorder the remotes based on which was chosen.")
+
 (defun stp-update-remotes (pkg-name chosen-remote remote other-remotes)
   ;; Remote should always be chosen-remote since that is where the package was
   ;; just installed or upgraded from. (See the documentation of
   ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
   ;; not chosen.
-  (stp-set-attribute pkg-name 'remote chosen-remote)
-  (when (or other-remotes (not (string= chosen-remote remote)))
-    (->> (cons remote other-remotes)
-         (remove chosen-remote)
-         (stp-set-attribute pkg-name 'other-remotes))))
+  (when stp-prefer-chosen-remote
+    (stp-set-attribute pkg-name 'remote chosen-remote)
+    (when (or other-remotes (not (string= chosen-remote remote)))
+      (->> (cons remote other-remotes)
+           (remove chosen-remote)
+           (stp-set-attribute pkg-name 'other-remotes)))))
 
 (defun stp-github-io-transformer (remote)
   "Transform github.io pages to git repositories."

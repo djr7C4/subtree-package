@@ -712,6 +712,8 @@ package info to `stp-info-file'"
   (stp-with-memoization
     (apply #'stp-edit-remotes (stp-command-args))))
 
+(defvar stp-edit-remotes-long-commit-msg nil)
+
 (cl-defun stp-edit-remotes (pkg-name &key do-commit do-push (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME using
 `completing-read-multiple'. The first chosen will be remotes and
@@ -728,17 +730,20 @@ the rest will be other-remotes."
             (user-error "At least one remote must be specified"))
           (when invalid-remotes
             (user-error "%s %s not valid for method %s"
+                        (rem-join-and invalid-remotes)
                         (if (= (length invalid-remotes) 1) "is" "are")
-                        (rem-join-and invalid-remotes) .method))
+                        .method))
           (stp-set-attribute pkg-name 'remote new-remote)
           (if new-other-remotes
               (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
             (stp-delete-attribute pkg-name 'other-remotes))
           (stp-write-info)
-          (stp-git-commit-push (format "Set remote to %s and other remotes to %S for %s"
-                                       new-remote
-                                       new-other-remotes
-                                       pkg-name)
+          (stp-git-commit-push (if stp-edit-remotes-long-commit-msg
+                                   (format "Set remote to %s and other remotes to %S for %s"
+                                           new-remote
+                                           new-other-remotes
+                                           pkg-name)
+                                 (format "Reordered the remotes for %s" pkg-name))
                                do-commit
                                do-push)
           (when refresh
