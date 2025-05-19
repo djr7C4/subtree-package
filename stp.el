@@ -29,6 +29,7 @@
 (require 'stp-utils)
 (require 'stp-elpa)
 (require 'stp-git)
+(require 'stp-locked)
 (require 'stp-url)
 (require 'timer)
 (require 'url-handlers)
@@ -823,8 +824,6 @@ the package and updating the load path."
     (stp-update-info-directories pkg-name)))
 
 (defvar stp-auto-lock t)
-
-(defvar stp-lock-file (f-join user-emacs-directory "stp-pkg-lock.eld"))
 
 (defun stp-update-lock-file ()
   "Write the current hash of the git repository that contains
