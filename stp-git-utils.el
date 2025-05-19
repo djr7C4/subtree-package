@@ -77,6 +77,9 @@ within that package."
     (unless (stp-git-root dir)
       (error "Not in a git repository"))
     (let ((default-directory dir))
+      ;; `rem-call-process-shell-command' is more efficient than
+      ;; `call-process-shell-command' because it does not load the shell's init
+      ;; files.
       (eql (car (rem-call-process-shell-command (format "git ls-files --error-unmatch \"%s\"" file))) 0))))
 
 (defun stp-git-remotes ()
