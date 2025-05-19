@@ -388,7 +388,7 @@ installed as a git subtree."
 
 ;; This function exists to facilitate memoization.
 (defun stp-git-remote-hash-alist-basic (remote)
-  (rem-run-command (format "git ls-remote %s 2> /dev/null" remote) :error t))
+  (rem-run-command (format "git ls-remote %s" remote) :error t :nostderr t))
 
 (cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p))
   "Return an alist that maps hashes to refs. If supplied, prefixes
@@ -657,7 +657,7 @@ repository at PATH."
     ;;
     ;; The ^{commit} syntax forces git to show the commit object pointed to
     ;; by a tag rather than the tag.
-    (string-to-number (rem-run-command (format "git show --no-patch --format=%%ct '%s^{commit}' 2>/dev/null" rev) :error t))))
+    (string-to-number (rem-run-command (format "git show --no-patch --format=%%ct '%s^{commit}'" rev) :error t :nostderr t))))
 
 (defun stp-git-remote-timestamp (remote rev)
   "This is similar to `stp-git-timestamp' except that it works with
