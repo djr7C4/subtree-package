@@ -371,8 +371,8 @@ search path.")
   (let ((args (if current-prefix-arg
                   (list :do-commit (not stp-auto-commit)
                         :do-push (and (not stp-auto-commit) (not stp-auto-push))
-                        :do-lock (and (not stp-auto-commit) (not stp-auto-lock)))
-                (list :do-commit stp-auto-commit :do-push stp-auto-push :do-lock stp-auto-lock))))
+                        :do-lock (and (not stp-auto-commit) (and (not stp-never-auto-lock) (not stp-auto-lock))))
+                (list :do-commit stp-auto-commit :do-push stp-auto-push :do-lock (and (not stp-never-auto-lock) stp-auto-lock)))))
     (when (plist-get args :do-commit)
       (stp-maybe-ensure-clean))
     args))
@@ -823,7 +823,13 @@ the package and updating the load path."
   (when stp-auto-update-info-directories
     (stp-update-info-directories pkg-name)))
 
-(defvar stp-auto-lock t)
+(defvar stp-auto-lock nil
+  "Automatically update `stp-lock-file' when packages are changed.")
+
+(defvar stp-never-auto-lock t
+  "Never automatically update `stp-lock-file'. This is different
+from `stp-auto-lock' because that is just a default argument for
+interactive commands.")
 
 (defun stp-update-lock-file ()
   "Write the current hash of the git repository that contains
@@ -836,6 +842,11 @@ the package and updating the load path."
             (insert (format "%S\n" hash))
             (f-write (buffer-string) 'utf-8 stp-lock-file)))
       (user-error "Refusing to update the lock file: %s is unclean" (stp-git-root stp-source-directory)))))
+
+(defun stp-lock-file-watcher (event)
+  (let ((action (cadr event)))
+    (when (memq action '(created changed))
+      (stp-checkout-locked-revision t))))
 
 (defvar stp-build-output-buffer-name "*STP Build Output*")
 

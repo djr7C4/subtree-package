@@ -23,6 +23,7 @@
 (require 'rem-abbrev)
 (require 's)
 (require 'seq)
+(require 'stp-locked)
 
 ;; This is required for Emacs 30+.
 (defvar stp-async-inject-variables-exclude-regexp "-abbrev-table\\'")
@@ -56,8 +57,6 @@
     (concat prompt-prefix
             (s-downcase (substring prompt 0 1))
             (substring prompt 1))))
-
-(defvar stp-source-directory (f-join user-emacs-directory "package-source"))
 
 (defun stp-delete-load-path (pkg-name)
   (setq load-path (cl-delete-if (lambda (path)

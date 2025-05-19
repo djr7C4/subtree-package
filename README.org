@@ -121,14 +121,41 @@ package can be installed as a URL package using this URL as the remote. Unlike
 git and ELPA packages, there is no way for STP to detect the version of a URL
 package due to the lack of useful metadata. Therefore, it is up to the user to
 supply the version in this case.
+** Optionally sync your Emacs configuration repository to ~/.emacs.d
+=stp-source-directory= can be a subdirectory of ~/.emacs.d or it can be a
+separate git repository just for packages. The main benefit of this is that it
+avoids cluttering the commit history in ~/.emacs.d with many entries regarding
+package changes. However, the disadvantage is that checking out an old version
+of ~/.emacs.d will just use whatever is currently in the package git repository
+instead of what was current when that version of ~/.emacs.d was committed.
+
+STP supports updating a lock file for the version of the package git repository
+when changes are made to the packages. This will cause the version of the
+package git repository stored in =stp-lock-file= to be used. To enable this
+feature, put the following code in =early-init.el=. It should go before the
+bootstrap code mentioned below.
+
+#+begin_src emacs-lisp
+  (require 'stp-locked (expand-file-name "path/to/package-source/subtree-package/stp-locked.el"))
+
+  (stp-checkout-locked-revision)
+#+end_src
+
+In your =~/.emacs= or =~/.emacs.d/init.el=, enable automatically updating the
+=stp-lock-file= as follows.
+
+#+begin_src emacs-lisp
+  (setq stp-auto-lock t
+        stp-never-auto-lock nil)
+
+  (file-notify-add-watch stp-lock-file '(change) #'stp-lock-file-watcher)
+#+end_src
+
 * Installation
 Subtree package can manage itself as a package. It is recommended to place the
 bootstraping code in =early-init.el=.
 #+begin_src emacs-lisp
   (require 'stp-bootstrap (expand-file-name "path/to/package-source/subtree-package/stp-bootstrap.el"))
-
-  (setq stp-source-directory "emacs-config/package-source/"
-        stp-info-file "emacs-config/pkg-info.eld")
 
   ;; Set up dependencies for STP itself.
   (stp-bootstrap)
