@@ -77,7 +77,7 @@ within that package."
     (unless (stp-git-root dir)
       (error "Not in a git repository"))
     (let ((default-directory dir))
-      (eql (call-process-shell-command (format "git ls-files --error-unmatch \"%s\"" file)) 0))))
+      (eql (car (rem-call-process-shell-command (format "git ls-files --error-unmatch \"%s\"" file))) 0))))
 
 (defun stp-git-remotes ()
   (s-split rem-positive-whitespace-regexp
@@ -87,7 +87,7 @@ within that package."
 (defun stp-git-valid-remote-p (remote)
   "Determine if remote is a valid git repository."
   (and (stringp remote)
-       (eql (call-process-shell-command (format "git ls-remote -h '%s'" remote)) 0)))
+       (eql (car (rem-call-process-shell-command (format "git ls-remote -h '%s'" remote))) 0)))
 
 (cl-defun stp-git-valid-remote-ref-p (remote rev &optional ask-p)
   ;; Check if rev is a ref on remote or if it is a hash that matches a ref on
@@ -104,12 +104,12 @@ within that package."
   "Check if REV is a valid revision for the local git repository at
 PATH."
   (let ((default-directory path))
-    (eql (call-process-shell-command (format "git rev-parse --verify '%s'" rev)) 0)))
+    (eql (car (rem-call-process-shell-command (format "git rev-parse --verify '%s'" rev))) 0)))
 
 (defun stp-git-init (path)
   "Run \"git init\" on PATH."
   (let ((default-directory path))
-    (unless (eql (call-process-shell-command "git init") 0)
+    (unless (eql (car (rem-call-process-shell-command "git init")) 0)
       (error "git init failed"))))
 
 (cl-defun stp-git-add (path)

@@ -557,7 +557,7 @@ as in `stp-install'."
   (when pkg-name
     (let-alist (stp-get-alist pkg-name)
       (save-window-excursion
-        (if (eql (call-process-shell-command (format "git rm -r '%s'" pkg-name)) 0)
+        (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
             (progn
               (f-delete pkg-name t)
               (stp-delete-alist pkg-name)
@@ -898,7 +898,7 @@ there were no errors."
             ;; `pkg-path' as the source directory so there is no
             ;; ambiguity as to which CMakeLists.txt file should be
             ;; used.
-            (unless (eql (call-process-shell-command cmd nil output-buffer) 0)
+            (unless (eql (car (rem-call-process-shell-command cmd nil output-buffer)) 0)
               (message "Failed to run cmake on %s" build-dir)))))
       (let ((success
              ;; Try different methods of building the package until one
@@ -917,7 +917,7 @@ there were no errors."
                        ;; Make expects a makefile to be in the current directory
                        ;; so there is no ambiguity over which makefile will be
                        ;; used.
-                       (or (eql (call-process-shell-command cmd nil output-buffer) 0)
+                       (or (eql (car (rem-call-process-shell-command cmd nil output-buffer)) 0)
                            (and (message "Failed to run make on %s" pkg-path)
                                 nil)))))
                  (and allow-naive-byte-compile
@@ -1000,7 +1000,7 @@ argument. Packages in `stp-build-blacklist' will not be built."
                     (message "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
                     (let ((cmd (format "make %s" target)))
                       (stp-before-build-command cmd output-buffer)
-                      (if (eql (call-process-shell-command cmd nil output-buffer) 0)
+                      (if (eql (car (rem-call-process-shell-command cmd nil output-buffer)) 0)
                           (progn
                             (message "Built the info manual for %s using make" pkg-name)
                             (cl-return t))
@@ -1023,7 +1023,7 @@ argument. Packages in `stp-build-blacklist' will not be built."
                       (cl-return t))
                      ((progn
                         (stp-before-build-command cmd output-buffer)
-                        (eql (call-process-shell-command cmd nil output-buffer) 0))
+                        (eql (car (rem-call-process-shell-command cmd nil output-buffer)) 0))
                       (message "Built the info manual for %s using makeinfo" pkg-name)
                       (cl-return t))
                      (t
