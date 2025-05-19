@@ -408,7 +408,7 @@ and \\='branch attributes should not be present.")
   (with-temp-buffer
     (insert ";;; mode: read-only; -*- no-byte-compile: t; -*-\n\n")
     (pp (stp-sort-info stp-package-info) (current-buffer))
-    (write-file stp-info-file)))
+    (f-write (buffer-string) 'utf-8 stp-info-file)))
 
 (defun stp-get-attribute (pkg-name attr)
   "Get the attribute attr in the alist with the key corresponding to
