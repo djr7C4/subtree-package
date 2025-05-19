@@ -799,7 +799,7 @@ the package and updating the load path."
   (when stp-auto-load
     (condition-case err
         (stp-reload pkg-name)
-      (error (warn "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
+      (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
   (when stp-auto-build
     (stp-build pkg-name))
   (when stp-auto-build-info
