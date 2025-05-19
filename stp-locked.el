@@ -13,11 +13,12 @@
                        (insert-file-contents stp-lock-file)
                        (read (current-buffer))))
                (cmd (format "git name-rev --name-only --no-undefined %s" hash))
+               (git-path (executable-find "git"))
                ;; Convert the hash to a tag or branch if possible. This prevents
                ;; HEAD from being detached in `stp-source-directory'
                ;; which would cause issues later when committing to it.
                (data (with-temp-buffer
-                       (list (call-process-shell-command cmd nil t)
+                       (list (apply #'call-process git-path nil t nil (cdr (string-split cmd)))
                              (buffer-string))))
                ;; Avoid using `cl-destructuring-bind'.
                (exit-code (car data))
@@ -31,7 +32,7 @@
                                (format "%s (%s)" hash rev)))
                  (cmd (format "git checkout %s" rev))
                  (data (with-temp-buffer
-                         (list (call-process-shell-command cmd nil t)
+                         (list (apply #'call-process git-path nil t nil (cdr (string-split cmd)))
                                (buffer-string))))
                  (exit-code (car data))
                  (output (cadr data)))
