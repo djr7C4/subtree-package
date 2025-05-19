@@ -477,7 +477,7 @@ will be returned."
                               :error t)
              t)))
 
-(defun stp-git-rev-to-hash (remote rev)
+(defun stp-git-remote-rev-to-hash (remote rev)
   "Convert REV to a hash if it isn't one already. Refs that do not
 match any hash will remain unchanged."
   (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
@@ -491,21 +491,37 @@ match any hash will remain unchanged."
                (rassoc rev (stp-git-remote-hash-tag-alist remote))))
       rev))
 
-(defun stp-git-head-to-hash (remote rev)
+(defun stp-git-remote-head-to-hash (remote rev)
   "If REV is a head, convert it to a hash. Otherwise, return REV."
   (or (car (rassoc rev (stp-git-remote-hash-head-alist remote)))
       rev))
 
-(defun stp-git-tag-to-hash (remote rev)
+(defun stp-git-remote-tag-to-hash (remote rev)
   "If REV is a tag, convert it to a hash. Otherwise, return REV."
   (or (car (rassoc rev (stp-git-remote-hash-tag-alist remote)))
       rev))
 
-(defun stp-git-hash-to-head (remote rev)
+(defun stp-git-remote-hash-to-head (remote rev)
   "If REV is a hash that corresponds to a head, return the head.
 Otherwise, return REV."
   (or (map-elt (stp-git-remote-hash-head-alist remote) rev)
       rev))
+
+(defun stp-git-rev-to-hash (path rev)
+  (let ((default-directory path))
+    (stp-git-remote-rev-to-hash "." rev)))
+
+(defun stp-git-head-to-hash (path rev)
+  (let ((default-directory path))
+    (stp-git-remote-head-to-hash "." rev)))
+
+(defun stp-git-remote-tag-to-hash (path rev)
+  (let ((default-directory path))
+    (stp-git-remote-tag-to-hash "." rev)))
+
+(defun stp-git-hash-to-head (path rev)
+  (let ((default-directory path))
+    (stp-git-remote-hash-to-head "." rev)))
 
 (defun stp-git-tag-strip-dereference (tag)
   "When tag is non-nil, remove the ^{} following a tag object if it
@@ -520,7 +536,7 @@ is present."
       tag
     (concat tag "^{}")))
 
-(defun stp-git-rev-to-tag (remote rev &optional keep-dereference)
+(defun stp-git-remote-rev-to-tag (remote rev &optional keep-dereference)
   "If REV is a hash that corresponds to a tag, return the tag.
 Otherwise, return REV."
   (or (let ((tag (map-elt (stp-git-remote-hash-tag-alist remote) rev)))
@@ -528,6 +544,10 @@ Otherwise, return REV."
             tag
           (stp-git-tag-strip-dereference tag)))
       rev))
+
+(defun stp-git-rev-to-tag (path rev &optional keep-dereference)
+  (let ((default-directory path))
+    (stp-git-remote-rev-to-tag "." rev keep-dereference)))
 
 (defun stp-git-hash= (hash hash2)
   (and (>= (length hash) 6)

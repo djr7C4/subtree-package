@@ -1262,7 +1262,7 @@ prefix argument, go forward that many packages."
          (let* ((latest-stable (stp-git-latest-stable-version .remote))
                 (latest-unstable (->> (or .branch "HEAD")
                                       (stp-git-latest-unstable-version .remote)
-                                      (stp-git-rev-to-tag .remote)))
+                                      (stp-git-remote-rev-to-tag .remote)))
                 (commits-to-stable (and latest-stable
                                         (stp-git-count-remote-commits .remote .version latest-stable :branch .branch :both t)))
                 (commits-to-unstable (and latest-unstable

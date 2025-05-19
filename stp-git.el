@@ -88,7 +88,7 @@ otherwise, use the hash."
     (mapcar (lambda (version)
               (concat (string-pad version n)
                       stp-git-version-hash-separator
-                      (stp-git-abbreviate-hash (stp-git-rev-to-hash remote version))))
+                      (stp-git-abbreviate-hash (stp-git-remote-rev-to-hash remote version))))
             versions)))
 
 (defvar stp-git-warn-unknown-version nil)
@@ -121,7 +121,7 @@ are converted to hashes before they are returned."
                          car)))
     ;; Convert version to a hash if it is a branch.
     (if branch-to-hash
-        (stp-git-head-to-hash remote version)
+        (stp-git-remote-head-to-hash remote version)
       version)))
 
 (defun stp-git-read-update (prompt &optional default)
@@ -268,7 +268,7 @@ from remote."
                          ;; not work for hashes on remotes.
                          "merge"
                        "pull"))
-             (version-hash (stp-git-rev-to-hash remote version)))
+             (version-hash (stp-git-remote-rev-to-hash remote version)))
         (when (stp-git-hash= (stp-git-subtree-package-commit pkg-name) version-hash)
           (user-error "Commit %s of %s is already installed"
                       (if (stp-git-hash= version version-hash)

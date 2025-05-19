@@ -344,7 +344,7 @@ expression is active.")
   (stp-version-list< (stp-version-extract v1)
                      (stp-version-extract v2)))
 
-(defvar stp-info-file (f-join user-emacs-directory "pkg-info.eld")
+(defvar stp-info-file (f-join user-emacs-directory "stp-pkg-info.eld")
   "The name of the file that stores the package information.
 
 This consists of an alist that maps the name of each package to
