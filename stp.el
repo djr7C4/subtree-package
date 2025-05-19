@@ -369,8 +369,9 @@ search path.")
   (stp-ensure-no-merge-conflicts)
   (let ((args (if current-prefix-arg
                   (list :do-commit (not stp-auto-commit)
-                        :do-push (and (not stp-auto-commit) (not stp-auto-push)))
-                (list :do-commit stp-auto-commit :do-push stp-auto-push))))
+                        :do-push (and (not stp-auto-commit) (not stp-auto-push))
+                        :do-lock (and (not stp-auto-commit) (not stp-auto-lock)))
+                (list :do-commit stp-auto-commit :do-push stp-auto-push :do-lock stp-auto-lock))))
     (when (plist-get args :do-commit)
       (stp-maybe-ensure-clean))
     args))
@@ -501,7 +502,7 @@ is negated relative to the default."
     (stp-with-memoization
       (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :line-pkg nil)))))
 
-(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-actions (refresh t))
+(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t))
   "Install a package named pkg-name that has the alist pkg-alist. If
 do-commit is non-nil, then automatically commit to the Git
 repository after installing the package. If both do-commit and
@@ -533,6 +534,8 @@ the package has been installed."
                                        pkg-name)
                                do-commit
                                do-push)
+          (when do-lock
+            (stp-update-lock-file))
           (when do-actions
             (stp-post-actions pkg-name))
           (when refresh
@@ -547,7 +550,7 @@ the package has been installed."
     (stp-with-memoization
       (apply #'stp-uninstall (stp-command-args)))))
 
-(cl-defun stp-uninstall (pkg-name &key do-commit do-push (refresh t))
+(cl-defun stp-uninstall (pkg-name &key do-commit do-push do-lock (refresh t))
   "Uninstall the package named pkg-name. The do-commit and do-push arguments are
 as in `stp-install'."
   (when pkg-name
@@ -564,6 +567,8 @@ as in `stp-install'."
                                            pkg-name)
                                    do-commit
                                    do-push)
+              (when do-lock
+                (stp-update-lock-file))
               (when refresh
                 (stp-list-refresh :quiet t))
               (stp-prune-cached-latest-versions pkg-name))
@@ -579,7 +584,7 @@ as in `stp-install'."
     (stp-with-memoization
       (apply #'stp-upgrade (stp-command-args :actions t)))))
 
-(cl-defun stp-upgrade (pkg-name &key do-commit do-push do-actions (refresh t))
+(cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t))
   "Change the version of the package named pkg-name. The do-commit,
 do-push and proceed arguments are as in `stp-install'."
   (when pkg-name
@@ -625,6 +630,8 @@ do-push and proceed arguments are as in `stp-install'."
                                              pkg-name)
                                      do-commit
                                      do-push)
+                (when do-lock
+                  (stp-update-lock-file))
                 (when do-actions
                   (stp-post-actions pkg-name)))
               (when refresh
@@ -674,7 +681,7 @@ prefix argument, repair all packages."
           (stp-repair-all-command)
         (apply #'stp-repair (stp-command-args))))))
 
-(cl-defun stp-repair (pkg-name &key do-commit do-push (refresh t))
+(cl-defun stp-repair (pkg-name &key do-commit do-push do-lock (refresh t))
   "Repair the package named pkg-name. The do-commit, do-push and proceed
 arguments are as in `stp-install'."
   (when pkg-name
@@ -682,6 +689,8 @@ arguments are as in `stp-install'."
       (stp-repair-info :quiet nil :pkg-names (list pkg-name))
       (stp-write-info)
       (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
+      (when do-lock
+        (stp-update-lock-file))
       (when refresh
         (stp-list-refresh :quiet t)))))
 
@@ -692,7 +701,7 @@ arguments are as in `stp-install'."
     (stp-with-memoization
       (apply #'stp-repair-all (stp-commit-push-args)))))
 
-(cl-defun stp-repair-all (&key do-commit do-push (refresh t))
+(cl-defun stp-repair-all (&key do-commit do-push do-lock (refresh t))
   "Run `stp-repair-info' and write the repaired package info to
 `stp-info-file'."
   (stp-refresh-info)
@@ -700,6 +709,8 @@ arguments are as in `stp-install'."
     (stp-repair-info :quiet nil)
     (stp-write-info)
     (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
+    (when do-lock
+      (stp-update-lock-file))
     (when refresh
       (stp-list-refresh :quiet t))))
 
@@ -714,7 +725,7 @@ package info to `stp-info-file'"
 
 (defvar stp-edit-remotes-long-commit-msg nil)
 
-(cl-defun stp-edit-remotes (pkg-name &key do-commit do-push (refresh t))
+(cl-defun stp-edit-remotes (pkg-name &key do-commit do-push do-lock (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME using
 `completing-read-multiple'. The first chosen will be remotes and
 the rest will be other-remotes."
@@ -746,6 +757,8 @@ the rest will be other-remotes."
                                  (format "Edited the remotes for %s" pkg-name))
                                do-commit
                                do-push)
+          (when do-lock
+            (stp-update-lock-file))
           (when refresh
             (stp-list-refresh :quiet t)))
       (message "There are no remotes to edit%s"
@@ -760,7 +773,7 @@ the rest will be other-remotes."
   (stp-with-memoization
     (apply #'stp-toggle-update (stp-command-args))))
 
-(cl-defun stp-toggle-update (pkg-name &key do-commit do-push (refresh t))
+(cl-defun stp-toggle-update (pkg-name &key do-commit do-push do-lock (refresh t))
   "Toggle the update attribute for the package named pkg-name between stable and
 unstable."
   (when pkg-name
@@ -780,6 +793,8 @@ unstable."
                                          pkg-name)
                                  do-commit
                                  do-push)
+            (when do-lock
+              (stp-update-lock-file))
             (when refresh
               (stp-list-refresh :quiet t)))
         (user-error "The update attribute can only be toggled for git packages.")))))
@@ -806,6 +821,22 @@ the package and updating the load path."
     (stp-build-info pkg-name))
   (when stp-auto-update-info-directories
     (stp-update-info-directories pkg-name)))
+
+(defvar stp-auto-lock t)
+
+(defvar stp-lock-file (f-join user-emacs-directory "stp-pkg-lock.eld"))
+
+(defun stp-update-lock-file ()
+  "Write the current hash of the git repository that contains
+`stp-source-directory' to `stp-lock-file'."
+  (interactive)
+  (stp-with-package-source-directory
+    (if (stp-git-clean-p)
+        (let ((hash (stp-git-rev-to-hash stp-source-directory "HEAD")))
+          (with-temp-buffer
+            (insert (format "%S\n" hash))
+            (f-write (buffer-string) 'utf-8 stp-lock-file)))
+      (user-error "Refusing to update the lock file: %s is unclean" (stp-git-root stp-source-directory)))))
 
 (defvar stp-build-output-buffer-name "*STP Build Output*")
 
@@ -1548,6 +1579,7 @@ the same time unless PARALLEL is non-nil."
               "I" #'stp-update-all-info-directories
               "k" #'stp-uninstall-command
               "l" #'stp-list-update-load-path
+              "L" #'stp-update-lock-file
               "O" #'stp-list-open-current-remote
               "n" #'stp-list-next-upgradable
               "p" #'stp-list-previous-upgradable
