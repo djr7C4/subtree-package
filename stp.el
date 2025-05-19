@@ -1019,6 +1019,13 @@ argument. Packages in `stp-build-blacklist' will not be built."
   (unless quiet
     (message "Reloaded %s" pkg-name)))
 
+(cl-defun stp-list-update-load-path (&optional arg)
+  "Reload the package."
+  (interactive "P")
+  (if arg
+      (stp-update-load-paths t)
+    (stp-update-load-path (stp-canonical-path (stp-list-read-package "Package name: ")) t)))
+
 (defun stp-update-info-directories (pkg-name &optional quiet)
   "By default, detect info files for all source packages in
 `stp-source-directory' and add their directories to
@@ -1540,8 +1547,7 @@ the same time unless PARALLEL is non-nil."
               "i" #'stp-install-command
               "I" #'stp-update-all-info-directories
               "k" #'stp-uninstall-command
-              "l" #'stp-update-load-path
-              "L" #'stp-update-load-paths
+              "l" #'stp-list-update-load-path
               "O" #'stp-list-open-current-remote
               "n" #'stp-list-next-upgradable
               "p" #'stp-list-previous-upgradable
