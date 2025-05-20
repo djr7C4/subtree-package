@@ -25,7 +25,10 @@
   "Return the absolute path to the root of the git directory that path is in."
   (setq path (or (and path (f-canonical path)) default-directory))
   (let* ((default-directory path)
-         (root (rem-run-command "git rev-parse --show-toplevel")))
+         (root (or (rem-run-command "git rev-parse --show-toplevel")
+                   ;; Fallback for git repositories without working trees (e.g.
+                   ;; those created with git clone --bare).
+                   (rem-run-command "git rev-parse --resolve-git-dir \".\""))))
     (and (> (length root) 0)
          (f-dir-p root)
          (f-slash (f-canonical root)))))
@@ -168,19 +171,22 @@ repository."
   ;; v2.0.0 doesn't have much meaning without even knowing which packages it is
   ;; for. Git doesn't seem to provide a way to do this so we copy .git/refs/tags
   ;; beforehand and then restore it after the fetch.
-  (let ((tags-dir-tmp (make-temp-file "git-tags" t))
-        (tags-dir (f-join (stp-git-root) ".git/refs/tags")))
+  (let* ((git-root (stp-git-root))
+         (tags-dir-tmp (make-temp-file "git-tags" t))
+         (tags-dir (car (-filter #'f-dir-p (list (f-join git-root ".git/refs/tags")
+                                                 ;; Handle bare repositories.
+                                                 (f-join git-root "refs/tags"))))))
     (unwind-protect
         (progn
           (f-copy-contents tags-dir tags-dir-tmp)
           (rem-run-command (format "git fetch --atomic --tags%s \"%s\"%s"
-                                 (if force
-                                     " --force"
-                                   "")
-                                 remote
-                                 (if refspec
-                                     (format " \"%s\"" refspec)
-                                   ""))
+                                   (if force
+                                       " --force"
+                                     "")
+                                   remote
+                                   (if refspec
+                                       (format " \"%s\"" refspec)
+                                     ""))
                            :error t)
           (f-delete tags-dir t)
           (f-move tags-dir-tmp tags-dir))
@@ -424,6 +430,7 @@ subtree was not actually installed as a git subtree."
       (read-only-mode 0)
       (erase-buffer)
       (insert diff)
+      (goto-char (beginning-of-buffer))
       (read-only-mode 1)
       (diff-mode))
     (pop-to-buffer buf)))
