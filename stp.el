@@ -1591,9 +1591,10 @@ not slow down Emacs while the fields are being updated."
                          (t
                           (message "Failed to update the latest version for %s" (car pkg-names)))))))
             (unless quiet-toplevel
-              (if plural
-                  (message "Updating the latest versions for %d packages%s" (length pkg-names) ignored-string)
-                (message "Updating the latest version for %s" (car pkg-names))))
+              (let ((async-string (if async " asynchronously" "")))
+                (if plural
+                    (message "Updating the latest versions for %d packages%s%s" (length pkg-names) async-string ignored-string)
+                  (message "Updating the latest version for %s%s" (car pkg-names) async-string))))
             (if batch
                 ;; Create a separate asynchronous process to create the other
                 ;; processes. This is much faster than running
