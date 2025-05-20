@@ -606,7 +606,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
 (defun stp-before-build-command (cmd buf)
   ;; Using `with-current-buffer' can change the default directory.
   (let ((dir default-directory))
-    (with-current-buffer buf
+    (with-current-buffer (get-buffer-create buf)
       (read-only-mode 0)
       (insert "\n\n")
       (insert (format "Current directory: %s\n" dir))
