@@ -1,16 +1,14 @@
 ;;; -*- lexical-binding: t; -*-
 
-;; Don't use `f-join' as we do elsewhere in STP as it is an external dependency
-;; that will not be available during bootstrapping.
-(defvar stp-source-directory (expand-file-name "package-source/" user-emacs-directory)
-  "The directory in which Emacs packages installed from installed
-from source are stored")
-
 (defvar stp-pkg-source-directories '("clients" "contrib" "core" "elisp" "extensions" "lisp" "src"))
 
 (defun stp-bootstrap ()
   ;; We need dash, f and s because they are used by stp.
   (setq load-path (append (mapcar (lambda (dir)
+                                    ;; Don't use `f-join' as we do elsewhere in
+                                    ;; STP as it is an external dependency that
+                                    ;; will not be available during
+                                    ;; bootstrapping.
                                     (expand-file-name (concat dir "/") stp-source-directory))
                                   '("dash"
                                     "f"

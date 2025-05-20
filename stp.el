@@ -1423,8 +1423,11 @@ to TRIES times."
                        (async-start `(lambda ()
                                        ;; Inject the STP variables and the
                                        ;; caller's load path into the
-                                       ;; asynchronous process.
-                                       ,(async-inject-variables "^stp-" nil stp-async-inject-variables-exclude-regexp)
+                                       ;; asynchronous process. Some large
+                                       ;; variables are excluded since that
+                                       ;; slows down the parent process quite a
+                                       ;; bit.
+                                       ,(async-inject-variables "^stp-" nil (concat stp-async-inject-variables-exclude-regexp "\\|-history$\\|^stp-package-info$\\|^stp-latest-versions-cache$"))
                                        (setq load-path ',load-path)
                                        (require 'stp)
                                        ;; pkg-alist is read from disk every time
