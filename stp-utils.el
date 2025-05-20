@@ -28,6 +28,8 @@
 ;; This is required for Emacs 30+.
 (defvar stp-async-inject-variables-exclude-regexp "-abbrev-table\\'")
 
+(defvar stp-async-inject-large-variables-exclude-regexp "\\|-history$\\|^stp-package-info$\\|^stp-latest-versions-cache$")
+
 (defvar stp-ellipsis (if (char-displayable-p ?…) "…" "..."))
 
 (defvar stp-no-break-space (propertize " " 'display " "))
