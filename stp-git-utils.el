@@ -161,15 +161,30 @@ repository."
   "This allows hashes to be resolved when installing or upgrading.")
 
 (cl-defun stp-git-fetch (remote &key force refspec)
-  (rem-run-command (format "git fetch --no-tags%s \"%s\"%s"
-                           (if force
-                               " --force"
-                             "")
-                           remote
-                           (if refspec
-                               (format " \"%s\"" refspec)
-                             ""))
-                   :error t))
+  ;; We want to download the tags object but remove the references to them in
+  ;; .git/refs/tags. Otherwise, the refs will become cluttered with tags for
+  ;; remotes of packages. These tags won't have a clear meaning on the local
+  ;; repository. For example, there could be a v2.0.0 tag for chatgpt-shell but
+  ;; v2.0.0 doesn't have much meaning without even knowing which packages it is
+  ;; for. Git doesn't seem to provide a way to do this so we copy .git/refs/tags
+  ;; beforehand and then restore it after the fetch.
+  (let ((tags-dir-tmp (make-temp-file "git-tags" t))
+        (tags-dir (f-join (stp-git-root) ".git/refs/tags")))
+    (unwind-protect
+        (progn
+          (f-copy-contents tags-dir tags-dir-tmp)
+          (rem-run-command (format "git fetch --atomic --tags%s \"%s\"%s"
+                                 (if force
+                                     " --force"
+                                   "")
+                                 remote
+                                 (if refspec
+                                     (format " \"%s\"" refspec)
+                                   ""))
+                           :error t)
+          (f-delete tags-dir t)
+          (f-move tags-dir-tmp tags-dir))
+      (f-delete tags-dir-tmp t))))
 
 (defun stp-git-maybe-fetch (remote version)
   (when (and stp-subtree-fetch
@@ -364,30 +379,53 @@ repository at PATH."
 
 (defun stp-git-subtree-modified-p (path &optional remote rev)
   "Determine if the git subtree at PATH has been modified outside of
-git subtree add and merge commands. If REMOTE and REV are
-provided then they will be used to compute the hash for the
-subtree in the event that it cannot be determined from git log.
-This occurs for example when the subtree was not actually
-installed as a git subtree."
-  (let ((tree (stp-git-tree path))
+git subtree add and merge commands and return a list containing
+the hash of the current tree and the hash of the tree that was
+installed. If REMOTE and REV are provided then they will be used
+to compute the hash for the subtree in the event that it cannot
+be determined from git log. This occurs for example when the
+subtree was not actually installed as a git subtree."
+  (let ((tree (or (stp-git-tree path)
+                  (error "Unable to find the git tree for %s" path)))
         (last-tree (or (stp-git-subtree-tree path)
                        (and remote
                             rev
-                            ;; This is slow but should work even when the
+                            ;; This is slower but should work even when the
                             ;; subtree was not installed using git subtree add.
+                            ;; It compares the actual git tree (and by extension
+                            ;; their contents since trees with differing
+                            ;; contents) will have different hashes.
                             (progn
                               (stp-git-fetch remote)
-                              (stp-git-commit-tree path rev)))
+                              ;; Some revs (e.g. tags) won't be available
+                              ;; locally even after a fetch (see
+                              ;; `stp-git-fetch') so we convert them to hashes
+                              ;; to avoid issues.
+                              (stp-git-commit-tree path (stp-git-remote-rev-to-hash remote rev))))
                        (error "Unable to find the merged git subtree"))))
-    (unless tree
-      (error "Unable to find the git tree for %s" path))
-    (not (string= tree last-tree))))
+    (and (not (string= tree last-tree))
+         (list tree last-tree))))
 
 (defun stp-git-subtree-p (path)
   (and (stp-git-subtree-commit path) t))
 
 (defun stp-git-head ()
   (stp-git-remote-head (stp-git-root stp-source-directory)))
+
+(defun stp-git-diff (hash hash2)
+  (rem-run-command (format "git diff '%s' '%s'" hash hash2) :error t))
+
+(defvar stp-git-diff-buffer-name "*stp-git-diff*")
+
+(defun stp-git-show-diff (hash hash2)
+  (let ((buf (get-buffer-create stp-git-diff-buffer-name))
+        (diff (stp-git-diff hash hash2)))
+    (with-current-buffer buf
+      (erase-buffer)
+      (insert diff)
+      (read-only-mode 1)
+      (diff-mode))
+    (pop-to-buffer buf)))
 
 ;; This function exists to facilitate memoization.
 (defun stp-git-remote-hash-alist-basic (remote)
@@ -518,7 +556,7 @@ Otherwise, return REV."
   (let ((default-directory path))
     (stp-git-remote-head-to-hash "." rev)))
 
-(defun stp-git-remote-tag-to-hash (path rev)
+(defun stp-git-tag-to-hash (path rev)
   (let ((default-directory path))
     (stp-git-remote-tag-to-hash "." rev)))
 

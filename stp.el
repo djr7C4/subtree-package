@@ -649,21 +649,25 @@ do-push and proceed arguments are as in `stp-install'."
 
 (cl-defun stp-reinstall (pkg-name version &key do-commit do-push do-actions refresh skip-subtree-check)
   "Uninstall and reinstall PKG-NAME as VERSION."
-  ;; Warn the user about reinstalling if there are modifications to the subtree
-  ;; that were not the result of git subtree merge as this will result in the
-  ;; loss of their customizations to the package. This is done by checking the
-  ;; git history, the worktree and the staged changes for modifications to the
-  ;; package.
+  (when (and (stp-git-tree-package-modified-p pkg-name)
+             (not (yes-or-no-p (format "The package %s has been modified since the last commit in the working tree. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+    (user-error "Reinstall aborted"))
   (let-alist (stp-get-alist pkg-name)
-    (when (and (or (and (not skip-subtree-check)
-                        (stp-git-subtree-package-modified-p pkg-name .remote .version))
-                   (stp-git-tree-package-modified-p pkg-name))
-               (not (yes-or-no-p (format "The package %s has been manually modified. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
-      (user-error "Reinstall aborted"))
-    (let ((pkg-alist (stp-get-alist pkg-name)))
-      ;; Committing is required here because otherwise `git-install' will fail.
-      ;; Refreshing the stp-list-buffer-name buffer is suppressed since that will
-      ;; be done by stp-upgrade (which calls this command).
+    (let* ((pkg-alist (stp-get-alist pkg-name))
+           (tree-hashes (and (not skip-subtree-check) (stp-git-subtree-package-modified-p pkg-name .remote .version))))
+      ;; Warn the user about reinstalling if there are modifications to the
+      ;; subtree that were not the result of git subtree merge as this will
+      ;; result in the loss of their customizations to the package.
+      (when (and tree-hashes
+                 (db (curr-hash last-hash)
+                     tree-hashes
+                   (stp-git-show-diff curr-hash last-hash)
+                   t)
+                 (not (yes-or-no-p (format "The package %s has been modified locally. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+        (user-error "Reinstall aborted"))
+      ;; Committing is required here because otherwise `stp-install' will fail.
+      ;; Refreshing the stp-list-buffer-name buffer is suppressed since that
+      ;; will be done by stp-upgrade (which calls this command).
       (stp-uninstall pkg-name :do-commit t :refresh nil)
       (setf (map-elt pkg-alist 'version) version)
       ;; The :do-commit argument is not required here. The decisions to
