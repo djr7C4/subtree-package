@@ -654,16 +654,20 @@ do-push and proceed arguments are as in `stp-install'."
     (user-error "Reinstall aborted"))
   (let-alist (stp-get-alist pkg-name)
     (let* ((pkg-alist (stp-get-alist pkg-name))
-           (tree-hashes (and (not skip-subtree-check) (stp-git-subtree-package-modified-p pkg-name .remote .version))))
+           (tree-hashes (and (not skip-subtree-check) (stp-git-subtree-package-modified-p pkg-name .remote .version)))
+           (wc (current-window-configuration)))
       ;; Warn the user about reinstalling if there are modifications to the
       ;; subtree that were not the result of git subtree merge as this will
       ;; result in the loss of their customizations to the package.
       (when (and tree-hashes
-                 (db (curr-hash last-hash)
-                     tree-hashes
-                   (stp-git-show-diff curr-hash last-hash)
-                   t)
-                 (not (yes-or-no-p (format "The package %s has been modified locally. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+                 (unwind-protect
+                     (and (db (curr-hash last-hash)
+                              tree-hashes
+                            (stp-git-show-diff curr-hash last-hash)
+                            t)
+                          (not (yes-or-no-p (format "The package %s has been modified locally. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+                   (set-window-configuration wc)
+                   (redisplay)))
         (user-error "Reinstall aborted"))
       ;; Committing is required here because otherwise `stp-install' will fail.
       ;; Refreshing the stp-list-buffer-name buffer is suppressed since that

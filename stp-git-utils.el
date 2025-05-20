@@ -421,6 +421,7 @@ subtree was not actually installed as a git subtree."
   (let ((buf (get-buffer-create stp-git-diff-buffer-name))
         (diff (stp-git-diff hash hash2)))
     (with-current-buffer buf
+      (read-only-mode 0)
       (erase-buffer)
       (insert diff)
       (read-only-mode 1)
