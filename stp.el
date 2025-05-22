@@ -495,12 +495,12 @@ are non-nil, commit, push and perform post actions (see
 `stp-auto-post-actions'). With a prefix argument, each of these
 is negated relative to the default."
   (interactive)
-  (stp-refresh-info)
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
   ;; greatly improves efficiency).
   (stp-with-package-source-directory
     (stp-with-memoization
+      (stp-refresh-info)
       (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :line-pkg nil)))))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t))
@@ -546,9 +546,9 @@ the package has been installed."
 (defun stp-uninstall-command ()
   "Uninstall a package interactively."
   (interactive)
-  (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
+      (stp-refresh-info)
       (apply #'stp-uninstall (stp-command-args)))))
 
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push do-lock (refresh t))
@@ -571,7 +571,7 @@ as in `stp-install'."
               (when do-lock
                 (stp-update-lock-file))
               (when refresh
-                (stp-list-refresh :quiet t))
+                (stp-list-refresh :quiet t :focus-window-line t))
               (stp-prune-cached-latest-versions pkg-name))
           (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))
 
@@ -580,9 +580,9 @@ as in `stp-install'."
 (defun stp-upgrade-command ()
   "Upgrade a package interactively."
   (interactive)
-  (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
+      (stp-refresh-info)
       (apply #'stp-upgrade (stp-command-args :actions t)))))
 
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t))
@@ -642,9 +642,9 @@ do-push and proceed arguments are as in `stp-install'."
 (cl-defun stp-reinstall-command ()
   "Uninstall and reinstall a package interactively as the same version."
   (interactive)
-  (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
+      (stp-refresh-info)
       (apply #'stp-reinstall (stp-command-args :actions t)))))
 
 (cl-defun stp-reinstall (pkg-name version &key do-commit do-push do-actions refresh skip-subtree-check)
@@ -683,9 +683,9 @@ do-push and proceed arguments are as in `stp-install'."
   "Repair the stored information for a package interactively. With a
 prefix argument, repair all packages."
   (interactive "P")
-  (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
+      (stp-refresh-info)
       (if arg
           (stp-repair-all-command)
         (apply #'stp-repair (stp-command-args))))))
@@ -705,15 +705,14 @@ arguments are as in `stp-install'."
 
 (defun stp-repair-all-command ()
   (interactive)
-  (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
+      (stp-refresh-info)
       (apply #'stp-repair-all (stp-commit-push-args)))))
 
 (cl-defun stp-repair-all (&key do-commit do-push do-lock (refresh t))
   "Run `stp-repair-info' and write the repaired package info to
 `stp-info-file'."
-  (stp-refresh-info)
   (save-window-excursion
     (stp-repair-info :quiet nil)
     (stp-write-info)
@@ -728,8 +727,8 @@ arguments are as in `stp-install'."
 package info to `stp-info-file'"
   (interactive)
   (stp-ensure-no-merge-conflicts)
-  (stp-refresh-info)
   (stp-with-memoization
+    (stp-refresh-info)
     (apply #'stp-edit-remotes (stp-command-args))))
 
 (defvar stp-edit-remotes-long-commit-msg nil)
@@ -778,8 +777,8 @@ the rest will be other-remotes."
 (defun stp-toggle-update-command ()
   "Toggle the update attribute of a package interactively."
   (interactive)
-  (stp-refresh-info)
   (stp-with-memoization
+    (stp-refresh-info)
     (apply #'stp-toggle-update (stp-command-args))))
 
 (cl-defun stp-toggle-update (pkg-name &key do-commit do-push do-lock (refresh t))
@@ -808,13 +807,34 @@ unstable."
               (stp-list-refresh :quiet t)))
         (user-error "The update attribute can only be toggled for git packages.")))))
 
+(defun stp-toggle-dependency-command ()
+  "Toggle the dependency attribute of a package interactively. This
+indicates that the packages was installed because another package
+requires it rather than explicitly by the user."
+  (interactive)
+  (apply #'stp-toggle-dependency (stp-command-args)))
+
+(cl-defun stp-toggle-dependency (pkg-name &key do-commit do-push do-lock)
+  (let ((dependency (stp-get-attribute pkg-name 'dependency)))
+    (if dependency
+        (stp-delete-attribute pkg-name 'dependency)
+      (stp-set-attribute pkg-name 'dependency t))
+    (stp-write-info)
+    (stp-git-commit-push (format "Changed dependency to %s for %s"
+                                 (not dependency)
+                                 pkg-name)
+                         do-commit
+                         do-push)
+    (when do-lock
+      (stp-update-lock-file))))
+
 (defun stp-post-actions-command ()
   "Perform actions that are necessary after a package is installed
 or upgraded such as building, updating info directories loading
 the package and updating the load path."
   (interactive)
-  (stp-refresh-info)
   (stp-with-memoization
+    (stp-refresh-info)
     (stp-post-actions (stp-list-read-package "Package name: "))))
 
 (defun stp-post-actions (pkg-name)
@@ -870,9 +890,9 @@ be performed even when no build system is present. The meaning of
 `stp-allow-naive-byte-compile' is inverted with a prefix
 argument."
   (interactive)
-  (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
+      (stp-refresh-info)
       (stp-build (stp-list-read-package "Package name: ")
                  (xor stp-allow-naive-byte-compile current-prefix-arg)))))
 
@@ -966,9 +986,9 @@ be performed even when no build system is present. The meaning of
 `stp-allow-naive-byte-compile' is inverted with a prefix
 argument. Packages in `stp-build-blacklist' will not be built."
   (interactive)
-  (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
+      (stp-refresh-info)
       (stp-build-all (cl-set-difference (stp-filesystem-names)
                                         stp-build-blacklist
                                         :test #'equal)
@@ -1182,8 +1202,8 @@ directory for the current package."
 (defun stp-list-first-package ()
   "Go to the line for the first package."
   (interactive)
-  (stp-refresh-info)
   (stp-with-memoization
+    (stp-refresh-info)
     (when (stp-info-names)
       (goto-char (point-min))
       (stp-list-ensure-package-line))))
@@ -1260,8 +1280,8 @@ that many packages."
 argument, go forward that many packages. With a negative prefix
 argument, go backward that many packages."
   (interactive "p")
-  (stp-refresh-info)
   (stp-with-memoization
+    (stp-refresh-info)
     (stp-list-next-package-with-predicate (lambda ()
                                             (aand (stp-list-package-on-line)
                                                   (stp-package-upgradable-p it)))
@@ -1436,8 +1456,8 @@ to TRIES times."
                                        ;; modified the package information while
                                        ;; the latest versions were being
                                        ;; updated).
-                                       (stp-refresh-info)
                                        (stp-with-memoization
+                                         (stp-refresh-info)
                                          (let (latest-version-data
                                                (pkg-alist (stp-get-alist ,pkg-name)))
                                            (condition-case err
@@ -1637,6 +1657,7 @@ not slow down Emacs while the fields are being updated."
               "m" #'stp-build-info
               "M" #'stp-build-all-info
               "d" #'stp-uninstall
+              "D" #'stp-toggle-dependency-command
               "e" #'stp-edit-remotes-command
               "g" #'stp-list-refresh
               "G" #'stp-reload

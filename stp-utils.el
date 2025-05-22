@@ -143,7 +143,7 @@ never ends with a slash (nor does it contain any slashes)."
                  :require-match t
                  :history 'stp-read-name-history))
 
-(defvar stp-attribute-order '(method remote other-remotes version update branch)
+(defvar stp-attribute-order '(method remote other-remotes version update branch dependency)
   "The order in which package attributes should be sorted before being written
   to disk.")
 
