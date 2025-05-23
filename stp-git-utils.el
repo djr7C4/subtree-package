@@ -25,10 +25,10 @@
   "Return the absolute path to the root of the git directory that path is in."
   (setq path (or (and path (f-canonical path)) default-directory))
   (let* ((default-directory path)
-         (root (or (rem-run-command "git rev-parse --show-toplevel")
+         (root (or (rem-run-command '("git" "rev-parse" "--show-toplevel"))
                    ;; Fallback for git repositories without working trees (e.g.
                    ;; those created with git clone --bare).
-                   (rem-run-command "git rev-parse --resolve-git-dir \".\""))))
+                   (rem-run-command '("git" "rev-parse" "--resolve-git-dir" ".")))))
     (and (> (length root) 0)
          (f-dir-p root)
          (f-slash (f-canonical root)))))
@@ -87,7 +87,7 @@ within that package."
 
 (defun stp-git-remotes ()
   (s-split rem-positive-whitespace-regexp
-           (rem-run-command "git remote")
+           (rem-run-command '("git" "remote"))
            t))
 
 (defun stp-git-valid-remote-p (remote)
@@ -126,7 +126,7 @@ PATH."
           (list path ".")
         (list (f-dirname path) (f-filename path)))
     (let ((default-directory dir))
-      (rem-run-command (format "git add '%s'" target) :error t))))
+      (rem-run-command (list "git" "add" target) :error t))))
 
 (defvar stp-git-synthetic-repos nil)
 
@@ -158,7 +158,7 @@ repository."
   (setq msg (or msg ""))
   (if (stp-git-clean-p)
       (message "There are no changes to commit. Skipping...")
-    (rem-run-command (format "git commit --allow-empty-message -am '%s'" msg) :error t)))
+    (rem-run-command (list "git" "commit" "--allow-empty-message" "-am" msg) :error t)))
 
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
@@ -177,17 +177,12 @@ repository."
                                                  ;; Handle bare repositories.
                                                  (f-join git-root "refs/tags"))))))
     (unwind-protect
-        (progn
+        (let ((cmd (append '("git" "fetch" "--atomic" "--tags")
+                           (and force (list "--force"))
+                           (list remote)
+                           (and refspec (list refspec)))))
           (f-copy-contents tags-dir tags-dir-tmp)
-          (rem-run-command (format "git fetch --atomic --tags%s \"%s\"%s"
-                                   (if force
-                                       " --force"
-                                     "")
-                                   remote
-                                   (if refspec
-                                       (format " \"%s\"" refspec)
-                                     ""))
-                           :error t)
+          (rem-run-command cmd :error t)
           (f-delete tags-dir t)
           (f-move tags-dir-tmp tags-dir))
       (f-delete tags-dir-tmp t))))
@@ -200,7 +195,7 @@ repository."
 
 (defun stp-git-push ()
   (if (stp-git-unpushed-p)
-      (rem-run-command "git push" :error t)
+      (rem-run-command '("git" "push") :error t)
     (message "There are no commits to push. Skipping...")))
 
 (cl-defun stp-git-commit-push (msg &optional (do-commit t) (do-push t))
@@ -219,7 +214,7 @@ git-status) and the second element is the character status code
 for the worktree. The third is the file name. When a file is
 renamed or copied, there is also a fourth element that indicates
 the new name."
-  (let ((output (rem-run-command "git status --porcelain" :error t)))
+  (let ((output (rem-run-command '("git" "status" "--porcelain") :error t)))
     (cl-remove-if (lambda (status)
                     (db (index-status worktree-status &rest args)
                         status
@@ -245,7 +240,7 @@ the new name."
          (upstream (stp-git-upstream-branch)))
     (and branch
          upstream
-         (not (string= (rem-run-command (format "git cherry %s %s" upstream branch) :error t) "")))))
+         (not (string= (rem-run-command (list "git" "cherry" upstream branch) :error t) "")))))
 
 (defun stp-git-conflicted-files ()
   "Return the list of files with merge conflicts."
@@ -283,26 +278,26 @@ modified since the last commit."
   "Get the upstream branch of BRANCH if it exists. Otherwise, return
 nil. BRANCH defualts to the current branch."
   (setq branch (or branch ""))
-  (rem-run-command (format "git rev-parse --abbrev-ref %s@{upstream}" branch)))
+  (rem-run-command (list "git" "rev-parse" "--abbrev-ref" (format "%s@{upstream}" branch))))
 
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
-  (rem-run-command "git symbolic-ref --short HEAD" :error t))
+  (rem-run-command '("git" "symbolic-ref" "--short" "HEAD") :error t))
 
 ;; Based on `magit-get-push-remote'.
 (defun stp-git-push-target (&optional branch)
   (setq branch (or branch (stp-git-current-branch)))
   ;; git config --get returns a non-zero exit status when the value does not
   ;; exist. This will result in `rem-run-command' returning nil.
-  (let ((push-default (rem-run-command "git config --get remote.pushDefault")))
+  (let ((push-default (rem-run-command '("git" "config" "--get" "remote.pushDefault"))))
     (or push-default
-        (let ((push-remote (rem-run-command (format "git config --get %s" (s-join "." (list "branch" branch "pushRemote"))))))
+        (let ((push-remote (rem-run-command (list "git" "config" "--get" (s-join "." (list "branch" branch "pushRemote"))))))
           (when (equal push-remote "")
             (setq push-remote nil))
           push-remote))))
 
 (defun stp-git-remote-url (remote)
-  (rem-run-command (format "git remote get-url \"%s\"" remote) :error t))
+  (rem-run-command (list "git" "remote" "get-url" remote) :error t))
 
 (defvar stp-git-ask-when-unclean-p t)
 
@@ -329,7 +324,7 @@ there is no git tree at PATH then nil will be returned."
          (rel-path (rem-no-slash (stp-git-relative-path path))))
     (when (f-same-p default-directory rel-path)
       (error "Cannot determine the hash of the top-level git repository"))
-    (let ((output (rem-run-command (format "git ls-tree -d '%s' --object-only '%s'" rev rel-path) :error t)))
+    (let ((output (rem-run-command (list "git" "ls-tree" "-d" rev "--object-only" rel-path) :error t)))
       (and (not (string= output "")) output))))
 
 (defun stp-git-tree-paths (path &optional rev)
@@ -339,12 +334,10 @@ revision REV."
     (error "The directory %s does not exist" path))
   (setq path (f-canonical path)
         rev (or rev "HEAD"))
-  (let ((default-directory (stp-git-root path)))
-    (--> (format "git ls-tree -r '%s' --name-only '%s'"
-                 rev
-                 (stp-git-relative-path path))
-         (rem-run-command it :error t)
-         (s-split "\n" it t))))
+  (let* ((default-directory (stp-git-root path))
+         (rel-path (stp-git-relative-path path))
+         (cmd (list "git" "ls-tree" "-r" rev "--name-only" rel-path)))
+    (s-split "\n" (rem-run-command cmd :error t) t)))
 
 (defun stp-git-subtree-commit-message (path &optional format)
   "Return the message for the last local commit that was added or
@@ -352,13 +345,12 @@ merged by git subtree. This is different from the remote commit
 that was merged when --squash is used."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
-  (let ((default-directory path))
-    (rem-run-command
-     (format "git log --grep '^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$' -n 1%s"
-             (rem-no-slash (rem-relative-path path (stp-git-root)))
-             (if format
-                 (format " --format='%s'" format)
-               "")))))
+  (let* ((default-directory path)
+         (rel-path (rem-no-slash (rem-relative-path path (stp-git-root))))
+         (grep-target (format "^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$" rel-path))
+         (cmd (append '("git" "log" "--grep" grep-target "-n" "1")
+                      (and format (list (format "--format=%s" format))))))
+    (rem-run-command cmd)))
 
 (defun stp-git-subtree-commit (path)
   "Determine the hash of the remote commit that was last added or
@@ -376,7 +368,7 @@ the subtree at PATH."
 
 (defun stp-git-rev-parse (path rev)
   (let ((default-directory path))
-    (rem-run-command (format "git rev-parse '%s'" rev))))
+    (rem-run-command (list "git" "rev-parse" rev))))
 
 (defun stp-git-commit-tree (path rev)
   "Determine the hash for the tree associated with REV in the git
@@ -419,7 +411,7 @@ subtree was not actually installed as a git subtree."
   (stp-git-remote-head (stp-git-root stp-source-directory)))
 
 (defun stp-git-diff (hash hash2)
-  (rem-run-command (format "git diff '%s' '%s'" hash hash2) :error t))
+  (rem-run-command (list "git" "diff" hash hash2) :error t))
 
 (defvar stp-git-diff-buffer-name "*stp-git-diff*")
 
@@ -437,7 +429,7 @@ subtree was not actually installed as a git subtree."
 
 ;; This function exists to facilitate memoization.
 (defun stp-git-remote-hash-alist-basic (remote)
-  (rem-run-command (format "git ls-remote %s" remote) :error t :nostderr t))
+  (rem-run-command (list "git" "ls-remote" remote) :error t :nostderr t))
 
 (cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p))
   "Return an alist that maps hashes to refs. If supplied, prefixes
@@ -518,13 +510,11 @@ will be returned."
               "--all")
              (t
               rev)))
-  (let ((default-directory path))
-    (s-split "\n"
-             (rem-run-command (format "git reflog show %s%s --pretty='%%H'"
-                                      rev
-                                      (if max (format " -n %d" max) ""))
-                              :error t)
-             t)))
+  (let ((default-directory path)
+        (cmd (append '("git" "reflog" "show" rev)
+                     (and max (list "-n" (number-to-string max)))
+                     (list "--pretty='%%H'"))))
+    (s-split "\n" (rem-run-command cmd :error t) t)))
 
 (defun stp-git-remote-rev-to-hash (remote rev)
   "Convert REV to a hash if it isn't one already. Refs that do not
@@ -617,7 +607,8 @@ Otherwise, return REV."
   ;; (unless (stp-git-valid-rev-p path rev2)
   ;;   (error "%s is not a valid ref or hash for %s" rev2 path))
   (cl-flet ((stp-git-count-commits-forward (rev rev2)
-              (string-to-number (rem-run-command (format "git rev-list --count %s..%s" rev rev2) :error t))))
+              (let ((cmd (list "git" "rev-list" "--count" (format "%s..%s" rev rev2))))
+                (string-to-number (rem-run-command cmd :error t)))))
     (let ((default-directory path))
       (or (--first (/= it 0)
                    (append (list (stp-git-count-commits-forward rev rev2))
@@ -628,14 +619,10 @@ Otherwise, return REV."
 
 (defun stp-git-minimal-clone (remote path &optional branch)
   ;; Make the call to git clone as lightweight as possible.
-  (rem-run-command
-   (format "git clone --bare --no-checkout --filter=blob:none%s '%s' '%s'"
-           (if branch
-               (format " --single-branch --branch '%s'" branch)
-             "")
-           remote
-           path)
-   :error t))
+  (let ((cmd (append '("git" "clone" "--bare" "--no-checkout" "--filter=blob:none")
+                     (and branch (format " --single-branch --branch '%s'" branch))
+                     (list remote path))))
+    (rem-run-command cmd :error t)))
 
 (defun stp-git-cache-hash-directory (remote)
   (when (f-dir-p remote)
@@ -699,14 +686,15 @@ will be considered which may improve efficiency."
 (defun stp-git-timestamp (path rev)
   "Return the UNIX timestamp for when REV was commited to the git
 repository at PATH."
-  (let ((default-directory path))
+  (let ((default-directory path)
+        (cmd (list "git" "show" "--no-patch" "--format=%%ct" (format "'%s^{commit}'" rev))))
     ;; Pipe to /dev/null to suppress warnings about ambiguous ref or hashs.
     ;; These can occur when the git repository contains a branch or tag called
     ;; HEAD.
     ;;
     ;; The ^{commit} syntax forces git to show the commit object pointed to
     ;; by a tag rather than the tag.
-    (string-to-number (rem-run-command (format "git show --no-patch --format=%%ct '%s^{commit}'" rev) :error t :nostderr t))))
+    (string-to-number (rem-run-command cmd :error t :nostderr t))))
 
 (defun stp-git-remote-timestamp (remote rev)
   "This is similar to `stp-git-timestamp' except that it works with

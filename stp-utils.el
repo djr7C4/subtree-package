@@ -593,7 +593,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
 ;; https://unix.stackexchange.com/questions/230047/how-to-list-all-targets-in-make/230050.
 ;; It is from the bash completion function for make. This is no longer needed
 ;; for versions of make after 4.4.1 as there is a --print-targets option.
-;; However, 4.4.1 is the latest stable version as of 9/27/2024.
+;; However, 4.4.1 is the latest stable version as of 5/22/2025.
 (defvar stp-make-target-command "make -qp | awk -F':' '/^[a-zA-Z0-9][^$#\\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}' | sort -u")
 
 (defun stp-make-targets (&optional makefile)
@@ -612,7 +612,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
       (read-only-mode 0)
       (insert "\n\n")
       (insert (format "Current directory: %s\n" dir))
-      (insert cmd))))
+      (insert (rem-as-shell-command cmd)))))
 
 (cl-defun stp-reload-once (pkg-name)
   "Reload all features for PKG-NAME that have already been loaded

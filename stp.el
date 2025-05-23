@@ -920,7 +920,7 @@ there were no errors."
         (unless (f-exists-p build-dir)
           (make-directory build-dir))
         (let ((default-directory build-dir))
-          (let ((cmd "cmake .."))
+          (let ((cmd '("cmake" "..")))
             (stp-before-build-command cmd output-buffer)
             ;; This will use `build-dir' as the build directory and
             ;; `pkg-path' as the source directory so there is no
@@ -940,7 +940,7 @@ there were no errors."
                                  (f-exists-p file))
                                stp-gnu-makefile-names)
                      (message "A makefile was found in %s. Attempting to run make..." build-dir)
-                     (let ((cmd "make"))
+                     (let ((cmd '("make")))
                        (stp-before-build-command cmd output-buffer)
                        ;; Make expects a makefile to be in the current directory
                        ;; so there is no ambiguity over which makefile will be
@@ -1026,7 +1026,7 @@ argument. Packages in `stp-build-blacklist' will not be built."
                   (let ((default-directory (f-dirname makefile)))
                     (setq attempted t)
                     (message "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
-                    (let ((cmd (format "make %s" target)))
+                    (let ((cmd (list "make" target)))
                       (stp-before-build-command cmd output-buffer)
                       (if (eql (rem-run-command cmd :buffer output-buffer) 0)
                           (progn
@@ -1042,7 +1042,7 @@ argument. Packages in `stp-build-blacklist' will not be built."
                 (let ((default-directory (f-dirname source)))
                   (setq attempted t)
                   (message "texi source file found at %s. Attempting to compile it with makeinfo..." source)
-                  (let ((cmd (format "makeinfo --no-split %s" texi-target)))
+                  (let ((cmd (list "makeinfo" "--no-split" texi-target)))
                     (cond
                      (;; Don't build texi files unless they have changed since the info
                       ;; manual was last built.

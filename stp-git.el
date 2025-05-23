@@ -216,26 +216,16 @@ are converted to hashes before they are returned."
     ;; Clone the remote repository as a squashed subtree.
     (let ((default-directory git-root))
       ;; Install the package.
-      (let ((hash-p (stp-git-maybe-fetch remote version)))
-        (rem-run-command
-         (apply #'format
-                (concat "git subtree add --prefix \"%s\"%s "
-                        ;; When the version is a hash, don't provide a
-                        ;; remote to git subtree add. This forces git to
-                        ;; look for the commit locally instead which is
-                        ;; possible since we previously ran git fetch.
-                        (if hash-p
-                            " "
-                          "\"%s\" ")
-                        "\"%s\"")
-                (append (list prefix
-                              (if squash
-                                  " --squash"
-                                ""))
-                        (unless hash-p
-                          (list remote))
-                        (list version)))
-         :error t)
+      (let* ((hash-p (stp-git-maybe-fetch remote version))
+             (cmd (append '("git" "subtree" "add" "--prefix" prefix)
+                          (and squash (list "--squash"))
+                          ;; When the version is a hash, don't provide a remote
+                          ;; to git subtree add. This forces git to look for the
+                          ;; commit locally instead which is possible since we
+                          ;; previously ran git fetch.
+                          (and (not hash-p) (list remote))
+                          (list version))))
+        (rem-run-command cmd :error t)
         ;; If installation was successful, add the information for the package
         (when set-pkg-info
           (setq version (stp-normalize-version pkg-name remote version))
@@ -268,7 +258,19 @@ from remote."
                          ;; not work for hashes on remotes.
                          "merge"
                        "pull"))
-             (version-hash (stp-git-remote-rev-to-hash remote version)))
+             (version-hash (stp-git-remote-rev-to-hash remote version))
+             (cmd (append (list "git" "subtree" action "--prefix" prefix)
+                          (and squash (list "--squash"))
+                          ;; When the version is a hash, don't provide a remote
+                          ;; since git subtree merge doesn't accept one.
+                          (and (not hash-p) (list remote))
+                          ;; Use the hash when performing a merge since if the
+                          ;; version is the main branch on the remote the local
+                          ;; main branch will be different than the one on the
+                          ;; remote.
+                          (if (string= action "merge")
+                              (list version-hash)
+                            (list version)))))
         (when (stp-git-hash= (stp-git-subtree-package-commit pkg-name) version-hash)
           (user-error "Commit %s of %s is already installed"
                       (if (stp-git-hash= version version-hash)
@@ -276,30 +278,7 @@ from remote."
                         (format "%s (%s)" (stp-git-abbreviate-hash version-hash) version))
                       pkg-name))
         (db (exit-code output)
-            (rem-run-command
-             (apply #'format
-                    (concat "git subtree %s --prefix \"%s\"%s "
-                            ;; When the version is a hash, don't provide a
-                            ;; remote since git subtree merge doesn't need one.
-                            (if hash-p
-                                " "
-                              "\"%s\" ")
-                            "\"%s\"")
-                    (append (list action
-                                  prefix
-                                  (if squash
-                                      " --squash"
-                                    ""))
-                            (unless hash-p
-                              (list remote))
-                            ;; Use the hash when performing a merge since if the
-                            ;; version is the main branch on the remote the
-                            ;; local main branch will be different than the one
-                            ;; on the remote.
-                            (if (string= action "merge")
-                                (list version-hash)
-                              (list version))))
-             :return 'both)
+            (rem-run-command cmd :return 'both)
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
            ;; the user. The message is displayed in higher-level code as
