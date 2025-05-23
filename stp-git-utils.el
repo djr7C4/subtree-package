@@ -658,7 +658,9 @@ Otherwise, return REV."
     (if (f-dir-p path)
         ;; Fetch and update all branches.
         (let ((default-directory path))
-          ;; :force t is required in case a branch is deleted upstream.
+          ;; :force t is required in case a branch is deleted upstream. We don't
+          ;; want :no-new-tags t because the tags should be kept in refs/tags
+          ;; for cached repos since they correspond to a single package.
           (stp-git-fetch remote :force t :refspec "*:*"))
       (stp-git-minimal-clone remote path branch))
     (f-write (format "%f" (float-time)) 'utf-8 tpath)
@@ -677,11 +679,9 @@ Otherwise, return REV."
                         (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
                         (f-delete file)))))))
 
-(cl-defun stp-git-count-remote-commits (remote rev rev2 &key _branch both)
+(cl-defun stp-git-count-remote-commits (remote rev rev2 &key both)
   "This is similar to `stp-git-count-commits' except that it counts
-the number of commits in the remote git repository REMOTE.
-Additionally, If BRANCH is non-nil, only refs from that branch
-will be considered which may improve efficiency."
+the number of commits in the remote git repository REMOTE."
   ;; branch is ignored because it does not save much space and branches are not
   ;; known for stable git packages which prevents using it there anyway. This
   ;; would result in multiple cached versions of the same repository if it was

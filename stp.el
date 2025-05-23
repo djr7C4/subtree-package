@@ -1328,14 +1328,22 @@ prefix argument, go forward that many packages."
     (let ((timestamp (float-time)))
       (cl-ecase .method
         (git
-         (let* ((latest-stable (stp-git-latest-stable-version .remote))
-                (latest-unstable (->> (or .branch "HEAD")
+         ;; Use `cl-find' to make sure that the branch exists on the remote and
+         ;; otherwise default to HEAD. This can be an issue when there is a
+         ;; local fork of an upstream repository that the packages was upgraded
+         ;; to (for example with a new local branch for a pull request).
+         (let* ((branch (or (cl-find .branch
+                                     (stp-git-remote-heads .remote)
+                                     :test #'string=)
+                            "HEAD"))
+                (latest-stable (stp-git-latest-stable-version .remote))
+                (latest-unstable (->> branch
                                       (stp-git-latest-unstable-version .remote)
                                       (stp-git-remote-rev-to-tag .remote)))
                 (commits-to-stable (and latest-stable
-                                        (stp-git-count-remote-commits .remote .version latest-stable :branch .branch :both t)))
+                                        (stp-git-count-remote-commits .remote .version latest-stable :both t)))
                 (commits-to-unstable (and latest-unstable
-                                          (stp-git-count-remote-commits .remote .version latest-unstable :branch .branch :both t)))
+                                          (stp-git-count-remote-commits .remote .version latest-unstable :both t)))
                 (version-timestamp (and .version (stp-git-remote-timestamp .remote .version)))
                 (stable-timestamp (and latest-stable (stp-git-remote-timestamp .remote latest-stable)))
                 (unstable-timestamp (and latest-unstable (stp-git-remote-timestamp .remote latest-unstable))))
