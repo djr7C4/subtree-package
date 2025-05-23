@@ -348,7 +348,7 @@ that was merged when --squash is used."
   (let* ((default-directory path)
          (rel-path (rem-no-slash (rem-relative-path path (stp-git-root))))
          (grep-target (format "^[ \t]*git-subtree-dir:[ \t]*%s[ \t]*$" rel-path))
-         (cmd (append '("git" "log" "--grep" grep-target "-n" "1")
+         (cmd (append (list "git" "log" "--grep" grep-target "-n" "1")
                       (and format (list (format "--format=%s" format))))))
     (rem-run-command cmd)))
 
@@ -687,7 +687,7 @@ will be considered which may improve efficiency."
   "Return the UNIX timestamp for when REV was commited to the git
 repository at PATH."
   (let ((default-directory path)
-        (cmd (list "git" "show" "--no-patch" "--format=%%ct" (format "'%s^{commit}'" rev))))
+        (cmd (list "git" "show" "--no-patch" "--format=%ct" (format "%s^{commit}" rev))))
     ;; Pipe to /dev/null to suppress warnings about ambiguous ref or hashs.
     ;; These can occur when the git repository contains a branch or tag called
     ;; HEAD.
