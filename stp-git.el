@@ -216,7 +216,7 @@ are converted to hashes before they are returned."
     ;; Clone the remote repository as a squashed subtree.
     (let ((default-directory git-root))
       ;; Install the package.
-      (let* ((hash-p (stp-git-maybe-fetch remote version))
+      (let* ((hash-p (stp-git-maybe-fetch remote version :no-new-tags t))
              (cmd (append '("git" "subtree" "add" "--prefix" prefix)
                           (and squash (list "--squash"))
                           ;; When the version is a hash, don't provide a remote
@@ -251,7 +251,7 @@ from remote."
       (error "%s does not exist" pkg-name))
     (let ((default-directory git-root))
       ;; Upgrade package
-      (let* ((hash-p (stp-git-maybe-fetch remote version))
+      (let* ((hash-p (stp-git-maybe-fetch remote version :no-new-tags t))
              (action (if hash-p
                          ;; merging is done instead of pulling for
                          ;; hashes because git subtree pull does

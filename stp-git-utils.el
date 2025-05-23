@@ -163,13 +163,14 @@ repository."
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
 
-(cl-defun stp-git-fetch (remote &key force refspec)
-  ;; We want to download the tags object but remove the references to them in
-  ;; .git/refs/tags. Otherwise, the refs will become cluttered with tags for
-  ;; remotes of packages. These tags won't have a clear meaning on the local
-  ;; repository. For example, there could be a v2.0.0 tag for chatgpt-shell but
-  ;; v2.0.0 doesn't have much meaning without even knowing which packages it is
-  ;; for. Git doesn't seem to provide a way to do this so we copy .git/refs/tags
+(cl-defun stp-git-fetch (remote &key force refspec no-new-tags)
+  ;; When no-new-tags is non-nil, download the tags objects but remove the
+  ;; references to them in .git/refs/tags. Otherwise, the refs will become
+  ;; cluttered with tags for remotes of packages. These tags won't have a clear
+  ;; meaning on the local repository unless it is for this specific package. For
+  ;; example, there could be a v2.0.0 tag for chatgpt-shell but v2.0.0 doesn't
+  ;; have much meaning without even knowing which packages it is for. Git
+  ;; doesn't seem to provide a way to do this so we copy .git/refs/tags
   ;; beforehand and then restore it after the fetch.
   (let* ((git-root (stp-git-root))
          (tags-dir-tmp (make-temp-file "git-tags" t))
@@ -181,16 +182,19 @@ repository."
                            (and force (list "--force"))
                            (list remote)
                            (and refspec (list refspec)))))
-          (f-copy-contents tags-dir tags-dir-tmp)
+          (when no-new-tags
+            (f-copy-contents tags-dir tags-dir-tmp))
           (rem-run-command cmd :error t)
-          (f-delete tags-dir t)
-          (f-move tags-dir-tmp tags-dir))
-      (f-delete tags-dir-tmp t))))
+          (when no-new-tags
+            (f-delete tags-dir t)
+            (f-move tags-dir-tmp tags-dir)))
+      (when no-new-tags
+        (f-delete tags-dir-tmp t)))))
 
-(defun stp-git-maybe-fetch (remote version)
+(cl-defun stp-git-maybe-fetch (remote version &key force refspec no-new-tags)
   (when (and stp-subtree-fetch
              (not (stp-git-valid-remote-ref-p remote version)))
-    (stp-git-fetch remote)
+    (stp-git-fetch remote force refspec no-new-tags)
     t))
 
 (defun stp-git-push ()
@@ -394,11 +398,13 @@ subtree was not actually installed as a git subtree."
                             ;; their contents since trees with differing
                             ;; contents) will have different hashes.
                             (progn
-                              (stp-git-fetch remote)
+                              (stp-git-fetch remote :no-new-tags t)
                               ;; Some revs (e.g. tags) won't be available
-                              ;; locally even after a fetch (see
-                              ;; `stp-git-fetch') so we convert them to hashes
-                              ;; to avoid issues.
+                              ;; locally even after a fetch since we used
+                              ;; :no-new-tags t. We convert them to hashes to
+                              ;; avoid issues. If we didn't supply :no-new-tags
+                              ;; t existing tags with the same name might get
+                              ;; clobbered.
                               (stp-git-commit-tree path (stp-git-remote-rev-to-hash remote rev))))
                        (error "Unable to find the merged git subtree"))))
     (and (not (string= tree last-tree))

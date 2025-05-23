@@ -571,7 +571,7 @@ as in `stp-install'."
               (when do-lock
                 (stp-update-lock-file))
               (when refresh
-                (stp-list-refresh :quiet t :focus-window-line t))
+                (stp-list-refresh :quiet t))
               (stp-prune-cached-latest-versions pkg-name))
           (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))
 
