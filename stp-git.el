@@ -217,7 +217,7 @@ are converted to hashes before they are returned."
     (let ((default-directory git-root))
       ;; Install the package.
       (let* ((hash-p (stp-git-maybe-fetch remote version :no-new-tags t))
-             (cmd (append '("git" "subtree" "add" "--prefix" prefix)
+             (cmd (append (list "git" "subtree" "add" "--prefix" prefix)
                           (and squash (list "--squash"))
                           ;; When the version is a hash, don't provide a remote
                           ;; to git subtree add. This forces git to look for the
