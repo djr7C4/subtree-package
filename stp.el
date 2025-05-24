@@ -1711,7 +1711,7 @@ from the installed version is used.")
   (let* ((count-string (cond
                         ((consp count)
                          (format "%+d%d" m (-n)))
-                        ((integerp count)
+                        ((and (integerp count) (/= count 0))
                          (format "%d" count))
                         (t
                          "")))
