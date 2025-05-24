@@ -600,26 +600,59 @@ Otherwise, return REV."
        (or (s-prefix-p hash hash2)
            (s-prefix-p hash2 hash))))
 
-(cl-defun stp-git-count-commits (path rev rev2 &key both)
-  "Count the number of commits that have been made after REV but
- before REV2 for the local git repository at PATH. If BOTH is
- non-nil and the number of commits in REV..REV2 is zero, find the
- number of commits n in REV2..REV and return -n."
+(cl-defun stp-git-count-commits (path rev rev2 &key (handle-unrelated t))
+  "Count the number of commits from REV to REV2. More precisely,
+compute the number of commits M and N in REV..REV2 and REV2..REV
+in the local git repository at PATH.
+
+If M is non-zero and N is zero, then return M. If M is zero and N
+is non-zero, return -N (this represents going backwards from REV2
+to REV). If both are non-zero, return a list of the form (M N).
+
+If HANDLE-UNRELATED is non-nil, then nil will be returned if REV
+and REV2 do not share a common ancestor."
   ;; This has a significant performance penalty. `rem-run-command' will produce
-  ;; an error below anyway if a rev is invalid.
+  ;; an error below anyway if a revision is invalid.
   ;;
   ;; (unless (stp-git-valid-rev-p path rev)
   ;;   (error "%s is not a valid ref or hash for %s" rev path))
   ;; (unless (stp-git-valid-rev-p path rev2)
   ;;   (error "%s is not a valid ref or hash for %s" rev2 path))
-  (cl-flet ((stp-git-count-commits-forward (rev rev2)
-              (let ((cmd (list "git" "rev-list" "--count" (format "%s..%s" rev rev2))))
-                (string-to-number (rem-run-command cmd :error t)))))
-    (let ((default-directory path))
-      (or (--first (/= it 0)
-                   (append (list (stp-git-count-commits-forward rev rev2))
-                           (and both (list (- (stp-git-count-commits-forward rev2 rev))))))
-          0))))
+  (let ((default-directory path))
+    (cl-flet ((common-ancestor-exists-p (rev rev2)
+                (let ((cmd (list "git" "merge-base" rev rev2)))
+                  ;; git merge-base returns 0 when a common ancestor exists and
+                  ;; 1 when it does not. Other statuses indicate errors.
+                  (= (rem-run-command cmd
+                                      :return 'exit-code
+                                      :validate (lambda (exit-code _)
+                                                  (member exit-code '(0 1)))
+                                      :error t)
+                     0)))
+              (count-commits-forward (rev rev2)
+                (let ((cmd (list "git" "rev-list" "--count" (format "%s..%s" rev rev2))))
+                  (string-to-number (rem-run-command cmd :error t)))))
+      (let ((m (count-commits-forward rev rev2))
+            (n (count-commits-forward rev2 rev)))
+        (cond
+         ((and (= m 0) (= n 0))
+          0)
+         ((= n 0)
+          m)
+         ((= m 0)
+          (- n))
+         ;; When one or both m and n are zero rev and rev2 must have a common
+         ;; ancestor so we don't need to check for a common ancestor in the
+         ;; above cases regardless of the value of handle-unrelated. This will
+         ;; be faster in most cases since usually m and n will not both be
+         ;; non-zero (this will typically only happen when there is a fork
+         ;; installed).
+         ((or (not handle-unrelated) (common-ancestor-exists-p rev rev2))
+          (list m n))
+         ;; When no common ancestor exists and handle-unrelated is nil, return
+         ;; nil.
+         (t
+          nil))))))
 
 (defvar stp-git-cache-directory (f-join user-emacs-directory "stp/cache/git-repos/"))
 
@@ -643,26 +676,39 @@ Otherwise, return REV."
        (s-join "-")))
 
 (defun stp-git-cached-repo-path (remote)
-  (f-join stp-git-cache-directory (stp-git-cache-hash-directory remote)))
+  ;; When there is a list of remotes, use a combination of all the remote URLs
+  ;; for caching.
+  (let ((id (if (listp remote)
+                (s-join "|" remote)
+              remote)))
+   (f-join stp-git-cache-directory (stp-git-cache-hash-directory id))))
 
 (defvar stp-git-cached-repo-timestamp-suffix "-timestamp")
 
 (defun stp-git-cached-repo-timestamp-path (path)
   (f-join stp-git-cache-directory (format "%s%s" path stp-git-cached-repo-timestamp-suffix)))
 
-(defun stp-git-ensure-cached-repo (remote &optional branch)
+(defun stp-git-ensure-cached-repo (remotes &optional branch)
+  (if (listp remotes)
+      ;; Fetch in reverse order so that branches and tags in earlier remotes
+      ;; take precedence.
+      (setq remotes (reverse remotes))
+    (setq remotes (list remotes)))
   (unless (f-dir-p stp-git-cache-directory)
     (f-mkdir-full-path stp-git-cache-directory))
-  (let* ((path (stp-git-cached-repo-path remote))
+  (let* ((path (stp-git-cached-repo-path remotes))
          (tpath (stp-git-cached-repo-timestamp-path path)))
-    (if (f-dir-p path)
-        ;; Fetch and update all branches.
-        (let ((default-directory path))
-          ;; :force t is required in case a branch is deleted upstream. We don't
-          ;; want :no-new-tags t because the tags should be kept in refs/tags
-          ;; for cached repos since they correspond to a single package.
-          (stp-git-fetch remote :force t :refspec "*:*"))
-      (stp-git-minimal-clone remote path branch))
+    ;; Ensure that the cached repository has been created.
+    (unless (f-dir-p path)
+      (stp-git-minimal-clone (car remotes) path branch)
+      (setq remotes (cdr remotes)))
+    ;; Fetch and update all branches from all remotes.
+    (let ((default-directory path))
+      (dolist (remote remotes)
+        ;; :force t is required in case a branch is deleted upstream. We don't
+        ;; want :no-new-tags t because the tags should be kept in refs/tags for
+        ;; cached repos since they correspond to a single package.
+        (stp-git-fetch remote :force t :refspec "*:*")))
     (f-write (format "%f" (float-time)) 'utf-8 tpath)
     path))
 
@@ -679,15 +725,15 @@ Otherwise, return REV."
                         (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
                         (f-delete file)))))))
 
-(cl-defun stp-git-count-remote-commits (remote rev rev2 &key both)
+(cl-defun stp-git-count-remote-commits (remotes rev rev2)
   "This is similar to `stp-git-count-commits' except that it counts
-the number of commits in the remote git repository REMOTE."
+the number of commits in the remote git repositories in REMOTES."
   ;; branch is ignored because it does not save much space and branches are not
   ;; known for stable git packages which prevents using it there anyway. This
   ;; would result in multiple cached versions of the same repository if it was
   ;; changed from stable to unstable for example.
-  (let ((path (stp-git-ensure-cached-repo remote)))
-    (stp-git-count-commits path rev rev2 :both both)))
+  (let ((path (stp-git-ensure-cached-repo remotes)))
+    (stp-git-count-commits path rev rev2)))
 
 (defun stp-git-timestamp (path rev)
   "Return the UNIX timestamp for when REV was commited to the git

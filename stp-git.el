@@ -201,9 +201,14 @@ are converted to hashes before they are returned."
       (car (rassoc rev (stp-git-remote-hash-head-alist path))))))
 
 (defun stp-git-version-upgradable-p (count-to-stable count-to-unstable update)
-  (if (eq update 'stable)
-      (and count-to-stable (> count-to-stable 0) t)
-    (and count-to-unstable (> count-to-unstable 0) t)))
+  (cl-flet ((nonzero-count (count)
+              (and count
+                   (or (consp count)
+                       (> count 0))
+                   t)))
+    (if (eq update 'stable)
+        (nonzero-count count-to-stable)
+      (nonzero-count count-to-unstable))))
 
 (cl-defun stp-git-install (pkg-name remote version update &key branch (squash t) (set-pkg-info t))
   "Install the specified version of pkg-name from remote in

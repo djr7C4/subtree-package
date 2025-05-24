@@ -1336,14 +1336,18 @@ prefix argument, go forward that many packages."
                                      (stp-git-remote-heads .remote)
                                      :test #'string=)
                             "HEAD"))
+                ;; Only use the remote attribute to determining the latest versions.
                 (latest-stable (stp-git-latest-stable-version .remote))
                 (latest-unstable (->> branch
                                       (stp-git-latest-unstable-version .remote)
                                       (stp-git-remote-rev-to-tag .remote)))
+                ;; Use both the remote attribute and any other remotes to count
+                ;; commits. This is important since the installed version might
+                ;; be from any remote.
                 (commits-to-stable (and latest-stable
-                                        (stp-git-count-remote-commits .remote .version latest-stable :both t)))
+                                        (stp-git-count-remote-commits .remote .version latest-stable)))
                 (commits-to-unstable (and latest-unstable
-                                          (stp-git-count-remote-commits .remote .version latest-unstable :both t)))
+                                          (stp-git-count-remote-commits .remote .version latest-unstable)))
                 (version-timestamp (and .version (stp-git-remote-timestamp .remote .version)))
                 (stable-timestamp (and latest-stable (stp-git-remote-timestamp .remote latest-stable)))
                 (unstable-timestamp (and latest-unstable (stp-git-remote-timestamp .remote latest-unstable))))
@@ -1704,9 +1708,13 @@ version is used. When it is \\='time-delta, the amount of time
 from the installed version is used.")
 
 (defun stp-list-annotated-latest-version (method version count version-timestamp latest-timestamp)
-  (let* ((count-string (if (and count (/= count 0))
-                           (number-to-string count)
-                         ""))
+  (let* ((count-string (cond
+                        ((consp count)
+                         (format "%+d%d" m (-n)))
+                        ((integerp count)
+                         (format "%d" count))
+                        (t
+                         "")))
          (time-string (if (and version-timestamp latest-timestamp)
                           (ecase stp-list-annotated-version
                             (time-delta
