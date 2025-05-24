@@ -108,10 +108,15 @@ remote or archive. Archives are represented as symbols."
                                           (cons (format "%s (package archive)" archive)
                                                 (intern archive)))
                                         archives))
-                 (remotes (stp-archive-find-remotes pkg-name))
-                 (remote-or-archive (stp-comp-read-remote "Remote or archive: "
-                                                          (append remotes (mapcar #'car archive-alist))
-                                                          :default (car remotes))))
+                 (remotes (append (and (member "gnu" archives)
+                                       (list (cons (stp-elpa-package-url pkg-name) 'elpa)))
+                                  (stp-archive-find-remotes pkg-name)))
+                 (remote-or-archive (stp-comp-read-remote
+                                     "Remote or archive: "
+                                     (->> (append remotes archive-alist)
+                                          stp-sort-remotes
+                                          (mapcar #'car))
+                                     :default (car remotes))))
             (cons pkg-name (or (map-elt archive-alist remote-or-archive)
                                remote-or-archive))))
       ;; Otherwise the user chose a remote so prompt for its package name.

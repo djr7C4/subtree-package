@@ -33,6 +33,9 @@
                       ((string= host "elpa.nongnu.org")
                        (string= dir "/nongnu")))))))))
 
+(defun stp-elpa-package-url (pkg-name)
+  (format "https://elpa.gnu.org/packages/%s.html" pkg-name))
+
 (defvar stp-elpa-remote-history nil)
 
 (defun stp-elpa-read-remote (prompt &optional default)

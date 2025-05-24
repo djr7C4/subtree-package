@@ -122,10 +122,10 @@ refresh even if the last refresh was less than
                 (string= (package-desc-archive desc) archive))
               (stp-achive-get-descs pkg-name)))
 
-(cl-defun stp-archive-find-remotes (pkg-name &key keep-methods)
+(cl-defun stp-archive-find-remotes (pkg-name)
   "Find remotes for PKG-NAME in `package-archive-contents'. The
-result is returned as an alist that maps methods to valid
-remotes."
+result is returned as an alist that maps valid remotes to
+methods."
   (--> (stp-achive-get-descs pkg-name)
        (mapcar (lambda (desc)
                  (map-elt (package-desc-extras desc) :url))
@@ -134,11 +134,9 @@ remotes."
        (cl-remove-duplicates it :test #'equal)
        (mapcar (lambda (remote)
                  (when-let ((method (stp-remote-method remote)))
-                   (cons method (stp-transform-remote remote))))
+                   (cons (stp-transform-remote remote) method)))
                it)
-       (-filter #'identity it)
-       (stp-sort-remotes it)
-       (mapcar (if keep-methods #'identity #'cdr) it)))
+       (-filter #'identity it)))
 
 (defun stp-archives (pkg-name)
   "Find the archives that PKG-NAME is available on according to
