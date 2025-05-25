@@ -30,6 +30,7 @@
 (require 'stp-elpa)
 (require 'stp-git)
 (require 'stp-locked)
+(require 'stp-headers)
 (require 'stp-url)
 (require 'timer)
 (require 'url-handlers)
@@ -531,6 +532,7 @@ the package has been installed."
             (archive (stp-archive-install pkg-name .remote))
             (url (stp-url-install pkg-name .remote .version)))
           (stp-update-remotes pkg-name .remote .remote .other-remotes)
+          (stp-update-requirements pkg-name)
           (stp-write-info)
           ;; For archives, the version is determined automatically instead of
           ;; being read and so .version will be nil here.
@@ -623,6 +625,7 @@ do-push and proceed arguments are as in `stp-install'."
             ;; `stp-url-upgrade'.
             (let ((new-version (stp-get-attribute pkg-name 'version)))
               (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
+              (stp-update-requirements pkg-name)
               (stp-write-info)
               ;; Don't commit, push or perform push actions when there are
               ;; merge conflicts.

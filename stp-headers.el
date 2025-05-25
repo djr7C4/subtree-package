@@ -58,23 +58,36 @@ Package-Requires field of its elisp files."
 Package-Requires field of its elisp files."
   (stp-headers-directory-requirements (stp-canonical-path pkg-name)))
 
+(defun stp-headers-requirements-string (requirements)
+  (mapcar (lambda (requirement)
+            (db (pkg-sym . version)
+                requirement
+              (append (list pkg-sym)
+                      (and version (list (s-join "." (mapcar #'number-to-string version)))))))
+          requirements))
+
+(defun stp-update-requirements (pkg-name)
+  (if-let ((requirements (stp-headers-package-requirements pkg-name)))
+      (stp-set-attribute pkg-name 'requirements requirements)
+    (stp-delete-attribute pkg-name 'requirements)))
+
 ;;; For archaic reasons, Emacs lisp packages require some redundant headers such
 ;;; as beginning and end of file headers. These are maintained automatically.
-(defun stp-header-bounds-of-bob-header ()
+(defun stp-headers-bounds-of-bob-header ()
   (save-excursion
     (save-match-data
       (goto-char (point-min))
       (and (re-search-forward "^;+[ \t]*\\([^ ]*\\(\\.el\\)?\\)[ \t]*---" nil t)
            (cons (match-beginning 1) (match-end 1))))))
 
-(defun stp-header-bounds-of-eob-header ()
+(defun stp-headers-bounds-of-eob-header ()
   (save-excursion
     (save-match-data
       (goto-char (point-max))
       (and (re-search-backward "^;+[ \t]*\\([^ ]*\\(\\.el\\)?\\)[ \t]+ends[ \t]+here" nil t)
            (cons (match-beginning 1) (match-end 1))))))
 
-(defun stp-header-update-elisp-filename-headers (&optional insert)
+(defun stp-headers-update-elisp-filename-headers (&optional insert)
   "Update the headers at the beginning and end of an Emacs lisp file
 that contain the filename. If they do not already exist and
 INSERT is non-nil then insert them. Return non-nil if one of the
@@ -84,7 +97,7 @@ headers did not exist and was inserted."
         (filename (or (f-filename buffer-file-name)
                       (f-swap-ext (buffer-name) "el"))))
     (acond
-     ((stp-header-bounds-of-bob-header)
+     ((stp-headers-bounds-of-bob-header)
       (save-excursion
         (db (bobh-beg . bobh-end)
             it
@@ -111,7 +124,7 @@ headers did not exist and was inserted."
       (end-of-line)
       (insert "\n")))
     (acond
-     ((stp-header-bounds-of-eob-header)
+     ((stp-headers-bounds-of-eob-header)
       (save-excursion
         (db (eobh-beg . eobh-end)
             it
@@ -128,7 +141,7 @@ headers did not exist and was inserted."
       (insert (format "\n\n;;; %s ends here" filename))))
     inserted))
 
-(defun stp-header-update-copyright-header (&optional insert)
+(defun stp-headers-update-copyright-header (&optional insert)
   "Update the years for the copyright header. If it does not exist
 and INSERT is non-nil, then insert a copyright header. Return
 non-nil if the header did not exist and was inserted."
@@ -163,7 +176,7 @@ non-nil if the header did not exist and was inserted."
             (comment-region pt (point))
             t))))))
 
-(defun stp-header-update-version-header (&optional insert)
+(defun stp-headers-update-version-header (&optional insert)
   (cl-flet ((insert-version (value)
               (insert (format ";; Version: %s\n"
                               (or (stp-git-latest-stable-version (stp-git-root))
@@ -178,18 +191,18 @@ non-nil if the header did not exist and was inserted."
       (when insert
         (insert-version t)))))
 
-(defun stp-header-update-elisp (&optional insert)
+(defun stp-headers-update-elisp (&optional insert)
   "Update the elisp headers. When INSERT is non-nil, insert the
 headers if they are not present. Return non-nil if a header that
 was not there before was inserted."
   (interactive (list t))
   (save-excursion
-    (stp-header-update-elisp-filename-headers insert)
+    (stp-headers-update-elisp-filename-headers insert)
     ;; Go to the prop line.
     (rem-ensure-prop-line)
     (beginning-of-line)
     (forward-comment 1)
-    (when (stp-header-update-copyright-header insert)
+    (when (stp-headers-update-copyright-header insert)
       ;; When a copyright header was added, make sure there is a blank line
       ;; before it.
       (beginning-of-line)
@@ -218,7 +231,7 @@ was not there before was inserted."
                        stp-transform-remote))
             (setq inserted t)
             (insert (format ";; URL: %s\n" it))))
-        (when (stp-header-update-version-header insert)
+        (when (stp-headers-update-version-header insert)
           (setq inserted t))
         (unless (save-excursion (lm-header-multiline "Package-Requires"))
           (setq inserted t)
