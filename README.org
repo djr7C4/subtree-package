@@ -197,7 +197,7 @@ for each dependency.
 
 STP also requires that you install =atool= if you wish to install ELPA and
 compressed URL packages. Additionally, to support certain non-essential
-features, the ELPA =async=, =persist= and =queue= packages are required.
+features, the ELPA =async= and =queue= packages are required.
 
 It is recommended to make the latest versions and the last time the package
 archive was updated persistent across sessions. This can be done by adding

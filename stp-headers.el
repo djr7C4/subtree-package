@@ -33,7 +33,7 @@ the Package-Requires field."
                   reqs))))))
 
 (defun stp-headers-directory-requirements (&optional dir)
-  "Find all packages that are required DIR according to the
+  "Find all packages that are required by DIR according to the
 Package-Requires field of its elisp files."
   (setq dir (or dir default-directory))
   (let* (reqs

@@ -2,10 +2,10 @@
 ;; Copyright (C) 2025 David J. Rosenbaum
 
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
-;; Keywords: TODO
+;; Keywords: git tools
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: TODO
-;; Package-Requires: ()
+;; Version: 0.7.0
+;; Package-Requires: ((emacs "29.1") (async "1.9.9") (queue "0.2"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
