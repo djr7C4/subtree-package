@@ -37,7 +37,7 @@ the Package-Requires field."
 Package-Requires field of its elisp files."
   (setq dir (or dir default-directory))
   (let* (reqs
-         (files (rem-elisp-files-to-load dir :keep-extensions t :extensions '("el"))))
+         (files (rem-elisp-files-to-load dir :keep-extensions t)))
     (dolist (file files)
       (with-temp-buffer
         (insert-file-contents file)
