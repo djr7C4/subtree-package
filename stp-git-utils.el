@@ -422,16 +422,17 @@ subtree was not actually installed as a git subtree."
 (defvar stp-git-diff-buffer-name "*stp-git-diff*")
 
 (defun stp-git-show-diff (hash hash2)
-  (let ((buf (get-buffer-create stp-git-diff-buffer-name))
-        (diff (stp-git-diff hash hash2)))
-    (with-current-buffer buf
-      (read-only-mode 0)
-      (erase-buffer)
-      (insert diff)
-      (goto-char (beginning-of-buffer))
-      (read-only-mode 1)
-      (diff-mode))
-    (pop-to-buffer buf)))
+  (save-window-excursion
+    (let ((buf (get-buffer-create stp-git-diff-buffer-name))
+          (diff (stp-git-diff hash hash2)))
+      (with-current-buffer buf
+        (read-only-mode 0)
+        (erase-buffer)
+        (insert diff)
+        (goto-char (beginning-of-buffer))
+        (read-only-mode 1)
+        (diff-mode))
+      (pop-to-buffer buf))))
 
 ;; This function exists to facilitate memoization.
 (defun stp-git-remote-hash-alist-basic (remote)
