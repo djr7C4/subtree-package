@@ -310,6 +310,19 @@ expression is active.")
             (cl-return (funcall transformer remote)))))
       remote))
 
+(defun stp-required-by (pkg-name)
+  "Return the list of packages that require PKG-NAME."
+  (let ((pkg-sym (intern pkg-name)))
+    (mapcar #'car
+            (-filter (lambda (cell)
+                       (db (pkg-name2 . pkg-alist2)
+                           cell
+                         (let-alist pkg-alist2
+                           (cl-find-if (lambda (requirement)
+                                         (eq (car requirement) pkg-sym))
+                                       .requirements))))
+                     stp-package-info))))
+
 (defun stp-no-leading-zeros (string)
   (save-match-data
     (if (and (string-match "^0+" string))
