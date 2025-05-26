@@ -27,9 +27,8 @@ the Package-Requires field."
       (db (reqs . index)
           (read-from-string text)
         (when (>= index (length text))
-
           (mapcar (lambda (cell)
-                    (list (car cell) (version-to-list (cadr cell))))
+                    (list (car cell) (cadr cell)))
                   reqs))))))
 
 (defun stp-headers-elisp-file-requirements (file)
@@ -62,7 +61,7 @@ Package-Requires field of its elisp files."
 (defun stp-package-requirements (pkg-name)
   (let* ((pkg-path (stp-canonical-path pkg-name))
          (main-file (or (stp-main-package-file pkg-path :no-directory t)
-                        (read-file-name "Main elisp file: "
+                        (read-file-name (format "Main elisp file for %s: " pkg-name)
                                         pkg-path
                                         nil
                                         t
