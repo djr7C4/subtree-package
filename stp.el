@@ -447,7 +447,7 @@ is one. Otherwise, prompt the user for a package."
            (stp-list-package-on-line))
       (stp-read-existing-name prompt)))
 
-(cl-defun stp-command-args (&key read-pkg-alist actions (line-pkg t))
+(cl-defun stp-command-args (&key read-pkg-alist pkg-version actions (line-pkg t))
   "Prepare an argument list for an interactive to `stp-install',
 `stp-uninstall', `stp-upgrade', `stp-repair' or
 `stp-toggle-update'. The first argument is the name of the
@@ -469,6 +469,8 @@ active."
                               (stp-list-read-package "Package name: ")
                             (stp-read-name "Package name: ")))))
       (append (list pkg-name)
+              (when pkg-version
+                (list (stp-get-attribute pkg-name 'version)))
               (when read-pkg-alist
                 (list pkg-alist))
               args))))
@@ -650,9 +652,9 @@ do-push and proceed arguments are as in `stp-install'."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-reinstall (stp-command-args :actions t)))))
+      (apply #'stp-reinstall (stp-command-args :pkg-version t :actions t)))))
 
-(cl-defun stp-reinstall (pkg-name version &key do-commit do-push do-actions refresh skip-subtree-check)
+(cl-defun stp-reinstall (pkg-name version &key do-commit do-push do-actions do-lock refresh skip-subtree-check)
   "Uninstall and reinstall PKG-NAME as VERSION."
   (when (and (stp-git-tree-package-modified-p pkg-name)
              (not (yes-or-no-p (format "The package %s has been modified since the last commit in the working tree. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
@@ -681,7 +683,7 @@ do-push and proceed arguments are as in `stp-install'."
       ;; The :do-commit argument is not required here. The decisions to
       ;; commit, push or perform post actions will be handled at a
       ;; higher level by `stp-upgrade'.
-      (stp-install pkg-name pkg-alist :do-commit do-commit :do-push do-push :do-actions do-actions :refresh refresh))))
+      (stp-install pkg-name pkg-alist :do-commit do-commit :do-push do-push :do-actions do-actions :do-lock do-lock :refresh refresh))))
 
 (defun stp-repair-command (&optional arg)
   "Repair the stored information for a package interactively. With a
@@ -876,7 +878,7 @@ interactive commands.")
 (defun stp-lock-file-watcher (event)
   (let ((action (cadr event)))
     (when (memq action '(created changed))
-      (stp-checkout-locked-revision t))))
+      (stp-checkout-locked-revision))))
 
 (defvar stp-build-output-buffer-name "*STP Build Output*")
 
