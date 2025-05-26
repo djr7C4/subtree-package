@@ -428,7 +428,7 @@ subtree was not actually installed as a git subtree."
       (read-only-mode 0)
       (erase-buffer)
       (insert diff)
-      (goto-char (beginning-of-buffer))
+      (goto-char (point-min))
       (read-only-mode 1)
       (diff-mode))
     (pop-to-buffer buf)))
