@@ -32,6 +32,11 @@ the Package-Requires field."
                     (list (car cell) (version-to-list (cadr cell))))
                   reqs))))))
 
+(defun stp-headers-elisp-file-requirements (file)
+  (with-temp-buffer
+    (insert-file-contents file)
+    (stp-headers-elisp-requirements)))
+
 (defun stp-headers-directory-requirements (&optional dir)
   "Find all packages that are required by DIR according to the
 Package-Requires field of its elisp files."
@@ -39,35 +44,34 @@ Package-Requires field of its elisp files."
   (let* (reqs
          (files (rem-elisp-files-to-load dir :keep-extensions t)))
     (dolist (file files)
-      (with-temp-buffer
-        (insert-file-contents file)
-        (setq reqs (append reqs (stp-headers-elisp-requirements)))))
+      (setq reqs (append reqs (stp-headers-elisp-file-requirements file))))
     (mapcar (lambda (cell)
-              (db (pkg-name-sym . pkg-reqs)
+              (db (pkg-sym . pkg-reqs)
                   cell
-                (cons pkg-name-sym
+                (list pkg-sym
                       ;; Select the most recent version of each package that is
                       ;; required by one of its files.
-                      (car (-sort (lambda (v1 v2)
-                                    (version-list-< v2 v1))
-                                  (mapcar #'cadr pkg-reqs))))))
+                      (->> (mapcar #'cadr pkg-reqs)
+                           (-sort (lambda (v1 v2)
+                                    (version-list-< v2 v1)))
+                           car
+                           (mapcar #'number-to-string)
+                           (s-join ".")))))
             (-group-by #'car reqs))))
 
-(defun stp-headers-package-requirements (pkg-name)
-  "Find all packages that are required by PKG-NAME according to the
-Package-Requires field of its elisp files."
-  (stp-headers-directory-requirements (stp-canonical-path pkg-name)))
-
-(defun stp-headers-requirements-string (requirements)
-  (mapcar (lambda (requirement)
-            (db (pkg-sym . version)
-                requirement
-              (append (list pkg-sym)
-                      (and version (list (s-join "." (mapcar #'number-to-string version)))))))
-          requirements))
+(defun stp-package-requirements (pkg-name)
+  (let* ((pkg-path (stp-canonical-path pkg-name))
+         (main-file (or (stp-main-package-file pkg-path :no-directory t)
+                        (read-file-name "Main elisp file: "
+                                        pkg-path
+                                        nil
+                                        t
+                                        nil
+                                        (-compose (-partial #'string= "el") #'f-ext)))))
+    (stp-headers-elisp-file-requirements main-file)))
 
 (defun stp-update-requirements (pkg-name)
-  (if-let ((requirements (stp-headers-package-requirements pkg-name)))
+  (if-let ((requirements (stp-package-requirements pkg-name)))
       (stp-set-attribute pkg-name 'requirements requirements)
     (stp-delete-attribute pkg-name 'requirements)))
 
