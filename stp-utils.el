@@ -637,13 +637,11 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
       (insert (rem-as-shell-command cmd)))))
 
 (cl-defun stp-reload-once (pkg-name)
-  "Reload all features for PKG-NAME that have already been loaded
-according to `features'. When ALL is non-nil, load all features
-for PKG-NAME even if they were not previously loaded."
+  "Reload all files for PKG-NAME."
   (let* ((pkg-path (stp-canonical-path pkg-name))
          ;; Reload those features that were already loaded and correspond to
          ;; files in the package.
-         (files (rem-elisp-files-to-load pkg-path)))
+         (files (mapcar #'f-no-ext (rem-elisp-files-to-load pkg-path))))
     (dolist (f files)
       (load f))))
 

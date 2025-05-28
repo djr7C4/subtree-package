@@ -41,7 +41,7 @@ the Package-Requires field."
 Package-Requires field of its elisp files."
   (setq dir (or dir default-directory))
   (let* (reqs
-         (files (rem-elisp-files-to-load dir :keep-extensions t)))
+         (files (rem-elisp-files-to-load dir)))
     (dolist (file files)
       (setq reqs (append reqs (stp-headers-elisp-file-requirements file))))
     (mapcar (lambda (cell)
