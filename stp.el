@@ -60,6 +60,9 @@ each type per interactive command."
 
 (def-edebug-spec stp-with-memoization t)
 
+(defvar stp-current-package nil
+  "The name of the package that is currently being operated on.")
+
 (defvar stp-normalize-versions nil
   "Indicates if versions should be printed in the same format by STP
 commands regardless of the specific format used for versions by
@@ -230,6 +233,7 @@ occurred."
     (unwind-protect
         (dolist (pkg-name pkg-names)
           (let ((pkg-name (stp-name pkg-name)))
+            (setq stp-current-package pkg-name)
             (let-alist (stp-get-alist pkg-name)
               (unless quiet
                 (message (concat (if (> n 1)
@@ -462,7 +466,7 @@ is one. Otherwise, prompt the user for a package."
            (stp-list-package-on-line))
       (stp-read-existing-name prompt)))
 
-(cl-defun stp-command-args (&key read-pkg-alist pkg-version actions (line-pkg t))
+(cl-defun stp-command-args (&key read-pkg-alist pkg-version (existing-pkg t) actions (line-pkg t))
   "Prepare an argument list for an interactive to `stp-install',
 `stp-uninstall', `stp-upgrade', `stp-repair' or
 `stp-toggle-update'. The first argument is the name of the
@@ -480,9 +484,13 @@ active."
             (do-commit (plist-get args :do-commit))
             (`(,pkg-name . ,pkg-alist) (and read-pkg-alist (stp-read-package)))
             (pkg-name (or pkg-name
-                          (if line-pkg
-                              (stp-list-read-package "Package name: ")
-                            (stp-read-name "Package name: ")))))
+                          (cond
+                           (line-pkg
+                            (stp-list-read-package "Package name: "))
+                           (existing-pkg
+                            (stp-read-existing-name "Package name: "))
+                           (t
+                            (stp-read-name "Package name: "))))))
       (append (list pkg-name)
               (when pkg-version
                 (list (stp-get-attribute pkg-name 'version)))
@@ -524,7 +532,7 @@ is negated relative to the default."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :line-pkg nil)))))
+      (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :existing-pkg nil :line-pkg nil)))))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t))
   "Install a package named pkg-name that has the alist pkg-alist. If
@@ -536,6 +544,7 @@ the package has been installed."
   ;; pkg-name may be nil in interactive calls when the user answers no when the
   ;; repository is dirty and `stp-git-clean-or-ask-p' is called.
   (when pkg-name
+    (setq stp-current-package pkg-name)
     (let-alist pkg-alist
       ;; Guess the method if it isn't already known.
       (unless .method
@@ -558,9 +567,9 @@ the package has been installed."
                                      pkg-name)
                              do-commit
                              do-push)
-        (when do-lock
+        (when (stp-maybe-call do-lock)
           (stp-update-lock-file))
-        (when do-actions
+        (when (stp-maybe-call do-actions)
           (stp-post-actions pkg-name))
         (when refresh
           (stp-update-cached-latest pkg-name)
@@ -578,6 +587,7 @@ the package has been installed."
   "Uninstall the package named pkg-name. The do-commit and do-push arguments are
 as in `stp-install'."
   (when pkg-name
+    (setq stp-current-package pkg-name)
     (let-alist (stp-get-alist pkg-name)
       (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
           (progn
@@ -590,7 +600,7 @@ as in `stp-install'."
                                          pkg-name)
                                  do-commit
                                  do-push)
-            (when do-lock
+            (when (stp-maybe-call do-lock)
               (stp-update-lock-file))
             (when refresh
               (stp-list-refresh :quiet t))
@@ -611,6 +621,7 @@ as in `stp-install'."
   "Change the version of the package named pkg-name. The do-commit,
 do-push and proceed arguments are as in `stp-install'."
   (when pkg-name
+    (setq stp-current-package pkg-name)
     (let-alist (stp-get-alist pkg-name)
       ;; Automatically determine missing other remotes for archive packages.
       (when (eq .method 'archive)
@@ -653,9 +664,9 @@ do-push and proceed arguments are as in `stp-install'."
                                            pkg-name)
                                    do-commit
                                    do-push)
-              (when do-lock
+              (when (stp-maybe-call do-lock)
                 (stp-update-lock-file))
-              (when do-actions
+              (when (stp-maybe-call do-actions)
                 (stp-post-actions pkg-name)))
             (when refresh
               (stp-update-cached-latest pkg-name)
@@ -718,7 +729,7 @@ arguments are as in `stp-install'."
     (stp-repair-info :quiet nil :pkg-names (list pkg-name))
     (stp-write-info)
     (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
-    (when do-lock
+    (when (stp-maybe-call do-lock)
       (stp-update-lock-file))
     (when refresh
       (stp-list-refresh :quiet t))))
@@ -736,7 +747,7 @@ arguments are as in `stp-install'."
   (stp-repair-info :quiet nil)
   (stp-write-info)
   (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
-  (when do-lock
+  (when (stp-maybe-call do-lock)
     (stp-update-lock-file))
   (when refresh
     (stp-list-refresh :quiet t)))
@@ -771,6 +782,7 @@ the rest will be other-remotes."
                         (rem-join-and invalid-remotes)
                         (if (= (length invalid-remotes) 1) "is" "are")
                         .method))
+          (setq stp-current-package pkg-name)
           (stp-set-attribute pkg-name 'remote new-remote)
           (if new-other-remotes
               (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
@@ -784,7 +796,7 @@ the rest will be other-remotes."
                                  (format "Edited the remotes for %s" pkg-name))
                                do-commit
                                do-push)
-          (when do-lock
+          (when (stp-maybe-call do-lock)
             (stp-update-lock-file))
           (when refresh
             (stp-list-refresh :quiet t)))
@@ -804,6 +816,7 @@ the rest will be other-remotes."
   "Toggle the update attribute for the package named pkg-name between stable and
 unstable."
   (when pkg-name
+    (setq stp-current-package pkg-name)
     (let-alist (stp-get-alist pkg-name)
       (if (eq .method 'git)
           (progn
@@ -820,7 +833,7 @@ unstable."
                                          pkg-name)
                                  do-commit
                                  do-push)
-            (when do-lock
+            (when (stp-maybe-call do-lock)
               (stp-update-lock-file))
             (when refresh
               (stp-list-refresh :quiet t)))
@@ -834,18 +847,20 @@ requires it rather than explicitly by the user."
   (apply #'stp-toggle-dependency (stp-command-args)))
 
 (cl-defun stp-toggle-dependency (pkg-name &key do-commit do-push do-lock)
-  (let ((dependency (stp-get-attribute pkg-name 'dependency)))
-    (if dependency
-        (stp-delete-attribute pkg-name 'dependency)
-      (stp-set-attribute pkg-name 'dependency t))
-    (stp-write-info)
-    (stp-git-commit-push (format "Changed dependency to %s for %s"
-                                 (not dependency)
-                                 pkg-name)
-                         do-commit
-                         do-push)
-    (when do-lock
-      (stp-update-lock-file))))
+  (when pkg-name
+    (setq stp-current-package pkg-name)
+    (let ((dependency (stp-get-attribute pkg-name 'dependency)))
+      (if dependency
+          (stp-delete-attribute pkg-name 'dependency)
+        (stp-set-attribute pkg-name 'dependency t))
+      (stp-write-info)
+      (stp-git-commit-push (format "Changed dependency to %s for %s"
+                                   (not dependency)
+                                   pkg-name)
+                           do-commit
+                           do-push)
+      (when (stp-maybe-call do-lock)
+        (stp-update-lock-file)))))
 
 (defun stp-post-actions-command ()
   "Perform actions that are necessary after a package is installed
@@ -857,6 +872,7 @@ the package and updating the load path."
     (stp-post-actions (stp-list-read-package "Package name: "))))
 
 (defun stp-post-actions (pkg-name)
+  (setq stp-current-package pkg-name)
   (when (stp-maybe-call stp-auto-update-load-path)
     (stp-update-load-path (stp-full-path pkg-name)))
   (when (stp-maybe-call stp-auto-load)
@@ -921,7 +937,9 @@ argument."
   "If needed, build the package PKG-NAME by running the appropriate
 build systems or performing byte compilation. Return non-nil if
 there were no errors."
-  (let* ((output-buffer stp-build-output-buffer-name)
+  (when pkg-name
+    (setq stp-current-package pkg-name)
+    (let* ((output-buffer stp-build-output-buffer-name)
          (pkg-path (stp-canonical-path pkg-name))
          (build-dir pkg-path))
     ;; Setup output buffer
@@ -993,7 +1011,7 @@ there were no errors."
       (if success
           (message "Successfully built %s" pkg-name)
         (message "Build failed for %s" pkg-name))
-      success)))
+      success))))
 
 (defvar stp-build-blacklist nil
   "This is a list of packages that should not be built by
@@ -1029,7 +1047,9 @@ argument. Packages in `stp-build-blacklist' will not be built."
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."
   (interactive (list (stp-list-read-package "Package name: ")))
-  (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
+  (when pkg-name
+    (setq stp-current-package pkg-name)
+    (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
                                (lambda (path)
                                  (member (f-filename path) stp-gnu-makefile-names))
                                t))
@@ -1078,7 +1098,7 @@ argument. Packages in `stp-build-blacklist' will not be built."
                       (message "'%s' failed" cmd)))))))))
     (unless attempted
       (message "No makefiles or texi source files found for the %s info manual" pkg-name))
-    success))
+    success)))
 
 (defvar stp-build-info-blacklist nil
   "This is a list of packages that should not be built by
@@ -1121,19 +1141,21 @@ argument. Packages in `stp-build-blacklist' will not be built."
 `Info-directory-list'. If PKG-NAME is non-nil, only search for
 info files in the directory for that package."
   (interactive (list (stp-list-read-package "Package name: ")))
-  (let* ((directory (stp-canonical-path pkg-name))
-         (new (mapcar 'f-dirname
-                      (f-entries directory
-                                 (-partial #'string-match-p "\\.info$")
-                                 t))))
-    (info-initialize)
-    (setq Info-directory-list
-          (cl-remove-duplicates (append Info-directory-list new)
-                                :test #'equal))
-    (unless quiet
-      (if new
-          (message "Added info files for %s" pkg-name)
-        (message "No info files found for %s" pkg-name)))))
+  (when pkg-name
+    (setq stp-current-package pkg-name)
+    (let* ((directory (stp-canonical-path pkg-name))
+           (new (mapcar 'f-dirname
+                        (f-entries directory
+                                   (-partial #'string-match-p "\\.info$")
+                                   t))))
+      (info-initialize)
+      (setq Info-directory-list
+            (cl-remove-duplicates (append Info-directory-list new)
+                                  :test #'equal))
+      (unless quiet
+        (if new
+            (message "Added info files for %s" pkg-name)
+          (message "No info files found for %s" pkg-name))))))
 
 (defun stp-update-all-info-directories (&optional pkg-names quiet)
   "Detect info files for all source packages in
@@ -2034,4 +2056,4 @@ development or for opening packages from `stp-list-mode'."
           (message "%s was not found in the local filesystem" pkg-name))))))
 
 (provide 'stp)
-;;; stp.el ends her
+;;; stp.el ends here

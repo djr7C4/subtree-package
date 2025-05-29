@@ -203,10 +203,10 @@ repository."
     (message "There are no commits to push. Skipping...")))
 
 (cl-defun stp-git-commit-push (msg &optional (do-commit t) (do-push t))
-  (when do-commit
+  (when (stp-maybe-call do-commit)
     (stp-git-commit msg)
     ;; Pushing does not make sense if we did not commit earlier.
-    (when do-push
+    (when (stp-maybe-call do-push)
       (stp-git-push))))
 
 (cl-defun stp-git-status (&key keep-ignored keep-untracked)
