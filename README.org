@@ -86,8 +86,8 @@ than =stp-latest-versions-stale-interval= seconds and are highlighted in orange.
 ** Choose between multiple remotes
 STP remembers all remotes that the user has entered when upgrading a package.
 These are available for the user to choose for future upgrades using completion.
-Set =stp-read-remote-default-directory= to the directory that contains your
-elisp repositories to allow for convenient completion of local directories via
+Set =stp-development-directory= to the directory that contains your elisp
+repositories to allow for convenient completion of local directories via
 =stp-install=, =stp-upgrade= and =stp-edit-remotes=. Simply enter =./= at the
 remote completion prompt to begin directory completion.
 ** Quickly open the source in a local git repository
@@ -96,8 +96,8 @@ will be installed as a git subtree and there will also be a local copy of git
 repository on which development is already performed. With an installed packages
 copy of a file open, =stp-find-package= can be to find the corresponding file on
 local git repositories that are registered as remotes for that package or are in
-=stp-read-remote-default-directory=. When desired, install or upgrade the
-package from the local git repository using =stp-install= or =stp-upgrade=.
+=stp-development-directory=. When desired, install or upgrade the package from
+the local git repository using =stp-install= or =stp-upgrade=.
 ** Automatically build packages
 Use =M-x stp-build= Packages can be built automatically by detecting Makefiles
 or other build systems as well as compiling the elisp files directly. Info

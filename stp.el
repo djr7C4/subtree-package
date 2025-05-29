@@ -1965,12 +1965,12 @@ confirmation."
 location on the local filesystem.
 
 This is done by looking for a directory named PKG-NAME in a
-remote on the local filesystem,
-`stp-read-remote-default-directory' or `stp-source-directory'. If
-more than one of these exists and does not contain the current
-file, the user will be prompted to choose between them. If FILE
-is non-nil, open the corresponding file in this directory.
-Otherwise (or with a prefix argument), open PKG-NAME.
+remote on the local filesystem, `stp-development-directory' or
+`stp-source-directory'. If more than one of these exists and does
+not contain the current file, the user will be prompted to choose
+between them. If FILE is non-nil, open the corresponding file in
+this directory. Otherwise (or with a prefix argument), open
+PKG-NAME.
 
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
@@ -1981,9 +1981,9 @@ development or for opening packages from `stp-list-mode'."
   (stp-refresh-info)
   (let ((path (f-canonical (or buffer-file-name default-directory))))
     (let-alist (stp-get-alist pkg-name)
-      ;; Prefer a remote on the local filesystem or
-      ;; `stp-read-remote-default-directory'. If neither of these exists,
-      ;; fallback on the copy of the package in `stp-source-directory'.
+      ;; Prefer a remote on the local filesystem or `stp-development-directory'.
+      ;; If neither of these exists, fallback on the copy of the package in
+      ;; `stp-source-directory'.
       (let ((dirs (-filter (lambda (dir)
                              ;; Ignore directories that do not exist and the
                              ;; copy of the package that we are currently in.
@@ -1992,7 +1992,7 @@ development or for opening packages from `stp-list-mode'."
                                   (not (f-ancestor-of-p (f-canonical dir) path))))
                            (append (and .remote (list .remote))
                                    .other-remotes
-                                   (list (f-slash (f-join stp-read-remote-default-directory pkg-name))
+                                   (list (f-slash (f-join stp-development-directory pkg-name))
                                          (stp-full-path pkg-name))))))
         (setq dirs (cl-remove-duplicates dirs :test #'f-same-p))
         (if dirs

@@ -193,12 +193,14 @@ archives."
 
 (defun stp-normalize-remote (remote)
   ;; Use absolute paths for local repositories.
-  (let ((default-directory stp-read-remote-default-directory))
+  (let ((default-directory stp-development-directory))
     (if (f-exists-p remote)
         (setq remote (f-slash (f-full remote)))
       remote)))
 
-(defvar stp-read-remote-default-directory nil)
+(defvar stp-development-directory nil
+  "Set this to the directory that contains local elisp repositories
+for packages that you develop.")
 
 (defun stp-read-remote-with-predicate (prompt valid-remote-p &optional default history)
   (let (remote)
@@ -208,7 +210,7 @@ archives."
       (when remote
         (minibuffer-message "%s is invalid" remote))
       (setq remote
-            (let ((default-directory (or stp-read-remote-default-directory
+            (let ((default-directory (or stp-development-directory
                                          default-directory)))
               (-> (rem-comp-read prompt
                                  #'completion-file-name-table
@@ -233,7 +235,7 @@ be selected.")
                 (if multiple
                     (cl-every #'valid-candidate-p (s-split crm-separator candidates))
                   (valid-candidate-p candidates))))
-    (let* ((default-directory (or stp-read-remote-default-directory
+    (let* ((default-directory (or stp-development-directory
                                   default-directory))
            (new-remotes (rem-comp-read prompt
                                        (completion-table-in-turn known-remotes
