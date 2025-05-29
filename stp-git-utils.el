@@ -22,7 +22,7 @@
 (require 'timer)
 
 (defun stp-git-root (&optional path)
-  "Return the absolute path to the root of the git directory that path is in."
+  "Return the absolute path to the git repository containing PATH."
   (setq path (or (and path (f-canonical path)) default-directory))
   (let* ((default-directory path)
          (root (or (rem-run-command '("git" "rev-parse" "--show-toplevel"))
@@ -34,7 +34,7 @@
          (f-slash (f-canonical root)))))
 
 (defmacro stp-with-git-root (&rest body)
-  "Executes body in the git root for `stp-source-directory'."
+  "Execute BODY in the git root for `stp-source-directory'."
   (declare (indent 0))
   `(let ((default-directory (stp-git-root stp-source-directory)))
      ,@body))
@@ -42,7 +42,8 @@
 (def-edebug-spec stp-with-git-root t)
 
 (defun stp-relative-path (pkg-name &optional top-level)
-  "Return the path to pkg-name relative to `stp-source-directory'.
+  "Return the path to PKG-NAME relative to `stp-source-directory'.
+
 The return value always ends with a slash. If TOP-LEVEL is
 non-nil, make the path relative to the root of the git repository
 instead."
@@ -107,8 +108,7 @@ within that package."
        t))
 
 (cl-defun stp-git-valid-rev-p (path rev)
-  "Check if REV is a valid revision for the local git repository at
-PATH."
+  "Check if REV is a valid git revision at the local PATH."
   (let ((default-directory path))
     (eql (car (rem-call-process-shell-command (format "git rev-parse --verify '%s'" rev))) 0)))
 
@@ -131,9 +131,10 @@ PATH."
 (defvar stp-git-synthetic-repos nil)
 
 (defun stp-git-download-as-synthetic-repo (pkg-name remote)
-  "Create a new git repository for PKG-NAME by downloading REMOTE
-and adding it to the repository. Return the path to the
-repository."
+  "Create a new git synthetic repository for PKG-NAME.
+
+This is done by downloading REMOTE and adding it to the
+repository. Return the path to the repository."
   (let (success
         (dir (make-temp-file pkg-name t)))
     (unwind-protect
@@ -210,9 +211,10 @@ repository."
       (stp-git-push))))
 
 (cl-defun stp-git-status (&key keep-ignored keep-untracked)
-  "Return a list of the status of each file in the repository. Each
-status is a list containing three or four elements. The first
-element is the character status code for the index used in
+  "Return a list of the status of each file in the repository.
+
+Each status is a list containing three or four elements. The
+first element is the character status code for the index used in
 version 1 of the git porcelain format (see the manual for
 git-status) and the second element is the character status code
 for the worktree. The third is the file name. When a file is
@@ -236,7 +238,7 @@ the new name."
                           (s-split "\n" output t)))))
 
 (defun stp-git-clean-p ()
-  "Determine if the git repository is clean (i.e. has no uncommitted changes)."
+  "Determine if the git repository has uncommitted changes."
   (and (not (stp-git-status)) t))
 
 (defun stp-git-unpushed-p ()
@@ -268,8 +270,7 @@ the new name."
   (mapcar (lambda (entry) (caddr entry)) (stp-git-status)))
 
 (defun stp-git-tree-modified-p (path)
-  "Determine if any files in the tree rooted at PATH have been
-modified since the last commit."
+  "Determine if any files have been modified since the last commit."
   (setq path (f-canonical path))
   (let ((default-directory (stp-git-root path)))
     (cl-some (lambda (file)
@@ -279,8 +280,9 @@ modified since the last commit."
              (stp-git-modified-files))))
 
 (defun stp-git-upstream-branch (&optional branch)
-  "Get the upstream branch of BRANCH if it exists. Otherwise, return
-nil. BRANCH defualts to the current branch."
+  "Get the upstream branch of BRANCH if it exists.
+
+Otherwise, return nil. BRANCH defualts to the current branch."
   (setq branch (or branch ""))
   (rem-run-command (list "git" "rev-parse" "--abbrev-ref" (format "%s@{upstream}" branch))))
 
@@ -308,7 +310,7 @@ nil. BRANCH defualts to the current branch."
 (defun stp-git-clean-or-ask-p ()
   (or (not stp-git-ask-when-unclean-p)
       (stp-git-clean-p)
-      (yes-or-no-p "The Git repo is unclean. Proceed anyway?")))
+      (yes-or-no-p "The git repo is unclean. Proceed anyway?")))
 
 (defvar stp-git-abbreviated-hash-length 7)
 
@@ -316,8 +318,9 @@ nil. BRANCH defualts to the current branch."
   (s-left stp-git-abbreviated-hash-length hash))
 
 (defun stp-git-tree (path &optional rev)
-  "Determine the hash of the git tree at PATH for revision REV. If
-there is no git tree at PATH then nil will be returned."
+  "Determine the hash of the git tree at PATH for revision REV.
+
+If there is no git tree at PATH then nil will be returned."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (setq path (f-canonical path)
@@ -332,8 +335,9 @@ there is no git tree at PATH then nil will be returned."
       (and (not (string= output "")) output))))
 
 (defun stp-git-tree-paths (path &optional rev)
-  "Compute the paths for the contents of the git tree at PATH for
-revision REV."
+  "Compute the paths for the contents of the git tree at PATH.
+
+This is done for revision REV when it is non-nil."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (setq path (f-canonical path)
@@ -344,9 +348,10 @@ revision REV."
     (s-split "\n" (rem-run-command cmd :error t) t)))
 
 (defun stp-git-subtree-commit-message (path &optional format)
-  "Return the message for the last local commit that was added or
-merged by git subtree. This is different from the remote commit
-that was merged when --squash is used."
+  "Return the message for the last local commit by git subtree.
+
+This is different from the remote commit that was merged when
+--squash is used."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (let* ((default-directory path)
@@ -357,8 +362,7 @@ that was merged when --squash is used."
     (rem-run-command cmd)))
 
 (defun stp-git-subtree-commit (path)
-  "Determine the hash of the remote commit that was last added or
-merged into the subtree at PATH from the remote repository."
+  "Get the last remote commit merged into the subtree at PATH."
   (let ((output (rem-empty-nil (stp-git-subtree-commit-message path) #'s-trim)))
     (and output
          (save-match-data
@@ -366,8 +370,7 @@ merged into the subtree at PATH from the remote repository."
            (match-string 1 output)))))
 
 (defun stp-git-subtree-tree (path)
-  "Determine the hash of the tree that was last added or merged into
-the subtree at PATH."
+  "Get the last git tree merged into the subtree at PATH."
   (rem-empty-nil (stp-git-subtree-commit-message path "%T") #'s-trim))
 
 (defun stp-git-rev-parse (path rev)
@@ -375,18 +378,19 @@ the subtree at PATH."
     (rem-run-command (list "git" "rev-parse" rev))))
 
 (defun stp-git-commit-tree (path rev)
-  "Determine the hash for the tree associated with REV in the git
-repository at PATH."
+  "Get the git tree associated with REV in the repository at PATH."
   (stp-git-rev-parse path (format "%s^{tree}" rev)))
 
 (defun stp-git-subtree-modified-p (path &optional remote rev)
-  "Determine if the git subtree at PATH has been modified outside of
-git subtree add and merge commands and return a list containing
-the hash of the current tree and the hash of the tree that was
-installed. If REMOTE and REV are provided then they will be used
-to compute the hash for the subtree in the event that it cannot
-be determined from git log. This occurs for example when the
-subtree was not actually installed as a git subtree."
+  "Test if the git subtree at PATH has been modified by the user.
+
+This means outside of changes made by git subtree add and merge
+commands. Return a list containing the hash of the current tree
+and the hash of the tree that was installed. If REMOTE and REV
+are provided then they will be used to compute the hash for the
+subtree in the event that it cannot be determined from git log.
+This occurs for example when the subtree was not actually
+installed as a git subtree."
   (let ((tree (or (stp-git-tree path)
                   (error "Unable to find the git tree for %s" path)))
         (last-tree (or (stp-git-subtree-tree path)
@@ -438,9 +442,11 @@ subtree was not actually installed as a git subtree."
   (rem-run-command (list "git" "ls-remote" remote) :error t :nostderr t))
 
 (cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p))
-  "Return an alist that maps hashes to refs. If supplied, prefixes
-is a list of allowed prefixes. Matching prefixes are removed from
-the refs. By default all refs are returned."
+  "Return an alist that maps hashes to refs.
+
+If supplied, PREFIXES is a list of allowed prefixes. Matching
+prefixes are removed from the refs. By default all refs are
+returned."
   ;; This function should not be passed an invalid remote and this check has a
   ;; significant performance penalty even with caching.
   ;; (unless (stp-git-valid-remote-p remote)
@@ -504,11 +510,12 @@ the refs. By default all refs are returned."
 ;; Note that this will not work will minimal copies of a repositories created
 ;; using CLI options such as those used in `stp-git-count-remote-commits'.
 (cl-defun stp-git-hashes (path rev &key max)
-  "Return a list of the hashes starting with the most recent that
-are reachable from REV for the local git repository at PATH. If
-REV is nil then HEAD will be used. If REV is t then all hashes
-will be returned. If MAX is non-nil then no more than MAX hashes
-will be returned."
+  "Return a list of the hashes reachable from REV at PATH.
+
+Hashes are sorted starting with the most recent. If REV is nil
+then HEAD will be used. If REV is t then all hashes will be
+returned. If MAX is non-nil then no more than MAX hashes will be
+returned."
   (setq rev (cond
              ((null rev)
               "HEAD")
@@ -523,8 +530,9 @@ will be returned."
     (s-split "\n" (rem-run-command cmd :error t) t)))
 
 (defun stp-git-remote-rev-to-hash (remote rev)
-  "Convert REV to a hash if it isn't one already. Refs that do not
-match any hash will remain unchanged."
+  "Convert REV to a hash if it isn't one already.
+
+Refs that do not match any hash will remain unchanged."
   (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
                ;; Be aware that some remotes will not return hashes for
                ;; dereferenced tags in which case it will not be possible to
@@ -537,17 +545,22 @@ match any hash will remain unchanged."
       rev))
 
 (defun stp-git-remote-head-to-hash (remote rev)
-  "If REV is a head, convert it to a hash. Otherwise, return REV."
+  "If REV is a head, convert it to a hash.
+
+Otherwise, return REV."
   (or (car (rassoc rev (stp-git-remote-hash-head-alist remote)))
       rev))
 
 (defun stp-git-remote-tag-to-hash (remote rev)
-  "If REV is a tag, convert it to a hash. Otherwise, return REV."
+  "If REV is a tag, convert it to a hash.
+
+Otherwise, return REV."
   (or (car (rassoc rev (stp-git-remote-hash-tag-alist remote)))
       rev))
 
 (defun stp-git-remote-hash-to-head (remote rev)
   "If REV is a hash that corresponds to a head, return the head.
+
 Otherwise, return REV."
   (or (map-elt (stp-git-remote-hash-head-alist remote) rev)
       rev))
@@ -583,6 +596,7 @@ is present."
 
 (defun stp-git-remote-rev-to-tag (remote rev &optional keep-dereference)
   "If REV is a hash that corresponds to a tag, return the tag.
+
 Otherwise, return REV."
   (or (let ((tag (map-elt (stp-git-remote-hash-tag-alist remote) rev)))
         (if keep-dereference
@@ -601,9 +615,10 @@ Otherwise, return REV."
            (s-prefix-p hash2 hash))))
 
 (cl-defun stp-git-count-commits (path rev rev2 &key (handle-unrelated t))
-  "Count the number of commits from REV to REV2. More precisely,
-compute the number of commits M and N in REV..REV2 and REV2..REV
-in the local git repository at PATH.
+  "Count the number of commits from REV to REV2.
+
+More precisely, compute the number of commits M and N in
+REV..REV2 and REV2..REV in the local git repository at PATH.
 
 If M is non-zero and N is zero, then return M. If M is zero and N
 is non-zero, return -N (this represents going backwards from REV2
@@ -726,8 +741,10 @@ and REV2 do not share a common ancestor."
                         (f-delete file)))))))
 
 (cl-defun stp-git-count-remote-commits (remotes rev rev2)
-  "This is similar to `stp-git-count-commits' except that it counts
-the number of commits in the remote git repositories in REMOTES."
+  "This is `stp-git-count-commits' for remote repositories.
+
+REMOTES can be either a single repository or a list of multiple
+repositories."
   ;; branch is ignored because it does not save much space and branches are not
   ;; known for stable git packages which prevents using it there anyway. This
   ;; would result in multiple cached versions of the same repository if it was
@@ -736,8 +753,7 @@ the number of commits in the remote git repositories in REMOTES."
     (stp-git-count-commits path rev rev2)))
 
 (defun stp-git-timestamp (path rev)
-  "Return the UNIX timestamp for when REV was commited to the git
-repository at PATH."
+  "Return the UNIX timestamp for when REV was commited at PATH."
   (let ((default-directory path)
         (cmd (list "git" "show" "--no-patch" "--format=%ct" (format "%s^{commit}" rev))))
     ;; Pipe to /dev/null to suppress warnings about ambiguous ref or hashs.

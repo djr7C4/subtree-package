@@ -1,8 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 
 (defvar stp-source-directory (expand-file-name "package-source/" user-emacs-directory)
-  "The directory in which Emacs packages installed from installed
-from source are stored")
+  "The directory in which STP packages installed.")
 
 (defvar stp-lock-file (expand-file-name "stp-pkg-lock.eld" user-emacs-directory))
 

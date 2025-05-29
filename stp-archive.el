@@ -57,11 +57,13 @@
 (defvar stp-archive-last-refreshed most-negative-fixnum)
 
 (defvar stp-archive-refresh-interval (timer-duration "1 day")
-  "The number of seconds until the package archives are considered
-stale and should be refreshed.")
+  "The number of seconds until the archives are stale.
+
+After this, they should be refreshed.")
 
 (cl-defun stp-archive-async-refresh (&key force quiet)
   "Refresh the package archive asynchronously in a separate process.
+
 When FORCE is non-nil or with a prefix argument interactively,
 refresh even if the last refresh was less than
 `stp-archive-refresh-interval' seconds ago."
@@ -101,8 +103,9 @@ refresh even if the last refresh was less than
     (package-read-all-archive-contents)))
 
 (defun stp-archive-package-names ()
-  "Return a list of all packages in `package-archive-contents' as
- strings in alphabetical order."
+  "Return all names of packages in `package-archive-contents'.
+
+Names are strings and are sorted in alphabetical order."
   ;; `package-archive-contents' needs to be initialized in order for this
   ;; comment to work. Ideally, we would run `package-refresh-contents' but that
   ;; would make everything very slow.
@@ -123,8 +126,9 @@ refresh even if the last refresh was less than
               (stp-achive-get-descs pkg-name)))
 
 (cl-defun stp-archive-find-remotes (pkg-name)
-  "Find remotes for PKG-NAME in `package-archive-contents'. The
-result is returned as an alist that maps valid remotes to
+  "Find remotes for PKG-NAME in `package-archive-contents'.
+
+The result is returned as an alist that maps valid remotes to
 methods."
   (--> (stp-achive-get-descs pkg-name)
        (mapcar (lambda (desc)
@@ -139,28 +143,26 @@ methods."
        (-filter #'identity it)))
 
 (defun stp-archives (pkg-name)
-  "Find the archives that PKG-NAME is available on according to
-`package-archive-contents'."
+  "Find the archives that PKG-NAME is available on."
   (seq-sort-by (lambda (archive)
                  (cl-position archive (mapcar #'car package-archives) :test #'string=))
                #'<
                (mapcar #'package-desc-archive (stp-achive-get-descs pkg-name))))
 
 (defun stp-archive-url (desc)
-  "Return the url that the package described by the `package-desc'
-DESC can be downloaded from."
+  "Return the URL for the `package-desc' DESC."
   (format "%s%s.%s"
           (package-archive-base desc)
           (package-desc-full-name desc)
           (symbol-name (package-desc-kind desc))))
 
 (cl-defun stp-archive-install-or-upgrade (pkg-name archive action)
-  "Install or upgrade to the current version of PKG-NAME from
-ARCHIVE into `stp-source-directory'. The current version is used
-instead of allowing the version to be specified because generic
-archives do not support installing older versions. type should be
-either \\='install or \\='upgrade depending on which operation
-should be performed."
+  "Install or upgrade PKG-NAME from the package archive ARCHIVE.
+
+The current version is used instead of allowing the version to be
+specified because generic archives do not support installing
+older versions. type should be either \\='install or \\='upgrade
+depending on which operation should be performed."
   (when (symbolp archive)
     (setq archive (symbol-name archive)))
   (let* ((desc (or (stp-archive-get-desc pkg-name archive)
@@ -177,13 +179,11 @@ should be performed."
       (stp-set-attribute pkg-name 'method 'archive))))
 
 (defun stp-archive-install (pkg-name archive)
-  "Install the specified version of PKG-NAME from ARCHIVE into
-`stp-source-directory'."
+  "Install PKG-NAME from ARCHIVE."
   (stp-archive-install-or-upgrade pkg-name archive 'install))
 
 (defun stp-archive-upgrade (pkg-name archive)
-  "Upgrade the specified version of PKG-NAME from ARCHIVE into
-`stp-source-directory'."
+  "Upgrade PKG-NAME using ARCHIVE."
   (stp-archive-install-or-upgrade pkg-name archive 'upgrade))
 
 (provide 'stp-archive)

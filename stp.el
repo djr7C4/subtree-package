@@ -44,7 +44,7 @@
 
 Cached results are only retained while within the scope of this
 macro. This allows functions that would otherwise make many
-duplicate queries to remote Git repositories to only make one of
+duplicate queries to remote git repositories to only make one of
 each type per interactive command."
   (declare (indent 0))
   (with-gensyms (memoization-active-orig)
@@ -545,7 +545,7 @@ argument, each of these is negated relative to the default."
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
 
-If DO-COMMIT is non-nil, automatically commit to the Git
+If DO-COMMIT is non-nil, automatically commit to the git
 repository after installing the package. If both DO-COMMIT and
 DO-PUSH are non-nil, push to the remote repository as well. If
 DO-LOCK is non-nil, automatically update `stp-lock-file'. If

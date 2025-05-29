@@ -20,8 +20,9 @@
 (require 'stp-utils)
 
 (defun stp-headers-elisp-requirements ()
-  "Return the packages required by the current buffer according to
-the Package-Requires field."
+  "Return the packages required by the current buffer.
+
+These are determined according to the Package-Requires field."
   (let ((text (apply #'concat (lm-header-multiline "Package-Requires"))))
     (ignore-errors
       (db (reqs . index)
@@ -37,8 +38,10 @@ the Package-Requires field."
     (stp-headers-elisp-requirements)))
 
 (defun stp-headers-directory-requirements (&optional dir)
-  "Find all packages that are required by DIR according to the
-Package-Requires field of its elisp files."
+  "Find all packages that are required by DIR.
+
+There are determined according to the Package-Requires field of
+its elisp files."
   (setq dir (or dir default-directory))
   (let* (reqs
          (files (rem-elisp-files-to-load dir)))
@@ -91,8 +94,9 @@ Package-Requires field of its elisp files."
            (cons (match-beginning 1) (match-end 1))))))
 
 (defun stp-headers-update-elisp-filename-headers (&optional insert)
-  "Update the headers at the beginning and end of an Emacs lisp file
-that contain the filename. If they do not already exist and
+  "Update the elisp headers at the beginning and end of the buffer.
+
+These contain the filename. If they do not already exist and
 INSERT is non-nil then insert them. Return non-nil if one of the
 headers did not exist and was inserted."
   (interactive)
@@ -145,9 +149,11 @@ headers did not exist and was inserted."
     inserted))
 
 (defun stp-headers-update-copyright-header (&optional insert)
-  "Update the years for the copyright header. If it does not exist
-and INSERT is non-nil, then insert a copyright header. Return
-non-nil if the header did not exist and was inserted."
+  "Update the years for the copyright header.
+
+If it does not exist and INSERT is non-nil, then insert a
+copyright header. Return non-nil if the header did not exist and
+was inserted."
   (interactive)
   (save-excursion
     (save-match-data
@@ -195,9 +201,11 @@ non-nil if the header did not exist and was inserted."
         (insert-version t)))))
 
 (defun stp-headers-update-elisp (&optional insert)
-  "Update the elisp headers. When INSERT is non-nil, insert the
-headers if they are not present. Return non-nil if a header that
-was not there before was inserted."
+  "Update the elisp headers.
+
+When INSERT is non-nil, insert the headers if they are not
+present. Return non-nil if a header that was not there before was
+inserted."
   (interactive (list t))
   (save-excursion
     (stp-headers-update-elisp-filename-headers insert)

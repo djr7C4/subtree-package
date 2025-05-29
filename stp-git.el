@@ -56,9 +56,10 @@
     (stp-git-subtree-package-commit pkg-name)))
 
 (defun stp-git-subtree-version (pkg-name)
-  "Determine the version and the update type of the package that was
-installed at the subtree. Use a tag if one is available;
-otherwise, use the hash."
+  "Determine the version and the update type of PKG-NAME.
+
+This is done based on the installed subtree. Use a tag if one is
+available; otherwise, use the hash."
   (let* ((pkg-name (stp-name pkg-name)))
     (let-alist (stp-get-alist pkg-name)
       (if (stp-git-valid-remote-p .remote)
@@ -97,11 +98,14 @@ otherwise, use the hash."
 (defvar stp-git-version-history nil)
 
 (cl-defun stp-git-read-version (prompt remote &key (extra-versions-position 'first) extra-versions default (branch-to-hash t))
-  "Read a branch, tag or a hash for REMOTE. Completion is not performed on
-hashes but they can be entered. EXTRA-VERSIONS is a list that is added to the
-options for the version that are presented to the user. If nil appears anywhere
-in extra-versions, it will be ignored. If BRANCH-TO-HASH is non-nil, branches
-are converted to hashes before they are returned."
+  "Read a branch, tag or a hash for REMOTE.
+
+Completion is not performed on hashes but they can be entered.
+EXTRA-VERSIONS is a list that is added to the options for the
+version that are presented to the user. If nil appears anywhere
+in extra-versions, it will be ignored. If BRANCH-TO-HASH is
+non-nil, branches are converted to hashes before they are
+returned."
   ;; We don't complete on heads here because they are not valid versions
   ;; (hashes or tags are).
   (setq extra-versions (-filter #'identity extra-versions))
@@ -212,8 +216,7 @@ are converted to hashes before they are returned."
       (nonzero-count count-to-unstable))))
 
 (cl-defun stp-git-install (pkg-name remote version update &key branch (squash t) (set-pkg-info t))
-  "Install the specified version of pkg-name from remote in
-`stp-source-directory'."
+  "Install the specified version of PKG-NAME from REMOTE."
   (let* ((git-root (stp-git-root stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
          (prefix (f-relative pkg-path git-root)))
@@ -244,12 +247,10 @@ are converted to hashes before they are returned."
             (stp-set-attribute pkg-name 'branch branch)))))))
 
 (defvar stp-subtree-pull-fallback t
-  "When this is non-nil and git subtree pull fails, attempt to uninstall the
-package and install the new version instead.")
+  "When this is non-nil, attempt to reinstall when upgrading fails.")
 
 (cl-defun stp-git-upgrade (pkg-name remote version &key (squash t) (set-pkg-info t))
-  "Upgrade pkg-name in `stp-source-directory' to the specified version
-from remote."
+  "Upgrade PKG-NAME to the specified VERSION from REMOTE."
   (let* ((git-root (stp-git-root stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
          (prefix (f-relative pkg-path git-root)))

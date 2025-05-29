@@ -18,8 +18,7 @@
                           load-path)))
 
 (defun stp-update-load-path (pkg-path &optional interactive-p)
-  "Add all required directories for the Emacs source packages at pkg-path to
-the `load-path'."
+  "Add all appropriate directories in PKG-PATH to the `load-path'."
   (interactive "DDirectory: \nd")
   (setq pkg-path (file-name-as-directory pkg-path))
   (unless (file-name-absolute-p pkg-path)
@@ -35,7 +34,7 @@ the `load-path'."
     (message "Loaded package at %s" pkg-path)))
 
 (defun stp-update-load-paths (&optional interactive-p)
-  "Add all required directories for Emacs source packages to the `load-path'."
+  "Add all appropriate package directories to the `load-path'."
   ;; We do not use `directory-files-recursively' because it includes too much.
   ;; Not all elisp files are meant to be in the `load-path'.
   (interactive (list t))

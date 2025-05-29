@@ -53,8 +53,7 @@
                  :sort-fun #'identity))
 
 (defun stp-elpa-version-url-alist (pkg-name remote)
-  "Return an alist that maps each available version for the ELPA
-package at remote to the URL where it can be downloaded."
+  "Return an alist that maps versions to download URLs."
   (let* ((elpa-html-buf (or (url-retrieve-synchronously remote)
                             (error "Failed to retrieve %s" remote)))
          (elpa-html-tree (unwind-protect
@@ -103,9 +102,10 @@ package at remote to the URL where it can be downloaded."
   (and count-to-stable (> count-to-stable 0) t))
 
 (cl-defun stp-elpa-install-or-upgrade (pkg-name remote version action)
-  "Install or upgrade to the specified version of pkg-name from
-remote into `stp-source-directory'. If the file fetched from
-remote is an archive, it will be automatically extracted. type
+  "Install or upgrade to the specified VERSION of PKG-NAME.
+
+The package is downloaded from REMOTE. If the file fetched from
+REMOTE is an archive, it will be automatically extracted. TYPE
 should be either \\='install or \\='upgrade depending on which
 operation should be performed."
   (let* ((elpa-version-url-alist (stp-elpa-version-url-alist pkg-name remote))
@@ -121,13 +121,11 @@ operation should be performed."
       (stp-set-attribute pkg-name 'method 'elpa))))
 
 (defun stp-elpa-install (pkg-name remote version)
-  "Install the specified version of pkg-name from remote into
-`stp-source-directory'."
+  "Install the specified VERSION of PKG-NAME from REMOTE."
   (stp-elpa-install-or-upgrade pkg-name remote version 'install))
 
 (defun stp-elpa-upgrade (pkg-name remote version)
-  "Upgrade the specified version of pkg-name from remote into
-`stp-source-directory'."
+  "Upgrade to the specified VERSION of PKG-NAME from REMOTE."
   (stp-elpa-install-or-upgrade pkg-name remote version 'upgrade))
 
 (provide 'stp-elpa)

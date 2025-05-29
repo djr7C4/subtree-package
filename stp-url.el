@@ -75,11 +75,11 @@
     (stp-set-attribute pkg-name 'version version)))
 
 (cl-defun stp-url-install-or-upgrade (pkg-name remote version action)
-  "Install or upgrade to the specified version of PKG-NAME from
-remote into `stp-source-directory'. If the file fetched from
-remote is an archive, it will be automatically extracted. type
-should be either \\='install or upgrade depending on which
-operation should be performed."
+  "Install or upgrade PKG-NAME from REMOTE.
+
+If the file fetched from remote is an archive, it will be
+automatically extracted. type should be either \\='install or
+upgrade depending on which operation should be performed."
   (when (or (stp-url-safe-remote-p remote)
             (yes-or-no-p (format "The remote %s is unsafe. Proceed anyway?" remote)))
     (stp-url-install-or-upgrade-basic pkg-name remote version action)
@@ -87,13 +87,11 @@ operation should be performed."
       (stp-set-attribute pkg-name 'method 'url))))
 
 (defun stp-url-install (pkg-name remote version)
-  "Install the specified version of pkg-name from remote into
-`stp-source-directory'."
+  "Install PKG-NAME from REMOTE."
   (stp-url-install-or-upgrade pkg-name remote version 'install))
 
 (defun stp-url-upgrade (pkg-name remote version)
-  "Upgrade the specified version of pkg-name from remote into
-`stp-source-directory'."
+  "Upgrade PKG-NAME from REMOTE."
   (stp-url-install-or-upgrade pkg-name remote version 'upgrade))
 
 (provide 'stp-url)
