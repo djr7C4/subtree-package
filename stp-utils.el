@@ -116,7 +116,7 @@ never ends with a slash (nor does it contain any slashes)."
     (-filter #'f-dir-p (directory-files stp-source-directory nil "^[^.]"))))
 
 (defun stp-info-names (&optional method)
-  "Return a list of packages stored in `stp-info-file'."
+  "Return a list of packages stored in `stp-package-info'."
   (sort (mapcar #'car
                 (-filter (lambda (pkg)
                            (or (not method)
@@ -379,24 +379,33 @@ alists is of the form
   \\='((method . ...)
     (remote . ...)
     (other-remotes ...)
+    (last-remote ...)
     (version . ...)
     (update . ...)
-    (branch . ...))
+    (branch . ...)
+    (dependency ...)
+    (requirements ...))
 
 Method should be one of the symbols \\='git or \\='url. Remote
 should be a \\='url indicating the location that the package was
 installed from. If method is \\='git, it should be a git
 repository and if it is \\='url it should be the URL it was
-downloaded from. Other-remotes should be a list of alternative
+downloaded from. other-remotes should be a list of alternative
 remotes that the user may select to use instead of remote.
-Version should be a string that indicates the version. If method
-is \\='git, this should be a ref. If method is \\='url, it can be
-any string that the user cares to use to describe the current
-version. If method is \\='git, then update indicates the update
-mechanism. \\='stable means that stable versions are being used
-and \\='unstable means that the value associated with the branch
-attribute is being used. If the method is \\='url, the \\='update
-and \\='branch attributes should not be present.")
+last-remote should be the most remote that was most recently used
+to install or upgrade the package. Version should be a string
+that indicates the version. If method is \\='git, this should be
+a ref. If method is \\='url, it can be any string that the user
+cares to use to describe the current version. If method is
+\\='git, then update indicates the update mechanism. \\='stable
+means that stable versions are being used and \\='unstable means
+that the value associated with the branch attribute is being
+used. If the method is \\='url, the \\='update and \\='branch
+attributes should not be present. dependency should be non-nil
+when the package was installed as a dependency of another package
+rather than explicitly by the user. requirements is a list of the
+requirements for the package as they would appear in the
+Package-Requires header of an elisp file.")
 
 (defun stp-attribute< (attribute attribute2)
   (< (cl-position attribute stp-attribute-order)
