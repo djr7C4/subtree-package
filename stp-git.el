@@ -19,6 +19,7 @@
 (require 'stp-utils)
 (require 'stp-git-utils)
 
+;; Defined in stp.el.
 (defvar stp-auto-commit)
 (declare-function stp-reinstall "stp")
 
@@ -298,7 +299,7 @@ from remote."
            ;; version instead.
            ((if stp-subtree-pull-fallback
                 (and (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
-                     (or stp-auto-commit
+                     (or (stp-maybe-call stp-auto-commit)
                          (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
               (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
               nil)

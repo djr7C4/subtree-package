@@ -36,6 +36,22 @@
 
 (defvar stp-package-info nil)
 
+(defun stp-negate (value)
+  "If VALUE is a function, return a function that returns the
+negation of that function. Otherwise, return the negation of
+VALUE."
+  (if (functionp value)
+      (lambda (&rest args)
+        (not (apply value args)))
+    (not value)))
+
+(defun stp-maybe-call (value &rest args)
+  "If VALUE is a function with ARGS, call it and return the result.
+Otherwise, return VALUE."
+  (if (functionp value)
+      (apply value args)
+    value))
+
 (defun stp-short-format-seconds (seconds)
   (concat (if (< seconds 0) "-" "")
           (progn

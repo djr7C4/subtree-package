@@ -319,16 +319,22 @@ occurred."
               (stp-write-info)))))))
 
 (defvar stp-auto-commit t
-  "Automatically commit after the package manager makes changes to the
-repository. Note that even if this is ommited, some operations (such as subtree
-operations) inherently involve commits and this cannot be disabled.")
+  "When non-nil, automatically commit after the package manager
+makes changes to the repository. Note that even if this is
+ommited, some operations (such as subtree operations) inherently
+involve commits and this cannot be disabled. When this variable
+is a function it will be called to determine the value when it is
+needed.")
 
 (defvar stp-auto-push t
-  "Automatically push commits to the default target after auto commiting. This
-has no effect unless `stp-auto-commit' is non-nil.")
+  "When non-nil, automatically push commits to the default target
+after auto commiting. This has no effect unless `stp-auto-commit'
+is non-nil. When this variable is a function it will be called to
+determine the value when it is needed.")
 
 (defvar stp-post-actions-ask nil
-  "Ask before perform post actions if `stp-auto-post-actions' is non-nil.")
+  "Ask before perform post actions if `stp-auto-post-actions' is
+non-nil.")
 
 (defun stp-do-post-actions-p (pkg-name)
   (yes-or-no-p (format "Perform post install/upgrade actions for %s?" pkg-name)))
@@ -340,29 +346,38 @@ either t or a list containing any of the symbols \\='build,
 update-info-directories and \\='update-load-path which specifies
 which actions should be performed after a package is installed or
 upgraded. The value t indicates that all post actions should be
-performed.")
+performed. When this variable is a function it will be called to
+determine the value when it is needed.")
 
 (defvar stp-auto-update-load-path t
-  "This variable indicates if the load path should be automatically
-updated for newly installed or upgraded packages")
+  "When non-nil, automatically update the load path for newly
+installed or upgraded packages. When this variable is a function
+it will be called to determine the value when it is needed.")
 
 (defvar stp-auto-load t
-  "This variable indicates if newly installed or upgraded packages
-should be automatically loaded.")
+  "When non-nil, automatically load newly installed or upgraded
+packages. When this variable is a function it will be called to
+determine the value when it is needed.")
 
 (defvar stp-auto-build nil
-  "This variable indicates if newly installed or upgraded packages
-should be automatically built or rebuilt. It uses general methods
-which may fail for some packages.")
+  "When non-nil, automatically build newly installed or upgraded
+pacakges. It uses general methods which may fail for some
+packages. When this variable is a function it will be called to
+determine the value when it is needed.")
 
 (defvar stp-auto-build-info t
-  "This variable indicates if info manuals for newly installed or
-upgraded packages should be automatically built or rebuilt.")
+  "When non-nil, automatically build the info manuals for newly
+installed or upgraded packages. When this variable is a function
+it will be called to determine the value when it is needed. When
+this variable is a function it will be called to determine the
+value when it is needed.")
 
 (defvar stp-auto-update-info-directories t
-  "This variable indicates if info directories for newly installed
-or upgraded packages should be automatically added to the info
-search path.")
+  "When non-nil, automatically update the info directories for newly
+installed or upgraded packages. When this variable is a function
+it will be called to determine the value when it is needed. When
+this variable is a function it will be called to determine the
+value when it is needed.")
 
 (defun stp-ensure-no-merge-conflicts ()
   (when (stp-git-merge-conflict-p)
@@ -375,9 +390,9 @@ search path.")
 (defun stp-commit-push-args ()
   (stp-ensure-no-merge-conflicts)
   (let ((args (if current-prefix-arg
-                  (list :do-commit (not stp-auto-commit)
-                        :do-push (and (not stp-auto-commit) (not stp-auto-push))
-                        :do-lock (and (not stp-auto-commit) (and (not stp-never-auto-lock) (not stp-auto-lock))))
+                  (list :do-commit (stp-negate stp-auto-commit)
+                        :do-push (and (stp-negate stp-auto-commit) (stp-negate stp-auto-push))
+                        :do-lock (and (stp-negate stp-auto-commit) (and (stp-negate stp-never-auto-lock) (stp-negate stp-auto-lock))))
                 (list :do-commit stp-auto-commit :do-push stp-auto-push :do-lock (and (not stp-never-auto-lock) stp-auto-lock)))))
     (when (plist-get args :do-commit)
       (stp-maybe-ensure-clean))
@@ -386,7 +401,7 @@ search path.")
 (defun stp-commit-push-action-args ()
   (append (stp-commit-push-args)
           (list :do-actions (if current-prefix-arg
-                                (not stp-auto-post-actions)
+                                (stp-negate stp-auto-post-actions)
                               stp-auto-post-actions))))
 
 (defvar stp-list-version-length 16)
@@ -842,21 +857,23 @@ the package and updating the load path."
     (stp-post-actions (stp-list-read-package "Package name: "))))
 
 (defun stp-post-actions (pkg-name)
-  (when stp-auto-update-load-path
+  (when (stp-maybe-call stp-auto-update-load-path)
     (stp-update-load-path (stp-full-path pkg-name)))
-  (when stp-auto-load
+  (when (stp-maybe-call stp-auto-load)
     (condition-case err
         (stp-reload pkg-name)
       (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
-  (when stp-auto-build
+  (when (stp-maybe-call stp-auto-build)
     (stp-build pkg-name))
-  (when stp-auto-build-info
+  (when (stp-maybe-call stp-auto-build-info)
     (stp-build-info pkg-name))
-  (when stp-auto-update-info-directories
+  (when (stp-maybe-call stp-auto-update-info-directories)
     (stp-update-info-directories pkg-name)))
 
 (defvar stp-auto-lock nil
-  "Automatically update `stp-lock-file' when packages are changed.")
+  "When non-nil, automatically update `stp-lock-file' when packages
+are changed. When this variable is a function it will be called
+to determine the value when it is needed.")
 
 (defvar stp-never-auto-lock t
   "Never automatically update `stp-lock-file'. This is different
