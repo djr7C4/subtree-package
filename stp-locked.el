@@ -9,7 +9,8 @@ from source are stored")
 (defun stp-checkout-locked-revision (&optional quiet)
   ;; Avoid using `cl-block'.
   (catch 'ret
-    (let* (;; Get the hash in the lock file.
+    (let* ((default-directory stp-source-directory)
+           ;; Get the hash in the lock file.
            (hash (with-temp-buffer
                    (insert-file-contents stp-lock-file)
                    (read (current-buffer))))
@@ -28,8 +29,7 @@ from source are stored")
       ;; anything.
       (unless (string= head-hash hash)
         (if (file-readable-p stp-lock-file)
-            (let* ((default-directory stp-source-directory)
-                   (cmd (format "git name-rev --name-only --no-undefined %s" hash))
+            (let* ((cmd (format "git name-rev --name-only --no-undefined %s" hash))
                    ;; Convert the hash to a tag or branch if possible. This
                    ;; prevents HEAD from being detached in
                    ;; `stp-source-directory' which would cause issues later when
