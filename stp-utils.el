@@ -143,7 +143,7 @@ never ends with a slash (nor does it contain any slashes)."
                  :require-match t
                  :history 'stp-read-name-history))
 
-(defvar stp-attribute-order '(method remote other-remotes version update branch requirements dependency)
+(defvar stp-attribute-order '(method remote other-remotes last-remote version update branch dependency requirements)
   "The order in which package attributes should be sorted before being written
   to disk.")
 
@@ -277,6 +277,7 @@ do not reorder the remotes based on which was chosen.")
   ;; just installed or upgraded from. (See the documentation of
   ;; `stp-info-file'.) Other-remotes is whatever other remotes exist that were
   ;; not chosen.
+  (stp-set-attribute pkg-name 'last-remote chosen-remote)
   (when stp-prefer-chosen-remote
     (stp-set-attribute pkg-name 'remote chosen-remote)
     (when (or other-remotes (not (string= chosen-remote remote)))
