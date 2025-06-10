@@ -129,16 +129,32 @@ returned."
         (stp-git-remote-head-to-hash remote version)
       version)))
 
-(defun stp-git-read-update (prompt &optional default)
+(defvar stp-git-read-update-show-stable-timestamp t)
+
+(defun stp-git-stable-annotation (remote)
+  (let* ((latest-stable (stp-git-latest-stable-version remote))
+         (commits-to-stable (and latest-stable (stp-git-count-remote-commits remote "HEAD" latest-stable)))
+         (latest-timestamp (and latest-stable (stp-git-remote-timestamp remote "HEAD")))
+         (stable-timestamp (and latest-stable (stp-git-remote-timestamp remote latest-stable))))
+    (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp)))
+
+(defun stp-git-read-update (prompt &optional default remote)
   "Read the update attribute."
-  (intern (rem-comp-read prompt
-                         ;; Some completion frameworks (e.g. vertico) don't
-                         ;; handle symbols as expected when a default is
-                         ;; specified.
-                         '("stable" "unstable")
-                         :require-match t
-                         :default default
-                         :sort-fun #'identity)))
+  (let ((stable-annotation (and stp-git-read-update-show-stable-timestamp
+                                remote
+                                (stp-git-stable-annotation remote))))
+    (->> (rem-comp-read prompt
+                        ;; Some completion frameworks (e.g. vertico) don't
+                        ;; handle symbols as expected when a default is
+                        ;; specified.
+                        (list (format "stable %s" stable-annotation)
+                              "unstable")
+                        :require-match t
+                        :default default
+                        :sort-fun #'identity)
+         (s-split " ")
+         car
+         intern)))
 
 (defvar stp-branch-history nil)
 
