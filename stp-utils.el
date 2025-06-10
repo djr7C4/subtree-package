@@ -69,6 +69,42 @@ Otherwise, return VALUE."
 (defun stp-short-format-date (timestamp)
   (format-time-string "%d/%m/%y" timestamp))
 
+(defvar stp-annotated-version-type 'time-delta
+  "This specifies how versions are annotated with timestamps.
+
+When it is \\='timestamp, the timestamp for the version is used.
+When it is \\='time-delta, the amount of time from the installed
+version is used.")
+
+(defun stp-latest-version-annotation (count version-timestamp latest-timestamp)
+  (let* ((count-string (cond
+                        ((consp count)
+                         (db (m n)
+                             count
+                           (format "%+d%d" m (- n))))
+                        ((and (integerp count) (/= count 0))
+                         (format "%d" count))
+                        (t
+                         "")))
+         (time-string (if (and version-timestamp latest-timestamp)
+                          (cl-ecase stp-annotated-version-type
+                            (time-delta
+                             (let ((seconds (- latest-timestamp version-timestamp)))
+                               (if (/= (round seconds) 0)
+                                   (stp-short-format-seconds seconds)
+                                 "")))
+                            (timestamp
+                             (stp-short-format-date latest-timestamp)))
+                        ""))
+         (separator (if (and (not (string= count-string ""))
+                             (not (string= time-string "")))
+                        ";"
+                      ""))
+         (combined-string (concat count-string separator time-string)))
+    (if (not (string= combined-string ""))
+        (format "(%s)" combined-string)
+      "")))
+
 (defun stp-prefix-prompt (prompt-prefix prompt)
   (if (or (not prompt-prefix) (string= prompt-prefix ""))
       prompt

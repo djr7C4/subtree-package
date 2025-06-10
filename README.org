@@ -79,7 +79,7 @@ ancestor of the other, =+<commits-ahead>-<commits-behind>= will be shown.
 For ELPA packages, the number in parentheses is the number of stable versions
 since the currently installed version. To show the date a version was committed
 instead of the amount of time from the installed version, set
-=stp-list-annotated-version= to ='timestamp=.
+=stp-annotated-version-type= to ='timestamp=.
 
 Latest versions are considered stale when they haven't been updated for more
 than =stp-latest-versions-stale-interval= seconds and are highlighted in orange.

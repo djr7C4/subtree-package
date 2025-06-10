@@ -1782,41 +1782,10 @@ not slow down Emacs while the fields are being updated."
               "V" #'stp-list-update-latest-versions
               "RET" #'stp-find-package)
 
-(defvar stp-list-annotated-version 'time-delta
-  "This specifies how versions are annotated with timestamps.
-
-When it is \\='timestamp, the timestamp for the version is used.
-When it is \\='time-delta, the amount of time from the installed
-version is used.")
-
 (defun stp-list-annotated-latest-version (method version count version-timestamp latest-timestamp)
-  (let* ((count-string (cond
-                        ((consp count)
-                         (format "%+d%d" m (-n)))
-                        ((and (integerp count) (/= count 0))
-                         (format "%d" count))
-                        (t
-                         "")))
-         (time-string (if (and version-timestamp latest-timestamp)
-                          (ecase stp-list-annotated-version
-                            (time-delta
-                             (let ((seconds (- latest-timestamp version-timestamp)))
-                               (if (/= (round seconds) 0)
-                                   (stp-short-format-seconds seconds)
-                                 "")))
-                            (timestamp
-                             (stp-short-format-date latest-timestamp)))
-                        ""))
-         (separator (if (and (not (string= count-string ""))
-                             (not (string= time-string "")))
-                        ";"
-                      ""))
-         (combined-string (concat count-string separator time-string)))
-    (and version
-         (concat (stp-list-abbreviate-version method version)
-                 (if (not (string= combined-string ""))
-                     (format "(%s)" combined-string)
-                   "")))))
+  (and version
+       (concat (stp-list-abbreviate-version method version)
+               (stp-latest-version-annotation count version-timestamp latest-timestamp))))
 
 (defun stp-latest-stale-p (seconds updated)
   (or (not updated)
@@ -1854,7 +1823,7 @@ version is used.")
           (setq version-string (if (stp-version-upgradable-p pkg-name .method .remote .count-to-stable .count-to-unstable .update)
                                    (propertize version-string 'face stp-list-upgradable-face)
                                  version-string))
-          (when (eq stp-list-annotated-version 'timestamp)
+          (when (eq stp-annotated-version-type 'timestamp)
             (setq version-string (format "%s(%s)" version-string (stp-short-format-date .version-timestamp))))
           version-string)
       stp-list-missing-field-string)))
