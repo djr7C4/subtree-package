@@ -97,10 +97,6 @@ ends with a slash."
       (setq path (f-canonical path)))
     (f-slash path)))
 
-(defun stp-git-relative-path (path)
-  "Return PATH relative to the git root."
-  (rem-relative-path path (stp-git-root)))
-
 (defun stp-name (pkg-path)
   "Returns the name of the package. Unlike `stp-relative-path', this
 never ends with a slash (nor does it contain any slashes)."
@@ -207,16 +203,16 @@ archives."
                          :default default
                          :sort-fun #'identity)))
 
+(defvar stp-development-directory nil
+  "Set this to the directory that contains local elisp repositories
+for packages that you develop.")
+
 (defun stp-normalize-remote (remote)
   ;; Use absolute paths for local repositories.
   (let ((default-directory stp-development-directory))
     (if (f-exists-p remote)
         (setq remote (f-slash (f-full remote)))
       remote)))
-
-(defvar stp-development-directory nil
-  "Set this to the directory that contains local elisp repositories
-for packages that you develop.")
 
 (defun stp-read-remote-with-predicate (prompt valid-remote-p &optional default history)
   (let (remote)
@@ -334,7 +330,7 @@ expression is active.")
   (let ((pkg-sym (intern pkg-name)))
     (mapcar #'car
             (-filter (lambda (cell)
-                       (db (pkg-name2 . pkg-alist2)
+                       (db (_pkg-name2 . pkg-alist2)
                            cell
                          (let-alist pkg-alist2
                            (cl-find-if (lambda (requirement)

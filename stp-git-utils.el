@@ -33,6 +33,10 @@
          (f-dir-p root)
          (f-slash (f-canonical root)))))
 
+(defun stp-git-relative-path (path)
+  "Return PATH relative to the git root."
+  (rem-relative-path path (stp-git-root)))
+
 (defmacro stp-with-git-root (&rest body)
   "Execute BODY in the git root for `stp-source-directory'."
   (declare (indent 0))
