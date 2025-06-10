@@ -323,10 +323,10 @@ occurred."
                         (stp-reinstall pkg-name version))))
                 (when (funcall callback 'ghost-package pkg-name)
                   (stp-delete-alist pkg-name)))
-              (cl-incf i)
-              ;; Ensure that the package info file is updated even on a keyboard
-              ;; quit or other signal.
-              (stp-write-info)))))))
+              (cl-incf i))))
+      ;; Ensure that the package info file is updated even on a keyboard quit or
+      ;; other signal.
+      (stp-write-info))))
 
 (defvar stp-auto-commit t
   "When non-nil, automatically commit changes.
@@ -387,6 +387,16 @@ When this variable is a function
 it will be called to determine the value when it is needed. When
 this variable is a function it will be called to determine the
 value when it is needed.")
+
+(defvar stp-auto-lock nil
+  "When non-nil, automatically update `stp-lock-file' when packages
+are changed. When this variable is a function it will be called
+to determine the value when it is needed.")
+
+(defvar stp-never-auto-lock t
+  "Never automatically update `stp-lock-file'. This is different
+from `stp-auto-lock' because that is just a default argument for
+interactive commands.")
 
 (defun stp-ensure-no-merge-conflicts ()
   (when (stp-git-merge-conflict-p)
@@ -488,7 +498,6 @@ read from the user will be inferred from the cursor position when
     (plet* ((args (if actions
                       (stp-commit-push-action-args)
                     (stp-commit-push-args)))
-            (do-commit (plist-get args :do-commit))
             (`(,pkg-name . ,pkg-alist) (and read-pkg-alist (stp-read-package)))
             (pkg-name (or pkg-name
                           (cond
@@ -911,16 +920,6 @@ package and updating the load path."
     (stp-build-info pkg-name))
   (when (stp-maybe-call stp-auto-update-info-directories)
     (stp-update-info-directories pkg-name)))
-
-(defvar stp-auto-lock nil
-  "When non-nil, automatically update `stp-lock-file' when packages
-are changed. When this variable is a function it will be called
-to determine the value when it is needed.")
-
-(defvar stp-never-auto-lock t
-  "Never automatically update `stp-lock-file'. This is different
-from `stp-auto-lock' because that is just a default argument for
-interactive commands.")
 
 (defun stp-update-lock-file ()
   "Write the hash of the git repository to the lock file."
@@ -1986,14 +1985,15 @@ confirmation."
             (orphaned-info-names (cl-set-difference info-pkgs filesystem-pkgs :test #'equal)))
         (unwind-protect
             (dolist (target-name orphaned-info-names)
-              (cl-delete-if (lambda (pkg)
-                              (let ((name (car pkg)))
-                                (and (string= name target-name)
-                                     (cl-incf k)
-                                     (or (not confirm)
-                                         (yes-or-no-p (format "(%d/%d) The directory for %s in %s is missing. Remove the entry in %s?" k (length orphaned-info-names) name stp-source-directory stp-info-file)))
-                                     (cl-incf deleted-entries))))
-                            stp-package-info))
+              (setq stp-package-info
+                    (cl-delete-if (lambda (pkg)
+                                    (let ((name (car pkg)))
+                                      (and (string= name target-name)
+                                           (cl-incf k)
+                                           (or (not confirm)
+                                               (yes-or-no-p (format "(%d/%d) The directory for %s in %s is missing. Remove the entry in %s?" k (length orphaned-info-names) name stp-source-directory stp-info-file)))
+                                           (cl-incf deleted-entries))))
+                                  stp-package-info)))
           ;; Make sure that changes are written to disk each time so that
           ;; progress isn't lost of the user aborts.
           (stp-write-info))))
