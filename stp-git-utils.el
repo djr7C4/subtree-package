@@ -685,14 +685,19 @@ and REV2 do not share a common ancestor."
 (defun stp-git-cache-hash-directory (remote)
   (when (f-dir-p remote)
     (setq remote (f-canonical remote)))
-  (->> remote
-       ;; URLs and local filenames are converted to hex to avoid
-       ;; conflicts. If we only replaced /'s with -'s for example,
-       ;; local files and URLs could theoretically resolve to the
-       ;; same cached path.
-       (mapcar (lambda (char)
-                 (format "%02x" char)))
-       (s-join "-")))
+  ;; This doesn't work for very long remotes (which can occur when remote is
+  ;; actually several remotes that were joined together by
+  ;; `stp-git-cached-repo-path').
+  ;;
+  ;; (->> remote
+  ;;      ;; URLs and local filenames are converted to hex to avoid
+  ;;      ;; conflicts. If we only replaced /'s with -'s for example,
+  ;;      ;; local files and URLs could theoretically resolve to the
+  ;;      ;; same cached path.
+  ;;      (mapcar (lambda (char)
+  ;;                (format "%02x" char)))
+  ;;      (s-join "-"))
+  (secure-hash 'sha512 remote))
 
 (defun stp-git-cached-repo-path (remote)
   ;; When there is a list of remotes, use a combination of all the remote URLs
