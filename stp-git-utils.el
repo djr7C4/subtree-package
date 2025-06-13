@@ -199,7 +199,7 @@ repository. Return the path to the repository."
 (cl-defun stp-git-maybe-fetch (remote version &key force refspec no-new-tags)
   (when (and stp-subtree-fetch
              (not (stp-git-valid-remote-ref-p remote version)))
-    (stp-git-fetch remote force refspec no-new-tags)
+    (stp-git-fetch remote :force force :refspec refspec :no-new-tags no-new-tags)
     t))
 
 (defun stp-git-push ()
