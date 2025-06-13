@@ -143,7 +143,7 @@ remote or archive. Archives are represented as symbols."
          (unless (stp-git-valid-remote-p remote)
            (user-error (stp-prefix-prompt prompt-prefix "Invalid git repository (or host is down): %s") remote))
          (unless update
-           (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (map-elt pkg-alist 'update) remote)))
+           (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (map-elt pkg-alist 'update) remote (map-elt pkg-alist 'other-remotes))))
          (when (and (eq update 'unstable)
                     (not branch))
            (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))
@@ -1401,7 +1401,8 @@ negative prefix argument, go forward that many packages."
 (defun stp-latest-version (pkg-name &optional pkg-alist)
   (setq pkg-alist (or pkg-alist (stp-get-alist pkg-name)))
   (let-alist pkg-alist
-    (let ((timestamp (float-time)))
+    (let ((remotes (cons .remote .other-remotes))
+          (timestamp (float-time)))
       (cl-ecase .method
         (git
          ;; Use `cl-find' to make sure that the branch exists on the remote and
@@ -1421,12 +1422,12 @@ negative prefix argument, go forward that many packages."
                 ;; commits. This is important since the installed version might
                 ;; be from any remote.
                 (commits-to-stable (and latest-stable
-                                        (stp-git-count-remote-commits .remote .version latest-stable)))
+                                        (stp-git-count-remote-commits remotes .version latest-stable)))
                 (commits-to-unstable (and latest-unstable
-                                          (stp-git-count-remote-commits .remote .version latest-unstable)))
-                (version-timestamp (and .version (stp-git-remote-timestamp .remote .version)))
-                (stable-timestamp (and latest-stable (stp-git-remote-timestamp .remote latest-stable)))
-                (unstable-timestamp (and latest-unstable (stp-git-remote-timestamp .remote latest-unstable))))
+                                          (stp-git-count-remote-commits remotes .version latest-unstable)))
+                (version-timestamp (and .version (stp-git-remote-timestamp remotes .version)))
+                (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable)))
+                (unstable-timestamp (and latest-unstable (stp-git-remote-timestamp remotes latest-unstable))))
            (when (or latest-stable latest-unstable commits-to-stable commits-to-unstable)
              (append (list pkg-name)
                      (and latest-stable (list `(latest-stable . ,latest-stable)))

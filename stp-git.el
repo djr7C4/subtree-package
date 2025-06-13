@@ -131,18 +131,19 @@ returned."
 
 (defvar stp-git-read-update-show-stable-timestamp t)
 
-(defun stp-git-stable-annotation (remote)
-  (let* ((latest-stable (stp-git-latest-stable-version remote))
-         (commits-to-stable (and latest-stable (stp-git-count-remote-commits remote "HEAD" latest-stable)))
-         (latest-timestamp (and latest-stable (stp-git-remote-timestamp remote "HEAD")))
-         (stable-timestamp (and latest-stable (stp-git-remote-timestamp remote latest-stable))))
+(defun stp-git-stable-annotation (remote other-remotes)
+  (let* ((remotes (cons remote other-remotes))
+         (latest-stable (stp-git-latest-stable-version remote))
+         (commits-to-stable (and latest-stable (stp-git-count-remote-commits remotes "HEAD" latest-stable)))
+         (latest-timestamp (and latest-stable (stp-git-remote-timestamp remotes "HEAD")))
+         (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable))))
     (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp)))
 
-(defun stp-git-read-update (prompt &optional default remote)
+(defun stp-git-read-update (prompt &optional default remote other-remotes)
   "Read the update attribute."
   (let ((stable-annotation (and stp-git-read-update-show-stable-timestamp
                                 remote
-                                (stp-git-stable-annotation remote))))
+                                (stp-git-stable-annotation remote other-remotes))))
     (->> (rem-comp-read prompt
                         ;; Some completion frameworks (e.g. vertico) don't
                         ;; handle symbols as expected when a default is
