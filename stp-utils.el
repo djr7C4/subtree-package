@@ -138,19 +138,6 @@ ends with a slash."
 never ends with a slash (nor does it contain any slashes)."
   (f-filename pkg-path))
 
-(cl-defun stp-main-package-file (pkg-path &key no-directory)
-  (let* ((pkg-name (stp-name pkg-path))
-         (pkg-file (concat pkg-name ".el"))
-         (paths (-sort (lambda (path path2)
-                         (or (< (rem-path-length path)
-                                (rem-path-length path2))
-                             (and (= (rem-path-length path)
-                                     (rem-path-length path2))
-                                  (string< path path2))))
-                       (directory-files-recursively pkg-path (regexp-quote pkg-file))))
-         (path (car paths)))
-    (or path (and (not no-directory) pkg-path))))
-
 (defmacro stp-with-package-source-directory (&rest body)
   (declare (indent 0))
   `(let ((default-directory stp-source-directory))
