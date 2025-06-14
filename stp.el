@@ -143,7 +143,10 @@ remote or archive. Archives are represented as symbols."
          (unless (stp-git-valid-remote-p remote)
            (user-error (stp-prefix-prompt prompt-prefix "Invalid git repository (or host is down): %s") remote))
          (unless update
-           (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ") (map-elt pkg-alist 'update) remote (map-elt pkg-alist 'other-remotes))))
+           (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ")
+                                             :default (map-elt pkg-alist 'update)
+                                             :remote remote
+                                             :other-remotes (map-elt pkg-alist 'other-remotes))))
          (when (and (eq update 'unstable)
                     (not branch))
            (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))

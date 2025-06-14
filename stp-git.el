@@ -139,7 +139,7 @@ returned."
          (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable))))
     (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp)))
 
-(defun stp-git-read-update (prompt &optional default remote other-remotes)
+(cl-defun stp-git-read-update (prompt &key default remote other-remotes)
   "Read the update attribute."
   (let ((stable-annotation (and stp-git-read-update-show-stable-timestamp
                                 remote
