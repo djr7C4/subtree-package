@@ -180,10 +180,11 @@ was inserted."
                         (goto-char last-year-end)
                         (insert "-" current-year))))))
               nil)
-          (let ((pt (point)))
-            (insert (format "Copyright (C) %s %s" current-year user-full-name))
-            (comment-region pt (point))
-            t))))))
+          (when insert
+            (let ((pt (point)))
+              (insert (format "Copyright (C) %s %s" current-year user-full-name))
+              (comment-region pt (point))
+              t)))))))
 
 (defun stp-headers-update-version-header (&optional insert)
   (cl-flet ((insert-version (value)
