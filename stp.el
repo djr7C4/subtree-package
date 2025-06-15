@@ -2063,7 +2063,9 @@ development or for opening packages from `stp-list-mode'."
                 (find-file (if arg
                                dir
                              (or (setq file-found file) (stp-main-package-file pkg-name))))
-                (unless (rem-buffer-same-p old-buf)
+                (when (and (not (with-current-buffer old-buf
+                                  (derived-mode-p 'stp-list-mode)))
+                           (not (rem-buffer-same-p old-buf)))
                   (message "Files differ. Line and column may not be preserved"))
                 ;; Go to the corresponding line in the file if possible.
                 (when file-found
