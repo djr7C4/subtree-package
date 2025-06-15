@@ -1238,7 +1238,7 @@ With a prefix argument or if no such file exists, open the
 directory for the current package."
   (interactive)
   (let* ((pkg-name (stp-list-read-package "Package name: "))
-         (path (stp-main-package-file (stp-canonical-path pkg-name))))
+         (path (stp-main-package-file pkg-name)))
     (find-file path)))
 
 (defun stp-list-open-current-remote (pkg-name)
@@ -2062,7 +2062,7 @@ development or for opening packages from `stp-list-mode'."
                     (old-buf (current-buffer)))
                 (find-file (if arg
                                dir
-                             (or (setq file-found file) (stp-main-package-file dir))))
+                             (or (setq file-found file) (stp-main-package-file pkg-name))))
                 (unless (rem-buffer-same-p old-buf)
                   (message "Files differ. Line and column may not be preserved"))
                 ;; Go to the corresponding line in the file if possible.

@@ -62,8 +62,8 @@ its elisp files."
             (-group-by #'car reqs))))
 
 (defun stp-package-requirements (pkg-name)
-  (let* ((pkg-path (stp-canonical-path pkg-name))
-         (main-file (or (stp-main-package-file pkg-path :no-directory t)
+  (let* ((pkg-path (stp-full-path pkg-name))
+         (main-file (or (stp-main-package-file pkg-name :no-directory t)
                         (read-file-name (format "Main elisp file for %s: " pkg-name)
                                         pkg-path
                                         nil
@@ -249,25 +249,23 @@ inserted."
           (insert ";; Package-Requires: ()")))
       inserted)))
 
-(cl-defun stp-main-package-file (pkg-path &key no-directory)
-  (let* ((pkg-name (stp-name pkg-path))
+(cl-defun stp-main-package-file (pkg-name &key no-directory)
+  (let* ((pkg-path (stp-full-path pkg-name))
          (pkg-file (concat pkg-name ".el"))
-         (paths (-sort (lambda (path path2)
-                         (or (< (rem-path-length path)
-                                (rem-path-length path2))
-                             (and (= (rem-path-length path)
-                                     (rem-path-length path2))
-                                  (string< path path2))))
-                       (directory-files-recursively pkg-path (regexp-quote pkg-file))))
-         (path (car paths)))
+         (paths (->> (regexp-quote pkg-file)
+                     (directory-files-recursively pkg-path)
+                     stp-sort-paths-top-down))
+         (path (car paths))
+         (paths2 (->> (directory-files-recursively pkg-path ".*\\.el")
+                      stp-sort-paths-top-down
+                      (-filter #'stp-headers-elisp-file-requirements)))
+         (path2 (and (= (length paths2) 1)
+                     (car paths2))))
     ;; First try the elisp file that has the same name as the package. If that
     ;; doesn't exist, use the file with headers at the top-level if there is
     ;; only one such file. Otherwise, fall back on the package directory.
     (or path
-        (let ((paths2 (-filter #'stp-headers-elisp-file-requirements
-                               (directory-files pkg-path t ".*\\.el"))))
-          (and (= (length paths2) 1)
-               (car paths2)))
+        path2
         (and (not no-directory) pkg-path))))
 
 (provide 'stp-headers)
