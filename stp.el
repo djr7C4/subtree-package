@@ -1231,16 +1231,6 @@ inverted with a prefix argument. Packages in
   ;; mess.
   (setq-local truncate-lines t))
 
-(defun stp-list-goto-package ()
-  "Open the main source for the current package.
-
-With a prefix argument or if no such file exists, open the
-directory for the current package."
-  (interactive)
-  (let* ((pkg-name (stp-list-read-package "Package name: "))
-         (path (stp-main-package-file pkg-name)))
-    (find-file path)))
-
 (defun stp-list-open-current-remote (pkg-name)
   "Open the remote for PKG-NAME in the default browser."
   (interactive (list (stp-list-package-on-line)))
@@ -2051,9 +2041,9 @@ development or for opening packages from `stp-list-mode'."
                                          (stp-full-path pkg-name))))))
         (setq dirs (cl-remove-duplicates dirs :test #'f-same-p))
         (if dirs
-            (let ((dir (f-canonical (if (cdr dirs)
-                                        (rem-comp-read "Directory: " dirs :require-match t)
-                                      (car dirs)))))
+            (let ((dir (f-full (if (cdr dirs)
+                                   (rem-comp-read "Directory: " dirs :require-match t)
+                                 (car dirs)))))
               (let (file-found
                     (default-directory dir)
                     (line (line-number-at-pos))
@@ -2062,7 +2052,7 @@ development or for opening packages from `stp-list-mode'."
                     (old-buf (current-buffer)))
                 (find-file (if arg
                                dir
-                             (or (setq file-found file) (stp-main-package-file pkg-name))))
+                             (or (setq file-found file) (f-filename (stp-main-package-file pkg-name)))))
                 (when (and (not (with-current-buffer old-buf
                                   (derived-mode-p 'stp-list-mode)))
                            (not (rem-buffer-same-p old-buf)))

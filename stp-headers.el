@@ -250,7 +250,7 @@ inserted."
           (insert ";; Package-Requires: ()")))
       inserted)))
 
-(cl-defun stp-main-package-file (pkg-name &key no-directory)
+(cl-defun stp-main-package-file (pkg-name &key no-directory relative)
   (let* ((pkg-path (stp-full-path pkg-name))
          (pkg-file (concat pkg-name ".el"))
          (paths (->> (regexp-quote pkg-file)
@@ -261,13 +261,19 @@ inserted."
                       stp-sort-paths-top-down
                       (-filter #'stp-headers-elisp-file-requirements)))
          (path2 (and (= (length paths2) 1)
-                     (car paths2))))
+                     (car paths2)))
+         (result (or path
+                     path2
+                     (and (not no-directory) pkg-path))))
     ;; First try the elisp file that has the same name as the package. If that
     ;; doesn't exist, use the file with headers at the top-level if there is
     ;; only one such file. Otherwise, fall back on the package directory.
-    (or path
-        path2
-        (and (not no-directory) pkg-path))))
+    (if relative
+        (->> (rem-relative-path result stp-source-directory)
+             f-split
+             cdr
+             (apply #'f-join))
+      result)))
 
 (provide 'stp-headers)
 ;;; stp-headers.el ends here

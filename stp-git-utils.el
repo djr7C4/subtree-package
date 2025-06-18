@@ -53,8 +53,8 @@ non-nil, make the path relative to the root of the git repository
 instead."
   (rem-slash (if top-level
                  (let ((path (f-join stp-source-directory pkg-name)))
-                   (s-chop-prefix (rem-slash (f-canonical (stp-git-root path)))
-                                  (f-canonical path)))
+                   (s-chop-prefix (rem-slash (f-full (stp-git-root path)))
+                                  (f-full path)))
                pkg-name)))
 
 (defun stp-split-current-package ()
