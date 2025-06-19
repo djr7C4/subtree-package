@@ -266,8 +266,9 @@ returned."
 (defvar stp-subtree-pull-fallback t
   "When this is non-nil, attempt to reinstall when upgrading fails.")
 
-(cl-defun stp-git-upgrade (pkg-name remote version &key (squash t) (set-pkg-info t))
+(cl-defun stp-git-upgrade (pkg-name remote version &key (squash t) (set-pkg-info t) fallback-version)
   "Upgrade PKG-NAME to the specified VERSION from REMOTE."
+  (setq fallback-version (or fallback-version version))
   (let* ((git-root (stp-git-root stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
          (prefix (f-relative pkg-path git-root)))
@@ -322,7 +323,7 @@ returned."
               (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
               nil)
             (stp-with-package-source-directory
-              (stp-reinstall pkg-name version)))
+              (stp-reinstall pkg-name fallback-version)))
            ;; Handle git subtree merge/pull errors and when the user chose not
            ;; to proceed with uninstalling and reinstalling the package.
            (t

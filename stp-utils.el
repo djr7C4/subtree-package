@@ -18,7 +18,6 @@
 (require 'crm)
 (require 'f)
 (require 'map)
-(require 'memoize)
 (require 'rem)
 (require 'rem-abbrev)
 (require 's)

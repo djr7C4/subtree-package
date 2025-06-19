@@ -101,6 +101,12 @@
 (defun stp-elpa-version-upgradable-p (count-to-stable)
   (and count-to-stable (> count-to-stable 0) t))
 
+(defun stp-elpa-download-url (pkg-name remote version)
+  (let* ((elpa-version-url-alist (stp-elpa-version-url-alist pkg-name remote))
+         (url (or (cdr (assoc version elpa-version-url-alist))
+                  (error "Version %s not found" version))))
+    url))
+
 (cl-defun stp-elpa-install-or-upgrade (pkg-name remote version action)
   "Install or upgrade to the specified VERSION of PKG-NAME.
 
@@ -108,11 +114,9 @@ The package is downloaded from REMOTE. If the file fetched from
 REMOTE is an archive, it will be automatically extracted. TYPE
 should be either \\='install or \\='upgrade depending on which
 operation should be performed."
-  (let* ((elpa-version-url-alist (stp-elpa-version-url-alist pkg-name remote))
-         (url (or (cdr (assoc version elpa-version-url-alist))
-                  (error "Version %s not found" version)))
-         (new-version version)
-         (old-version (stp-get-attribute pkg-name 'version)))
+  (let ((url (stp-elpa-download-url pkg-name remote version))
+        (new-version version)
+        (old-version (stp-get-attribute pkg-name 'version)))
     (when (and (eq action 'upgrade)
                (string= old-version new-version))
       (user-error "Version %s of %s is already installed" old-version pkg-name))

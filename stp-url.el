@@ -54,7 +54,7 @@
   ;; one possibility.
   (rem-read-from-mini prompt :default default :history stp-url-version-history))
 
-(cl-defun stp-url-install-or-upgrade-basic (pkg-name remote version action)
+(defun stp-url-install-or-upgrade-basic (pkg-name remote version action)
   (let ((pkg-path (stp-canonical-path pkg-name)))
     (cond
      ((and (eq action 'install) (f-exists-p pkg-path))
@@ -70,11 +70,12 @@
       ;; merge unrelated histories.
       (if (eq action 'install)
           (stp-git-install pkg-name repo branch 'unstable :squash t :set-pkg-info nil)
-        (stp-git-upgrade pkg-name repo branch :squash t :set-pkg-info nil)))
+        ;; fallback-version is needed for when a package has to be reinstalled.
+        (stp-git-upgrade pkg-name repo branch :squash t :set-pkg-info nil :fallback-version version)))
     (stp-set-attribute pkg-name 'remote remote)
     (stp-set-attribute pkg-name 'version version)))
 
-(cl-defun stp-url-install-or-upgrade (pkg-name remote version action)
+(defun stp-url-install-or-upgrade (pkg-name remote version action)
   "Install or upgrade PKG-NAME from REMOTE.
 
 If the file fetched from remote is an archive, it will be

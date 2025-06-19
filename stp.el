@@ -23,6 +23,7 @@
 (require 'async nil t)
 (require 'find-lisp)
 (require 'info)
+(require 'memoize)
 (require 'queue nil t)
 (require 'stp-archive)
 (require 'stp-bootstrap)
@@ -700,6 +701,18 @@ in `stp-install'."
               (stp-update-cached-latest pkg-name)
               (stp-list-refresh :quiet t))))))))
 
+(defun stp-download-url (pkg-name pkg-alist)
+  (let-alist pkg-alist
+    ;; Note that for the 'git method there is no download URL.
+    (cl-ecase .method
+      (elpa
+       (stp-elpa-download-url pkg-name .remote .version))
+      (archive
+       ;; .remote is a symbol representing the archive for the 'archive method.
+       (stp-archive-download-url pkg-name .remote))
+      (url
+       .remote))))
+
 (cl-defun stp-reinstall-command ()
   "Uninstall and reinstall a package interactively as the same version."
   (interactive)
@@ -718,7 +731,13 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
     (user-error "Reinstall aborted"))
   (let-alist (stp-get-alist pkg-name)
     (let* ((pkg-alist (stp-get-alist pkg-name))
-           (tree-hashes (and (not skip-subtree-check) (stp-git-subtree-package-modified-p pkg-name .remote .version))))
+           (tree-hashes (and (not skip-subtree-check)
+                             (if (eq .method 'git)
+                                 (stp-git-subtree-package-modified-p pkg-name .remote .version)
+                               ;; For methods other than 'git, we need to create
+                               ;; a synthetic git repository for comparision
+                               ;; purposes.
+                               (stp-git-subtree-package-modified-p pkg-name (stp-git-download-as-synthetic-repo pkg-name (stp-download-url pkg-name pkg-alist)) "HEAD")))))
       ;; Warn the user about reinstalling if there are modifications to the
       ;; subtree that were not the result of git subtree merge as this will
       ;; result in the loss of their customizations to the package.
@@ -2052,7 +2071,7 @@ development or for opening packages from `stp-list-mode'."
                     (old-buf (current-buffer)))
                 (find-file (if arg
                                dir
-                             (or (setq file-found file) (f-filename (stp-main-package-file pkg-name)))))
+                             (or (setq file-found file) (stp-main-package-file pkg-name :relative t))))
                 (when (and (not (with-current-buffer old-buf
                                   (derived-mode-p 'stp-list-mode)))
                            (not (rem-buffer-same-p old-buf)))

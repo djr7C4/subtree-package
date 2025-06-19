@@ -156,6 +156,16 @@ methods."
           (package-desc-full-name desc)
           (symbol-name (package-desc-kind desc))))
 
+(defun stp-archive-download-url (pkg-name archive)
+  (let ((desc (or (stp-archive-get-desc pkg-name archive)
+                  (error "Failed to find %s in the %s package archive" pkg-name archive))))
+    (stp-archive-url desc)))
+
+(defun stp-archive-version (pkg-name archive)
+  (let ((desc (or (stp-archive-get-desc pkg-name archive)
+                  (error "Failed to find %s in the %s package archive" pkg-name archive))))
+    (package-version-join (package-desc-version desc))))
+
 (cl-defun stp-archive-install-or-upgrade (pkg-name archive action)
   "Install or upgrade PKG-NAME from the package archive ARCHIVE.
 
@@ -165,16 +175,12 @@ older versions. type should be either \\='install or \\='upgrade
 depending on which operation should be performed."
   (when (symbolp archive)
     (setq archive (symbol-name archive)))
-  (let* ((desc (or (stp-archive-get-desc pkg-name archive)
-                   (error "Failed to find %s in the %s package archive" pkg-name archive)))
+  (let* ((url (stp-archive-download-url pkg-name archive))
          (old-version (stp-get-attribute pkg-name 'version))
-         (new-version (package-version-join (package-desc-version desc))))
+         (new-version (stp-archive-version pkg-name archive)))
     (when (and (eq action 'upgrade) (string= old-version new-version))
       (user-error "Version %s of %s is already installed" old-version pkg-name))
-    (stp-url-install-or-upgrade-basic pkg-name
-                                      (stp-archive-url desc)
-                                      new-version
-                                      action)
+    (stp-url-install-or-upgrade-basic pkg-name url new-version action)
     (when (eq action 'install)
       (stp-set-attribute pkg-name 'method 'archive))))
 
