@@ -178,7 +178,8 @@ repository. Return the path to the repository."
   ;; doesn't seem to provide a way to do this so we copy .git/refs/tags
   ;; beforehand and then restore it after the fetch.
   (let* ((git-root (stp-git-root))
-         (tags-dir-tmp (make-temp-file "git-tags" t))
+         (tags-dir-tmp (when no-new-tags
+                         (make-temp-file "git-tags" t)))
          (tags-dir (car (-filter #'f-dir-p (list (f-join git-root ".git/refs/tags")
                                                  ;; Handle bare repositories.
                                                  (f-join git-root "refs/tags"))))))
@@ -193,7 +194,8 @@ repository. Return the path to the repository."
           (when no-new-tags
             (f-delete tags-dir t)
             (f-move tags-dir-tmp tags-dir)))
-      (f-delete tags-dir-tmp t))))
+      (when no-new-tags
+        (f-delete tags-dir-tmp t)))))
 
 (cl-defun stp-git-maybe-fetch (remote version &key force refspec no-new-tags)
   (when (and stp-subtree-fetch
