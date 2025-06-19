@@ -638,8 +638,7 @@ and REV2 do not share a common ancestor."
   ;;   (error "%s is not a valid ref or hash for %s" rev path))
   ;; (unless (stp-git-valid-rev-p path rev2)
   ;;   (error "%s is not a valid ref or hash for %s" rev2 path))
-  (let ((default-directory path)
-        (since (min (stp-git-timestamp path rev) (stp-git-timestamp path rev2))))
+  (let ((default-directory path))
     (cl-flet ((common-ancestor-exists-p (rev rev2)
                 (let ((cmd (list "git" "merge-base" rev rev2)))
                   ;; git merge-base returns 0 when a common ancestor exists and
@@ -651,13 +650,20 @@ and REV2 do not share a common ancestor."
                                       :error t)
                      0)))
               (count-commits-forward (rev rev2)
-                ;; --since is used to ignore commits that are older than either
-                ;; revision. There could be some that are not excluded just by
+                ;; "--since" (number-to-string (min (stp-git-timestamp path rev)
+                ;; (stp-git-timestamp path rev2))) was previously used to ignore
+                ;; commits that are older than either revision. This was done
+                ;; because there can be commits that are not excluded just by
                 ;; the range if one revision is from a branch that was never
                 ;; merged upstream. This can occur for example when a local dev
                 ;; branch is used that pull requests are merged into before they
                 ;; are approved upstream.
-                (let ((cmd (list "git" "rev-list" "--since" (number-to-string since) "--count" (format "%s..%s" rev rev2))))
+                ;;
+                ;; However, it can also exclude old commits that were merged
+                ;; into such a dev branch recently and should thus not be
+                ;; excluded. A better system is to delete and recreated such a
+                ;; dev branch from main instead of reusing it.
+                (let ((cmd (list "git" "rev-list" "--count" (format "%s..%s" rev rev2))))
                   (string-to-number (rem-run-command cmd :error t)))))
       (let ((m (count-commits-forward rev rev2))
             (n (count-commits-forward rev2 rev)))
