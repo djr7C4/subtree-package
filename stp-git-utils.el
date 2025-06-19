@@ -193,8 +193,7 @@ repository. Return the path to the repository."
           (when no-new-tags
             (f-delete tags-dir t)
             (f-move tags-dir-tmp tags-dir)))
-      (when no-new-tags
-        (f-delete tags-dir-tmp t)))))
+      (f-delete tags-dir-tmp t))))
 
 (cl-defun stp-git-maybe-fetch (remote version &key force refspec no-new-tags)
   (when (and stp-subtree-fetch
