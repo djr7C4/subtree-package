@@ -749,6 +749,8 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
                               (stp-git-show-diff curr-hash last-hash)
                               t)
                             (not (yes-or-no-p (format "The package %s has been modified locally. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+                     (awhen (get-buffer stp-git-diff-buffer-name)
+                       (bury-buffer it))
                      (redisplay)))
           (user-error "Reinstall aborted")))
       ;; Committing is required here because otherwise `stp-install' will fail.
