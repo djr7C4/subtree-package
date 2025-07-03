@@ -293,7 +293,8 @@ Otherwise, return nil. BRANCH defualts to the current branch."
 
 ;; Based on `magit-get-current-branch'.
 (defun stp-git-current-branch ()
-  (rem-run-command '("git" "symbolic-ref" "--short" "HEAD") :error t))
+  "Return the current branch or nil if HEAD is detached."
+  (rem-run-command '("git" "symbolic-ref" "--short" "HEAD")))
 
 ;; Based on `magit-get-push-remote'.
 (defun stp-git-push-target (&optional branch)
