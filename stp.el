@@ -5,7 +5,7 @@
 ;; Keywords: git tools
 ;; URL: https://github.com/djr7C4/subtree-package
 ;; Version: 0.7.0
-;; Package-Requires: ((emacs "29.1") (dash "2.19.1") (f "0.21.0") (queue "0.2") (async "1.9.9"))
+;; Package-Requires: ((emacs "29.1") (dash "2.19.1") (f "0.21.0") (queue "0.2") (async "1.9.9") (rem "0.5.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
