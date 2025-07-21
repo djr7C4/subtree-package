@@ -356,6 +356,13 @@ expression is active.")
             (cl-return (funcall transformer remote)))))
       remote))
 
+(defun stp-elisp-files (directories)
+  (-flatten (mapcar (lambda (dir)
+                      (-filter (lambda (path)
+                                 (member (f-ext path) '("el" "el.gz")))
+                               (f-entries dir)))
+                    directories)))
+
 (defun stp-required-by (pkg-name)
   "Return the list of packages that require PKG-NAME."
   (let ((pkg-sym (intern pkg-name)))

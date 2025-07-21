@@ -37,6 +37,33 @@ These are determined according to the Package-Requires field."
     (insert-file-contents file)
     (stp-headers-elisp-requirements)))
 
+(defun stp-headers-merge-elisp-requirements (requirements)
+  "Merge duplicate requirements in REQUIREMENTS. Only the most
+recent version will be kept."
+  (let ((versions (make-hash-table :test #'eq)))
+    (dolist (requirement requirements)
+      (db (pkg-sym version)
+          requirement
+        ;; There are packages that use nil versions for some reason.
+        (when version
+          (setq version (version-to-list version))
+          ;; Keep the newest version of each package.
+          (let ((curr-version (gethash pkg-sym versions)))
+            (when (or (not curr-version) (version-list-< curr-version version))
+              (setf (gethash pkg-sym versions) version))))))
+    (cl-loop
+     for pkg-sym being the hash-keys of versions using (hash-values version)
+     collect (list pkg-sym version))))
+
+;; Use (stp-headers-path-requirements (stp-elisp-files load-path)) to get all
+;; installed packages and their versions.
+(defun stp-headers-path-requirements (paths)
+  (unless (listp paths)
+    (setq paths (list paths)))
+  (->> (mapcar #'stp-headers-elisp-file-requirements paths)
+       (apply #'append)
+       stp-headers-merge-elisp-requirements))
+
 (defun stp-headers-directory-requirements (&optional dir)
   "Find all packages that are required by DIR.
 
