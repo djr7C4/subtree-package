@@ -55,8 +55,6 @@ recent version will be kept."
      for pkg-sym being the hash-keys of versions using (hash-values version)
      collect (list pkg-sym version))))
 
-;; Use (stp-headers-path-requirements (stp-elisp-files load-path)) to get all
-;; installed packages and their versions.
 (defun stp-headers-path-requirements (paths)
   (unless (listp paths)
     (setq paths (list paths)))
