@@ -37,10 +37,15 @@ These are determined according to the Package-Requires field."
     (insert-file-contents file)
     (stp-headers-elisp-requirements)))
 
-(defun stp-headers-merge-elisp-requirements (requirements)
+(defun stp-headers-merge-elisp-requirements (requirements &optional hash-table)
   "Merge duplicate requirements in REQUIREMENTS. Only the most
-recent version will be kept."
-  (let ((versions (make-hash-table :test #'eq)))
+recent version will be kept. If HASH-TABLE is a hash table then
+requirements will be merged into it and the result will be
+returned instead of a requirements list. Otherwise, if HASH-TABLE
+is non-nil, then they will be merged into an empty hash table."
+  (let ((versions (if (hash-table-p hash-table)
+                      hash-table
+                    (make-hash-table :test #'eq))))
     (dolist (requirement requirements)
       (db (pkg-sym version)
           requirement
@@ -51,9 +56,11 @@ recent version will be kept."
           (let ((curr-version (gethash pkg-sym versions)))
             (when (or (not curr-version) (version-list-< curr-version version))
               (setf (gethash pkg-sym versions) version))))))
-    (cl-loop
-     for pkg-sym being the hash-keys of versions using (hash-values version)
-     collect (list pkg-sym version))))
+    (if hash-table
+        versions
+      (cl-loop
+       for pkg-sym being the hash-keys of versions using (hash-values version)
+       collect (list pkg-sym version)))))
 
 (defun stp-headers-paths-requirements (paths)
   "Find all requirements for the files in PATHS. PATHS may be either
@@ -87,6 +94,22 @@ its elisp files."
                            (mapcar #'number-to-string)
                            (s-join ".")))))
             (-group-by #'car reqs))))
+
+(defun stp-headers-requirements-hash-table (requirements)
+  "Return a hash table mapping the symbol for each package in
+REQUIREMENTS to its version."
+  ;; Make sure that there are no duplicate packages.
+  (stp-headers-merge-elisp-requirements requirements t))
+
+(defun stp-headers-requirement-satisfied-p (requirement requirements-map)
+  "Determine if REQUIREMENT is satisfied by REQUIREMENTS-MAP which
+should map each package symbol to the version that is installed."
+  (db (pkg-sym version)
+      requirement
+    (when (stringp version)
+      (setq version (version-to-list version)))
+    (awhen (map-elt requirements-map pkg-sym)
+      (or (equal version it) (version-list-< version it)))))
 
 (defun stp-package-requirements (pkg-name)
   (let* ((pkg-path (stp-full-path pkg-name))
