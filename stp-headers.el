@@ -56,6 +56,8 @@ recent version will be kept."
      collect (list pkg-sym version))))
 
 (defun stp-headers-path-requirements (paths)
+  "Find all requirements for the files in PATHS. PATHS may be either
+a single path or a list of paths."
   (unless (listp paths)
     (setq paths (list paths)))
   (->> (mapcar #'stp-headers-elisp-file-requirements paths)
