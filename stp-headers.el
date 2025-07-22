@@ -55,7 +55,7 @@ recent version will be kept."
      for pkg-sym being the hash-keys of versions using (hash-values version)
      collect (list pkg-sym version))))
 
-(defun stp-headers-path-requirements (paths)
+(defun stp-headers-paths-requirements (paths)
   "Find all requirements for the files in PATHS. PATHS may be either
 a single path or a list of paths."
   (unless (listp paths)
