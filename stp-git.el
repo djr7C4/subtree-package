@@ -129,7 +129,7 @@ returned."
         (stp-git-remote-head-to-hash remote version)
       version)))
 
-(defvar stp-git-read-update-show-stable-timestamp t)
+(defvar stp-git-read-update-show-stable-annotation t)
 
 (defun stp-git-stable-annotation (remote other-remotes)
   (let* ((remotes (cons remote other-remotes))
@@ -137,11 +137,11 @@ returned."
          (commits-to-stable (and latest-stable (stp-git-count-remote-commits remotes "HEAD" latest-stable)))
          (latest-timestamp (and latest-stable (stp-git-remote-timestamp remotes "HEAD")))
          (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable))))
-    (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp)))
+    (format "%s %s" latest-stable (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp))))
 
 (cl-defun stp-git-read-update (prompt &key default remote other-remotes)
   "Read the update attribute."
-  (let ((stable-annotation (and stp-git-read-update-show-stable-timestamp
+  (let ((stable-annotation (and stp-git-read-update-show-stable-annotation
                                 remote
                                 (stp-git-stable-annotation remote other-remotes))))
     (->> (rem-comp-read prompt
