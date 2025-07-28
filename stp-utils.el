@@ -104,6 +104,11 @@ version is used.")
         (format "(%s)" combined-string)
       "")))
 
+(defun stp-min-version-annotation (min-version enforce-min-version)
+  (if enforce-min-version
+      ""
+    (format " (>= %s required)")))
+
 (defun stp-prefix-prompt (prompt-prefix prompt)
   (if (or (not prompt-prefix) (string= prompt-prefix ""))
       prompt
@@ -419,6 +424,16 @@ expression is active.")
   "Determine if v2 of the package is newer than v1."
   (stp-version-list< (stp-version-extract v1)
                      (stp-version-extract v2)))
+
+(defun stp-version= (v1 v2)
+  "Determine if v1 of the package is equal to v2."
+  (string= (stp-version-extract v1) (stp-version-extract v2)))
+
+(defun stp-filter-by-min-version (min-version versions)
+  (-filter (lambda (version)
+             (or (not (stp-version-extract version))
+                 (stp-version= min-version version)
+                 (stp-version< min-version version)))))
 
 (defvar stp-info-file (f-join user-emacs-directory "stp-pkg-info.eld")
   "The name of the file that stores the package information.

@@ -97,7 +97,7 @@ available; otherwise, use the hash."
 
 (defvar stp-git-version-history nil)
 
-(cl-defun stp-git-read-version (prompt remote &key (extra-versions-position 'first) extra-versions default (branch-to-hash t))
+(cl-defun stp-git-read-version (prompt remote &key (extra-versions-position 'first) extra-versions default (branch-to-hash t) min-version)
   "Read a branch, tag or a hash for REMOTE.
 
 Completion is not performed on hashes but they can be entered.
@@ -110,12 +110,16 @@ returned."
   ;; (hashes or tags are).
   (setq extra-versions (-filter #'identity extra-versions))
   (let (version
-        (versions (->> (append (when (eq extra-versions-position 'first)
-                                 extra-versions)
-                               (stp-git-remote-tags-sorted remote)
-                               (when (eq extra-versions-position 'last)
-                                 extra-versions))
-                       (stp-git-versions-with-hashes remote))))
+        (versions (append (when (eq extra-versions-position 'first)
+                            extra-versions)
+                          (stp-git-remote-tags-sorted remote)
+                          (when (eq extra-versions-position 'last)
+                            extra-versions))))
+    (when min-version
+      ;; If min-version is non-nil, no stable version should be older than it.
+      ;; Branches and hashes are exempt from this check.
+      (setq versions (stp-filter-by-min-version min-version versions)))
+    (setq versions (stp-git-versions-with-hashes remote versions))
     (while (or (not version) (not (stp-git-valid-remote-ref-p remote version stp-git-warn-unknown-version)))
       (setq version (->> (rem-comp-read prompt
                                         versions

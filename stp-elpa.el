@@ -43,14 +43,17 @@
 
 (defvar stp-elpa-version-history nil)
 
-(defun stp-elpa-read-version (prompt pkg-name remote &optional default)
+(cl-defun stp-elpa-read-version (prompt pkg-name remote &key default min-version)
   "Read a ELPA version."
-  (rem-comp-read prompt
-                 (stp-elpa-versions-sorted pkg-name remote)
+  (let ((versions (stp-elpa-versions-sorted pkg-name remote)))
+    (when min-version
+      (setq versions (stp-filter-by-min-version min-version versions)))
+    (rem-comp-read prompt
+                 versions
                  :require-match t
                  :default default
                  :history 'stp-elpa-version-history
-                 :sort-fun #'identity))
+                 :sort-fun #'identity)))
 
 (defun stp-elpa-version-url-alist (pkg-name remote)
   "Return an alist that maps versions to download URLs."

@@ -133,7 +133,7 @@ remote or archive. Archives are represented as symbols."
         (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote)))
               remote)))))
 
-(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix ""))
+(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
   (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
                                                               :pkg-name pkg-name
                                                               :default-remote (map-elt pkg-alist 'remote)))
@@ -152,13 +152,20 @@ remote or archive. Archives are represented as symbols."
                     (not branch))
            (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))
          (unless version
-           (setq version (stp-git-read-version (stp-prefix-prompt prompt-prefix "Version: ") remote :extra-versions (list (map-elt pkg-alist 'version) branch) :default (map-elt pkg-alist 'version))))
+           (setq version (stp-git-read-version
+                          (stp-prefix-prompt prompt-prefix "Version: ")
+                          remote
+                          :extra-versions (list (map-elt pkg-alist 'version) branch)
+                          :default (map-elt pkg-alist 'version)
+                          :min-version min-version)))
          `(,pkg-name
            (method . ,method)
            (remote . ,remote)
            (version . ,version)
            (update . ,update)
            (branch . ,branch)))
+        ;; Archives only have one version so the minimum version cannot be
+        ;; enforced.
         (archive
          `(,pkg-name
            (method . ,method)
@@ -171,7 +178,12 @@ remote or archive. Archives are represented as symbols."
            (user-error (stp-prefix-prompt prompt-prefix "Invalid URL (or host is down): %s") remote))
          (unless version
            (cl-ecase method
-             (elpa (setq version (stp-elpa-read-version (stp-prefix-prompt prompt-prefix "Version: ") pkg-name remote)))
+             (elpa (setq version (stp-elpa-read-version
+                                  (stp-prefix-prompt prompt-prefix "Version: ")
+                                  pkg-name
+                                  remote
+
+                                  :min-version min-version)))
              (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: "))))))
          `(,pkg-name
            (method . ,method)
@@ -488,21 +500,33 @@ is one. Otherwise, prompt the user for a package."
            (stp-list-package-on-line))
       (stp-read-existing-name prompt)))
 
-(cl-defun stp-command-args (&key read-pkg-alist pkg-version (existing-pkg t) actions (line-pkg t))
+(defvar stp-enforce-min-version nil
+  "Determines if the user is allowed to select a version older than
+the minimum required by another package.")
+
+(cl-defun stp-command-args (&key pkg-name pkg-version read-pkg-alist (existing-pkg t) actions (line-pkg t) min-version enforce-min-version)
   "Prepare an argument list for an interactive command.
 
-The first argument is the name of the package. If READ-PKG-LIST
-is non-nil, a package alist will be read from the user and
-included as the second positional argument. ACTIONS determines if
-the do-actions keyword argument should be included. When LINE-PKG
-is non-nil (as it is by default), any data that would normally be
-read from the user will be inferred from the cursor position when
-`stp-list-mode' is active."
+The first argument included in the list is the name of the
+package. If PKG-VERSION is non-nil, the \\='VERSION attribute for
+the package will be included as the next positional argument. If
+READ-PKG-LIST is non-nil, a package alist will be read from the
+user and included as an additional positional argument. ACTIONS
+determines if the do-actions keyword argument should be included.
+When LINE-PKG is non-nil (as it is by default), any data that
+would normally be read from the user will be inferred from the
+cursor position when `stp-list-mode' is active. When non-nil,
+MIN-VERSION indicates the minimum version that should be
+installed."
   (stp-with-package-source-directory
     (plet* ((args (if actions
                       (stp-commit-push-action-args)
                     (stp-commit-push-args)))
-            (`(,pkg-name . ,pkg-alist) (and read-pkg-alist (stp-read-package)))
+            (`(,pkg-name . ,pkg-alist)
+             (and read-pkg-alist
+                  (stp-read-package :pkg-name pkg-name
+                                    :min-version min-version
+                                    :enforce-min-version enforce-min-version)))
             (pkg-name (or pkg-name
                           (cond
                            (line-pkg
@@ -539,13 +563,17 @@ read from the user will be inferred from the cursor position when
                                                     (member pkg-name pkg-names))
                                                   stp-latest-versions-cache)))))
 
-(defun stp-install-command ()
+(cl-defun stp-install-command (&key min-version)
   "Install a package interactively as a git subtree.
 
 If `stp-auto-commit', `stp-auto-push', and
 `stp-auto-post-actions' are non-nil, commit, push and perform
 post actions (see `stp-auto-post-actions'). With a prefix
-argument, each of these is negated relative to the default."
+argument, each of these is negated relative to the default.
+
+When MIN-VERSION is non-nil, it indicates the minimum version
+that is required for this package due to installation as a
+dependency."
   (interactive)
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
@@ -553,7 +581,12 @@ argument, each of these is negated relative to the default."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-install (stp-command-args :actions t :read-pkg-alist t :existing-pkg nil :line-pkg nil)))))
+      (apply #'stp-install (stp-command-args :actions t
+                                             :read-pkg-alist t
+                                             :existing-pkg nil
+                                             :line-pkg nil
+                                             :min-version min-version
+                                             :enforce-min-version stp-enforce-min-version)))))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
@@ -636,15 +669,17 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
-(defun stp-upgrade-command ()
+(defun stp-upgrade-command (&key min-version)
   "Upgrade a package interactively."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-upgrade (stp-command-args :actions t)))))
+      (apply #'stp-upgrade (stp-command-args :actions t)
+             :min-version min-version
+             :enforce-min-version stp-enforce-min-version))))
 
-(cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t))
+(cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t) min-version enforce-min-version)
   "Upgrade the version of the package named PKG-NAME.
 
 The arguments DO-COMMIT, DO-PUSH, DO-LOCK and DO-ACTIONS are as
@@ -660,15 +695,27 @@ in `stp-install'."
                                   (or stp-git-upgrade-always-offer-remote-heads
                                       (eq .update 'unstable))
                                   (stp-git-remote-heads-sorted chosen-remote)))
-             (prompt (format "Upgrade from %s to version: " (stp-abbreviate-remote-version pkg-name .method chosen-remote .version))))
+             (prompt (format "Upgrade from %s to version%s: "
+                             (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
+                             (stp-min-version-annotation min-version enforce-min-version))))
         (when (stp-url-safe-remote-p chosen-remote)
           (when (and .branch (member .branch extra-versions))
             (setq extra-versions (cons .branch (remove .branch extra-versions))))
           (cl-ecase .method
             (git (--> extra-versions
-                      (stp-git-read-version prompt chosen-remote :extra-versions-position (if (eq .update 'unstable) 'first 'last) :extra-versions it :branch-to-hash nil)
+                      (stp-git-read-version
+                       prompt
+                       chosen-remote
+                       :extra-versions-position (if (eq .update 'unstable) 'first 'last)
+                       :extra-versions it
+                       :branch-to-hash nil
+                       :min-version min-version)
                       (stp-git-upgrade pkg-name chosen-remote it)))
-            (elpa (->> (stp-elpa-read-version prompt pkg-name chosen-remote)
+            (elpa (->> (stp-elpa-read-version
+                        prompt
+                        pkg-name
+                        chosen-remote
+                        :min-version min-version)
                        (stp-elpa-upgrade pkg-name chosen-remote)))
             (archive (stp-archive-upgrade pkg-name .remote))
             (url (->> (stp-url-read-version prompt)
