@@ -19,7 +19,7 @@ if [[ ! -d ".git" ]]; then
     exit 1
 fi
 
-repos=("https://github.com/rolandwalker/anaphora.git master" "https://github.com/magnars/dash.el.git master" "https://github.com/rejeep/f.el.git master" "https://github.com/djr7C4/emacs-memoize.git master" "https://github.com/magnars/s.el.git master" "https://github.com/djr7C4/rem.git main")
+repos=("https://github.com/rolandwalker/anaphora.git master" "https://github.com/magnars/dash.el.git master" "https://github.com/rejeep/f.el.git master" "https://github.com/djr7C4/emacs-memoize.git master" "https://github.com/magnars/s.el.git master" "https://github.com/tarsius/llama main" "https://github.com/djr7C4/rem.git main")
 
 for repo in "${repos[@]}"; do
     repo="$(echo "$repo" | cut -d -f 1)"
