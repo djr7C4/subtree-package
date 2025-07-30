@@ -768,6 +768,9 @@ in `stp-install'."
              (pkg-name (symbol-name (car requirement)))
              (version (stp-get-attribute pkg-name 'version)))
         (when (and (member pkg-name (stp-info-names))
+                   ;; Only uninstall packages that were installed as
+                   ;; dependencies and are no longer required by any package.
+                   (stp-required-by pkg-name)
                    (stp-get-attribute pkg-name 'dependency))
           (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
             (stp-uninstall pkg-name :do-commit do-commit :do-push do-push :uninstall-requirements nil)
