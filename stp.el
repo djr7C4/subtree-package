@@ -762,19 +762,19 @@ in `stp-install'."
   )
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit do-push)
-  (let ((to-uninstall requirements))
+  (let ((to-uninstall (stp-requirements-to-names requirements)))
     (while to-uninstall
-      (let* ((requirement (pop to-uninstall))
-             (pkg-name (symbol-name (car requirement)))
+      (setq to-uninstall (rem-topological-sort to-uninstall (mapcar (-rpartial #'stp-get-attribute 'requirements) to-uninstall)))
+      (let* ((pkg-name (car to-uninstall))
              (version (stp-get-attribute pkg-name 'version)))
+        ;; Only uninstall STP packages that were installed as dependencies and
+        ;; are no longer required by any package.
         (when (and (member pkg-name (stp-info-names))
-                   ;; Only uninstall packages that were installed as
-                   ;; dependencies and are no longer required by any package.
-                   (stp-required-by pkg-name)
-                   (stp-get-attribute pkg-name 'dependency))
+                   (stp-get-attribute pkg-name 'dependency)
+                   (stp-required-by pkg-name))
           (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
             (stp-uninstall pkg-name :do-commit do-commit :do-push do-push :uninstall-requirements nil)
-            (setq to-uninstall (cl-union to-uninstall recursive-requirements :test #'string=))))))))
+            (setq to-uninstall (cl-union to-uninstall (stp-requirements-to-names requirements) :test #'string=))))))))
 
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist

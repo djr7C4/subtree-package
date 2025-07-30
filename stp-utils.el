@@ -368,6 +368,9 @@ expression is active.")
                                (f-entries dir)))
                     directories)))
 
+(defun stp-requirements-to-names (requirements)
+  (mapcar (-compose #'symbol-name #'car) requirements))
+
 (defun stp-required-by (pkg-name)
   "Return the list of packages that require PKG-NAME."
   (let ((pkg-sym (intern pkg-name)))
