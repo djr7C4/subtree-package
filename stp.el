@@ -588,7 +588,7 @@ dependency."
                                              :min-version min-version
                                              :enforce-min-version stp-enforce-min-version)))))
 
-(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t))
+(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t) (ensure-requirements t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
 
 If DO-COMMIT is non-nil, automatically commit to the git
@@ -625,6 +625,8 @@ should be performed."
                                      pkg-name)
                              do-commit
                              do-push)
+        (when ensure-requirements
+          (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements)))
         (when (stp-maybe-call do-lock)
           (stp-update-lock-file))
         (when (stp-maybe-call do-actions)
@@ -641,8 +643,8 @@ should be performed."
       (stp-refresh-info)
       (apply #'stp-uninstall (stp-command-args)))))
 
-(cl-defun stp-uninstall (pkg-name &key do-commit do-push do-lock (refresh t))
-"Uninstall the package named PKG-NAME.
+(cl-defun stp-uninstall (pkg-name &key do-commit do-push do-lock (refresh t) (uninstall-requirements t))
+  "Uninstall the package named PKG-NAME.
 
 The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
 `stp-install'."
@@ -660,6 +662,8 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
                                          pkg-name)
                                  do-commit
                                  do-push)
+            (when uninstall-requirements
+              (stp-maybe-uninstall-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-push do-push))
             (when (stp-maybe-call do-lock)
               (stp-update-lock-file))
             (when refresh
@@ -679,7 +683,7 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
              :min-version min-version
              :enforce-min-version stp-enforce-min-version))))
 
-(cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t) min-version enforce-min-version)
+(cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t) min-version enforce-min-version (ensure-requirements t))
   "Upgrade the version of the package named PKG-NAME.
 
 The arguments DO-COMMIT, DO-PUSH, DO-LOCK and DO-ACTIONS are as
@@ -740,6 +744,8 @@ in `stp-install'."
                                            pkg-name)
                                    do-commit
                                    do-push)
+              (when ensure-requirements
+                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements)))
               (when (stp-maybe-call do-lock)
                 (stp-update-lock-file))
               (when (stp-maybe-call do-actions)
@@ -747,6 +753,25 @@ in `stp-install'."
             (when refresh
               (stp-update-cached-latest pkg-name)
               (stp-list-refresh :quiet t))))))))
+
+;; TODO
+(defun stp-ensure-requirements (requirements)
+  ;; If a package is already installed, upgrade it if necessary and do not
+  ;; change the dependency attribute. If it is not installed, install it and set
+  ;; the dependency attribute to t
+  )
+
+(cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit do-push)
+  (let ((to-uninstall requirements))
+    (while to-uninstall
+      (let* ((requirement (pop to-uninstall))
+             (pkg-name (symbol-name (car requirement)))
+             (version (stp-get-attribute pkg-name 'version)))
+        (when (and (member pkg-name (stp-info-names))
+                   (stp-get-attribute pkg-name 'dependency))
+          (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
+            (stp-uninstall pkg-name :do-commit do-commit :do-push do-push :uninstall-requirements nil)
+            (setq to-uninstall (cl-union to-uninstall recursive-requirements :test #'string=))))))))
 
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist
@@ -788,7 +813,7 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
       ;; Warn the user about reinstalling if there are modifications to the
       ;; subtree that were not the result of git subtree merge as this will
       ;; result in the loss of their customizations to the package.
-      (save-window-excursion
+p      (save-window-excursion
         (when (and tree-hashes
                    (unwind-protect
                        (and (db (curr-hash last-hash)
