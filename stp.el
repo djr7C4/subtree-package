@@ -777,7 +777,7 @@ in `stp-install'."
                    (stp-required-by pkg-name))
           (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
             (stp-uninstall pkg-name :do-commit do-commit :do-push do-push :uninstall-requirements nil)
-            (setq to-uninstall (cl-union to-uninstall (stp-requirements-to-names requirements) :test #'string=))))))))
+            (setq to-uninstall (cl-union to-uninstall (stp-requirements-to-names recursive-requirements) :test #'string=))))))))
 
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist
