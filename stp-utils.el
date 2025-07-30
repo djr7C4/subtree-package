@@ -40,8 +40,7 @@
 negation of that function. Otherwise, return the negation of
 VALUE."
   (if (functionp value)
-      (lambda (&rest args)
-        (not (apply value args)))
+      (fn (not (apply value &*)))
     (not value)))
 
 (defun stp-maybe-call (value &rest args)
@@ -485,11 +484,9 @@ Package-Requires header of an elisp file.")
   `stp-attribute-order'."
   (mapcar (lambda (cell)
             (cons (car cell)
-                  (-sort (lambda (x y)
-                           (stp-attribute< (car x) (car y)))
+                  (-sort (fn (stp-attribute< (car %1) (car %2)))
                          (cdr cell))))
-          (-sort (lambda (x y)
-                   (string< (car x) (car y)))
+          (-sort (fn (string< (car %1) (car %2)))
                  pkg-info)))
 
 (defun stp-read-info ()

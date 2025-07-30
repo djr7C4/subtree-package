@@ -133,7 +133,7 @@ remote or archive. Archives are represented as symbols."
         (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote)))
               remote)))))
 
-(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
+(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version)
   (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
                                                               :pkg-name pkg-name
                                                               :default-remote (map-elt pkg-alist 'remote)))
@@ -763,21 +763,21 @@ in `stp-install'."
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit do-push)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
-         (old-to-uninstall t))
+         (old-to-uninstall t)
+         pkg-name)
     (while to-uninstall
       (when (equal to-uninstall old-to-uninstall)
         (error "Recursive dependencies encountered while uninstalling packages"))
-      (setq old-to-uninstall (copy-list to-uninstall))
-      (let* ((pkg-name (pop to-uninstall))
-             (version (stp-get-attribute pkg-name 'version)))
-        ;; Only uninstall STP packages that were installed as dependencies and
-        ;; are no longer required by any package.
-        (when (and (member pkg-name (stp-info-names))
-                   (stp-get-attribute pkg-name 'dependency)
-                   (stp-required-by pkg-name))
-          (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
-            (stp-uninstall pkg-name :do-commit do-commit :do-push do-push :uninstall-requirements nil)
-            (setq to-uninstall (cl-union to-uninstall (stp-requirements-to-names recursive-requirements) :test #'string=))))))))
+      (setq old-to-uninstall (cl-copy-list to-uninstall)
+            pkg-name (pop to-uninstall))
+      ;; Only uninstall STP packages that were installed as dependencies and
+      ;; are no longer required by any package.
+      (when (and (member pkg-name (stp-info-names))
+                 (stp-get-attribute pkg-name 'dependency)
+                 (stp-required-by pkg-name))
+        (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
+          (stp-uninstall pkg-name :do-commit do-commit :do-push do-push :uninstall-requirements nil)
+          (setq to-uninstall (cl-union to-uninstall (stp-requirements-to-names recursive-requirements) :test #'string=)))))))
 
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist
@@ -819,7 +819,7 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
       ;; Warn the user about reinstalling if there are modifications to the
       ;; subtree that were not the result of git subtree merge as this will
       ;; result in the loss of their customizations to the package.
-p      (save-window-excursion
+      (save-window-excursion
         (when (and tree-hashes
                    (unwind-protect
                        (and (db (curr-hash last-hash)
