@@ -762,9 +762,13 @@ in `stp-install'."
   )
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit do-push)
-  (let ((to-uninstall (stp-requirements-to-names requirements)))
+  (let* ((to-uninstall (stp-requirements-to-names requirements))
+         (old-to-uninstall t))
     (while to-uninstall
-      (let* ((pkg-name (car to-uninstall))
+      (when (equal to-uninstall old-to-uninstall)
+        (error "Recursive dependencies encountered while uninstalling packages"))
+      (setq old-to-uninstall (copy-list to-uninstall))
+      (let* ((pkg-name (pop to-uninstall))
              (version (stp-get-attribute pkg-name 'version)))
         ;; Only uninstall STP packages that were installed as dependencies and
         ;; are no longer required by any package.
