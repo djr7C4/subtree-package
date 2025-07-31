@@ -422,22 +422,43 @@ interactive commands.")
   (unless (stp-git-clean-or-ask-p)
     (user-error "Aborted: the repository is unclean")))
 
-(defun stp-commit-push-args ()
+(cl-defun stp-commit-push-args (&key (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p))
   (stp-ensure-no-merge-conflicts)
   (let ((args (if current-prefix-arg
-                  (list :do-commit (stp-negate stp-auto-commit)
-                        :do-push (and (stp-negate stp-auto-commit) (stp-negate stp-auto-push))
-                        :do-lock (and (stp-negate stp-auto-commit) (and (stp-negate stp-never-auto-lock) (stp-negate stp-auto-lock))))
-                (list :do-commit stp-auto-commit :do-push stp-auto-push :do-lock (and (not stp-never-auto-lock) stp-auto-lock)))))
+                  (list :do-commit (if do-commit-provided-p
+                                       do-commit
+                                     (stp-negate stp-auto-commit))
+                        :do-push (if do-push-provided-p
+                                     do-push
+                                   (and (stp-negate stp-auto-commit)
+                                        (stp-negate stp-auto-push)))
+                        :do-lock (if do-lock-provided-p
+                                     do-lock
+                                   (and (stp-negate stp-auto-commit)
+                                        (stp-negate stp-never-auto-lock)
+                                        (stp-negate stp-auto-lock))))
+                (list :do-commit (if do-commit-provided-p
+                                     do-commit
+                                   stp-auto-commit)
+                      :do-push (if do-push-provided-p
+                                   do-push
+                                 stp-auto-push)
+                      :do-lock (if do-lock-provided-p
+                                   do-lock
+                                 (and (not stp-never-auto-lock) stp-auto-lock))))))
     (when (plist-get args :do-commit)
       (stp-maybe-ensure-clean))
     args))
 
-(defun stp-commit-push-action-args ()
+(cl-defun stp-commit-push-action-args (&key (do-actions nil do-actions-provided-p))
   (append (stp-commit-push-args)
-          (list :do-actions (if current-prefix-arg
-                                (stp-negate stp-auto-post-actions)
-                              stp-auto-post-actions))))
+          (list :do-actions (cond
+                             (do-actions-provided-p
+                              do-actions)
+                             (current-prefix-arg
+                              (stp-negate stp-auto-post-actions))
+                             (t
+                              stp-auto-post-actions)))))
 
 (defvar stp-list-version-length 16)
 
@@ -504,7 +525,7 @@ is one. Otherwise, prompt the user for a package."
   "Determines if the user is allowed to select a version older than
 the minimum required by another package.")
 
-(cl-defun stp-command-args (&key pkg-name pkg-version read-pkg-alist (existing-pkg t) actions (line-pkg t) min-version enforce-min-version)
+(cl-defun stp-command-args (&key pkg-name pkg-version read-pkg-alist (existing-pkg t) actions (line-pkg t) min-version enforce-min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
   "Prepare an argument list for an interactive command.
 
 The first argument included in the list is the name of the
@@ -519,9 +540,11 @@ cursor position when `stp-list-mode' is active. When non-nil,
 MIN-VERSION indicates the minimum version that should be
 installed."
   (stp-with-package-source-directory
-    (plet* ((args (if actions
-                      (stp-commit-push-action-args)
-                    (stp-commit-push-args)))
+    (plet* ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock))
+            (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions-provided-p (list do-actions))))
+            (args (if actions
+                      (apply #'stp-commit-push-action-args kwd-args)
+                    (apply #'stp-commit-push-args kwd-action-args)))
             (`(,pkg-name . ,pkg-alist)
              (and read-pkg-alist
                   (stp-read-package :pkg-name pkg-name
@@ -563,17 +586,13 @@ installed."
                                                     (member pkg-name pkg-names))
                                                   stp-latest-versions-cache)))))
 
-(cl-defun stp-install-command (&key min-version)
+(cl-defun stp-install-command (&key pkg-name min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
   "Install a package interactively as a git subtree.
 
 If `stp-auto-commit', `stp-auto-push', and
 `stp-auto-post-actions' are non-nil, commit, push and perform
 post actions (see `stp-auto-post-actions'). With a prefix
-argument, each of these is negated relative to the default.
-
-When MIN-VERSION is non-nil, it indicates the minimum version
-that is required for this package due to installation as a
-dependency."
+argument, each of these is negated relative to the default."
   (interactive)
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
@@ -581,14 +600,16 @@ dependency."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-install (stp-command-args :actions t
-                                             :read-pkg-alist t
-                                             :existing-pkg nil
-                                             :line-pkg nil
-                                             :min-version min-version
-                                             :enforce-min-version stp-enforce-min-version)))))
+      (let ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock do-actions-provided-p do-actions)))
+        (apply #'stp-install (apply #'stp-command-args
+                                    :pkg-name pkg-name
+                                    :actions t
+                                    :read-pkg-alist t
+                                    :existing-pkg nil
+                                    :line-pkg nil
+                                    kwd-args))))))
 
-(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t) (ensure-requirements t))
+(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t) (ensure-requirements t) min-version)
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
 
 If DO-COMMIT is non-nil, automatically commit to the git
@@ -598,7 +619,11 @@ DO-LOCK is non-nil, automatically update `stp-lock-file'. If
 DO-ACTIONS is non-nil, call `stp-post-actions' after installing
 the package. DO-COMMIT, DO-PUSH, DO-LOCK and DO-ACTIONS can also
 be functions called to determine if the associated operation
-should be performed."
+should be performed.
+
+When MIN-VERSION is non-nil, it indicates the minimum version
+that is required for this package due to installation as a
+dependency."
   ;; pkg-name may be nil in interactive calls when the user answers no when the
   ;; repository is dirty and `stp-git-clean-or-ask-p' is called.
   (when pkg-name
@@ -626,7 +651,7 @@ should be performed."
                              do-commit
                              do-push)
         (when ensure-requirements
-          (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements)))
+          (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-push do-push :do-actions do-actions))
         (when (stp-maybe-call do-lock)
           (stp-update-lock-file))
         (when (stp-maybe-call do-actions)
@@ -661,9 +686,10 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
                                          (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                          pkg-name)
                                  do-commit
-                                 do-push)
+                                 (and (not uninstall-requirements) do-push))
             (when uninstall-requirements
-              (stp-maybe-uninstall-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-push do-push))
+              (stp-maybe-uninstall-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit)
+              (stp-git-push do-push))
             (when (stp-maybe-call do-lock)
               (stp-update-lock-file))
             (when refresh
@@ -673,15 +699,17 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
-(defun stp-upgrade-command (&key min-version)
+(cl-defun stp-upgrade-command (&key min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
   "Upgrade a package interactively."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-upgrade (stp-command-args :actions t)
-             :min-version min-version
-             :enforce-min-version stp-enforce-min-version))))
+      (let ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock do-actions-provided-p do-actions)))
+        (apply #'stp-upgrade
+               :min-version min-version
+               :enforce-min-version stp-enforce-min-version
+               (apply #'stp-command-args :actions t kwd-args))))))
 
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t) min-version enforce-min-version (ensure-requirements t))
   "Upgrade the version of the package named PKG-NAME.
@@ -745,7 +773,7 @@ in `stp-install'."
                                    do-commit
                                    do-push)
               (when ensure-requirements
-                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements)))
+                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements :do-commit do-commit :do-push do-push :do-actions do-actions)))
               (when (stp-maybe-call do-lock)
                 (stp-update-lock-file))
               (when (stp-maybe-call do-actions)
@@ -754,14 +782,19 @@ in `stp-install'."
               (stp-update-cached-latest pkg-name)
               (stp-list-refresh :quiet t))))))))
 
-;; TODO
-(defun stp-ensure-requirements (requirements)
-  ;; If a package is already installed, upgrade it if necessary and do not
-  ;; change the dependency attribute. If it is not installed, install it and set
-  ;; the dependency attribute to t
-  )
+(cl-defun stp-ensure-requirements (requirements &key do-commit do-push do-actions)
+  (dolist (requirement requirements)
+    (db (pkg-name version)
+        requirement
+      (cond
+       ((not (member pkg-name (stp-info-names)))
+        (stp-install-command :pkg-name pkg-name :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions)
+        (stp-set-attribute pkg-name 'dependency t))
+       ;; pkg-name is installed so check if it needs to be upgraded.
+       ((stp-version< (stp-get-attribute pkg-name 'version) version)
+        (stp-upgrade-command :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions))))))
 
-(cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit do-push)
+(cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
          (old-to-uninstall t)
          pkg-name)
@@ -776,7 +809,7 @@ in `stp-install'."
                  (stp-get-attribute pkg-name 'dependency)
                  (stp-required-by pkg-name))
         (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
-          (stp-uninstall pkg-name :do-commit do-commit :do-push do-push :uninstall-requirements nil)
+          (stp-uninstall pkg-name :do-commit do-commit :uninstall-requirements nil)
           (setq to-uninstall (cl-union to-uninstall (stp-requirements-to-names recursive-requirements) :test #'string=)))))))
 
 (defun stp-download-url (pkg-name pkg-alist)

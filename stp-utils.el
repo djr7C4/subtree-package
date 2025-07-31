@@ -429,13 +429,19 @@ expression is active.")
 
 (defun stp-version= (v1 v2)
   "Determine if v1 of the package is equal to v2."
-  (string= (stp-version-extract v1) (stp-version-extract v2)))
+  (equal (stp-version-extract v1) (stp-version-extract v2)))
+
+(defun stp-version<= (v1 v2)
+  "Determine if v1 of the package is less than or equal to v2."
+  (let ((v1e (stp-version-extract v1))
+        (v2e (stp-version-extract v2)))
+    (or (equal v1e v2e)
+        (stp-version-list< v1e v2e))))
 
 (defun stp-filter-by-min-version (min-version versions)
   (-filter (lambda (version)
              (or (not (stp-version-extract version))
-                 (stp-version= min-version version)
-                 (stp-version< min-version version)))))
+                 (stp-version<= min-version version)))))
 
 (defvar stp-info-file (f-join user-emacs-directory "stp-pkg-info.eld")
   "The name of the file that stores the package information.

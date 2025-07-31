@@ -203,17 +203,17 @@ repository. Return the path to the repository."
     (stp-git-fetch remote :force force :refspec refspec :no-new-tags no-new-tags)
     t))
 
-(defun stp-git-push ()
-  (if (stp-git-unpushed-p)
-      (rem-run-command '("git" "push") :error t)
-    (message "There are no commits to push. Skipping...")))
+(cl-defun stp-git-push (&optional (do-push t))
+  (when (stp-maybe-call do-push)
+    (if (stp-git-unpushed-p)
+        (rem-run-command '("git" "push") :error t)
+      (message "There are no commits to push. Skipping..."))))
 
 (cl-defun stp-git-commit-push (msg &optional (do-commit t) (do-push t))
   (when (stp-maybe-call do-commit)
     (stp-git-commit msg)
     ;; Pushing does not make sense if we did not commit earlier.
-    (when (stp-maybe-call do-push)
-      (stp-git-push))))
+    (stp-git-push do-push)))
 
 (cl-defun stp-git-status (&key keep-ignored keep-untracked)
   "Return a list of the status of each file in the repository.
