@@ -790,7 +790,9 @@ in `stp-install'."
        ((not (member pkg-name (stp-info-names)))
         (stp-install-command :pkg-name pkg-name :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions)
         (stp-set-attribute pkg-name 'dependency t))
-       ;; pkg-name is installed so check if it needs to be upgraded.
+       ;; pkg-name is installed so check if it needs to be upgraded. The
+       ;; dependency attribute is left as is in this case because the package
+       ;; might have been installed manually originally.
        ((stp-version< (stp-get-attribute pkg-name 'version) version)
         (stp-upgrade-command :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions))))))
 
