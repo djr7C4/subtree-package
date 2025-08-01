@@ -133,7 +133,7 @@ remote or archive. Archives are represented as symbols."
         (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote)))
               remote)))))
 
-(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version)
+(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
   (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
                                                               :pkg-name pkg-name
                                                               :default-remote (map-elt pkg-alist 'remote)))
@@ -153,11 +153,11 @@ remote or archive. Archives are represented as symbols."
            (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))
          (unless version
            (setq version (stp-git-read-version
-                          (stp-prefix-prompt prompt-prefix "Version: ")
+                          (stp-prefix-prompt prompt-prefix (format "Version%s: " (stp-min-version-annotation min-version enforce-min-version)))
                           remote
                           :extra-versions (list (map-elt pkg-alist 'version) branch)
                           :default (map-elt pkg-alist 'version)
-                          :min-version min-version)))
+                          :min-version (and enforce-min-version min-version))))
          `(,pkg-name
            (method . ,method)
            (remote . ,remote)
@@ -183,7 +183,7 @@ remote or archive. Archives are represented as symbols."
                                   pkg-name
                                   remote
 
-                                  :min-version min-version)))
+                                  :min-version (and enforce-min-version min-version))))
              (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: "))))))
          `(,pkg-name
            (method . ,method)
@@ -541,7 +541,7 @@ MIN-VERSION indicates the minimum version that should be
 installed."
   (stp-with-package-source-directory
     (plet* ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock))
-            (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions-provided-p (list do-actions))))
+            (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions-provided-p do-actions)))
             (args (if actions
                       (apply #'stp-commit-push-action-args kwd-args)
                     (apply #'stp-commit-push-args kwd-action-args)))
@@ -601,15 +601,18 @@ argument, each of these is negated relative to the default."
     (stp-with-memoization
       (stp-refresh-info)
       (let ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock do-actions-provided-p do-actions)))
-        (apply #'stp-install (apply #'stp-command-args
-                                    :pkg-name pkg-name
-                                    :actions t
-                                    :read-pkg-alist t
-                                    :existing-pkg nil
-                                    :line-pkg nil
-                                    kwd-args))))))
+        (apply #'stp-install
+               (apply #'stp-command-args
+                      :pkg-name pkg-name
+                      :actions t
+                      :read-pkg-alist t
+                      :existing-pkg nil
+                      :line-pkg nil
+                      :min-version min-version
+                      :enforce-min-version stp-enforce-min-version
+                      kwd-args))))))
 
-(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t) (ensure-requirements t) min-version)
+(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t) (ensure-requirements t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
 
 If DO-COMMIT is non-nil, automatically commit to the git
@@ -651,7 +654,7 @@ dependency."
                              do-commit
                              do-push)
         (when ensure-requirements
-          (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-push do-push :do-actions do-actions))
+          (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions))
         (when (stp-maybe-call do-lock)
           (stp-update-lock-file))
         (when (stp-maybe-call do-actions)
@@ -707,9 +710,13 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
       (stp-refresh-info)
       (let ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock do-actions-provided-p do-actions)))
         (apply #'stp-upgrade
-               :min-version min-version
-               :enforce-min-version stp-enforce-min-version
-               (apply #'stp-command-args :actions t kwd-args))))))
+               (append (apply #'stp-command-args
+                              :actions t
+                              :min-version min-version
+                              :enforce-min-version stp-enforce-min-version
+                              kwd-args)
+                       (list :min-version min-version
+                             :enforce-min-version stp-enforce-min-version)))))))
 
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t) min-version enforce-min-version (ensure-requirements t))
   "Upgrade the version of the package named PKG-NAME.
@@ -773,7 +780,7 @@ in `stp-install'."
                                    do-commit
                                    do-push)
               (when ensure-requirements
-                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements :do-commit do-commit :do-push do-push :do-actions do-actions)))
+                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements :do-commit do-commit :do-actions do-actions)))
               (when (stp-maybe-call do-lock)
                 (stp-update-lock-file))
               (when (stp-maybe-call do-actions)
@@ -782,7 +789,7 @@ in `stp-install'."
               (stp-update-cached-latest pkg-name)
               (stp-list-refresh :quiet t))))))))
 
-(cl-defun stp-ensure-requirements (requirements &key do-commit do-push do-actions)
+(cl-defun stp-ensure-requirements (requirements &key do-commit do-actions)
   (dolist (requirement requirements)
     (db (pkg-name version)
         requirement

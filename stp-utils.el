@@ -104,9 +104,9 @@ version is used.")
       "")))
 
 (defun stp-min-version-annotation (min-version enforce-min-version)
-  (if enforce-min-version
-      ""
-    (format " (>= %s required)")))
+  (if (and (not enforce-min-version) min-version)
+      (format " (>= %s required)" min-version)
+    ""))
 
 (defun stp-prefix-prompt (prompt-prefix prompt)
   (if (or (not prompt-prefix) (string= prompt-prefix ""))
@@ -441,7 +441,8 @@ expression is active.")
 (defun stp-filter-by-min-version (min-version versions)
   (-filter (lambda (version)
              (or (not (stp-version-extract version))
-                 (stp-version<= min-version version)))))
+                 (stp-version<= min-version version)))
+           versions))
 
 (defvar stp-info-file (f-join user-emacs-directory "stp-pkg-info.eld")
   "The name of the file that stores the package information.
