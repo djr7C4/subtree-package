@@ -789,37 +789,94 @@ in `stp-install'."
               (stp-update-cached-latest pkg-name)
               (stp-list-refresh :quiet t))))))))
 
+(defvar stp-failed-requirements nil)
+(defvar stp-total-requirements 0)
+
+(defun stp-report-requirements (type)
+  (unless (memq type '(install/upgrade uninstall))
+    (error "type must be either 'INSTALL/UPGRADE or 'UNINSTALL"))
+  (if stp-failed-requirements
+      (message "Failed to %s %d/%d dependencies: %s"
+               (if (eq type 'install/upgrade)
+                   "install or upgrade"
+                 "uninstall")
+               (length stp-failed-requirements)
+               stp-total-requirements
+               (rem-join-and (mapcar (lambda (requirement)
+                                       ;; When type is 'uninstall,
+                                       ;; `stp-failed-requirements' can be just
+                                       ;; the package names instead of proper
+                                       ;; requirements.
+                                       (if (listp requirement)
+                                           (db (pkg-name version)
+                                               requirement
+                                             (format "%s (%s)" pkg-name version))
+                                         requirement))
+                                     stp-failed-requirements)))
+    (message "Successfully %s %d dependencies"
+             (if (eq type 'install/upgrade)
+                 "installed or upgraded"
+               "uninstalled")
+             stp-total-requirements)))
+
+(defvar stp-ensure-requirements-toplevel t)
+
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions)
-  (dolist (requirement requirements)
-    (db (pkg-name version)
-        requirement
-      (cond
-       ((not (member pkg-name (stp-info-names)))
-        (stp-install-command :pkg-name pkg-name :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions)
-        (stp-set-attribute pkg-name 'dependency t))
-       ;; pkg-name is installed so check if it needs to be upgraded. The
-       ;; dependency attribute is left as is in this case because the package
-       ;; might have been installed manually originally.
-       ((stp-version< (stp-get-attribute pkg-name 'version) version)
-        (stp-upgrade-command :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions))))))
+  (when stp-ensure-requirements-toplevel
+    (setq stp-failed-requirements nil
+          stp-total-requirements 0))
+  (let ((stp-ensure-requirements-toplevel nil))
+    (dolist (requirement requirements)
+      (db (pkg-name version)
+          requirement
+        (condition-case err
+            (cond
+             ((not (member pkg-name (stp-info-names)))
+              (stp-install-command :pkg-name pkg-name :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions)
+              (cl-incf stp-total-requirements)
+              (stp-set-attribute pkg-name 'dependency t))
+             ;; pkg-name is installed so check if it needs to be upgraded. The
+             ;; dependency attribute is left as is in this case because the package
+             ;; might have been installed manually originally.
+             ((stp-version< (stp-get-attribute pkg-name 'version) version)
+              (stp-upgrade-command :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions)
+              (cl-incf stp-total-requirements)))
+          (error
+           (push requirement stp-failed-requirements)
+           (message "Failed to install or upgrade %s to version %s: proceeding with the next requirement" pkg-name version))))))
+  (when stp-ensure-requirements-toplevel
+    (stp-report-requirements 'install/upgrade)))
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit)
+  (when stp-ensure-requirements-toplevel
+    (setq stp-failed-requirements nil
+          stp-total-requirements 0))
   (let* ((to-uninstall (stp-requirements-to-names requirements))
          (old-to-uninstall t)
          pkg-name)
     (while to-uninstall
       (when (equal to-uninstall old-to-uninstall)
         (error "Recursive dependencies encountered while uninstalling packages"))
-      (setq old-to-uninstall (cl-copy-list to-uninstall)
-            pkg-name (pop to-uninstall))
-      ;; Only uninstall STP packages that were installed as dependencies and
-      ;; are no longer required by any package.
-      (when (and (member pkg-name (stp-info-names))
-                 (stp-get-attribute pkg-name 'dependency)
-                 (stp-required-by pkg-name))
-        (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
-          (stp-uninstall pkg-name :do-commit do-commit :uninstall-requirements nil)
-          (setq to-uninstall (cl-union to-uninstall (stp-requirements-to-names recursive-requirements) :test #'string=)))))))
+      (condition-case err
+          (progn
+            (setq old-to-uninstall (cl-copy-list to-uninstall)
+                  pkg-name (pop to-uninstall))
+            ;; Only uninstall STP packages that were installed as dependencies and
+            ;; are no longer required by any package.
+            (when (and (member pkg-name (stp-info-names))
+                       (stp-get-attribute pkg-name 'dependency)
+                       (stp-required-by pkg-name))
+              (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
+                (stp-uninstall pkg-name :do-commit do-commit :uninstall-requirements nil)
+                (cl-incf stp-total-requirements)
+                (setq to-uninstall (cl-union to-uninstall
+                                             (stp-requirements-to-names recursive-requirements)
+                                             :test #'string=)))))
+        (error
+         (push pkg-name stp-failed-requirements)
+         (message "Failed to uninstall %s: proceeding with the next requirement" pkg-name)))))
+  (when stp-ensure-requirements-toplevel
+    (stp-report-requirements 'uninstall)))
 
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist
