@@ -106,7 +106,7 @@ slash. Return a cons cell the contains the package name and the
 remote or archive. Archives are represented as symbols."
   (stp-archive-ensure-loaded)
   (let* ((archive-names (if pkg-name
-                            (list (cl-find pkg-name (stp-archive-package-names) :test #'string=))
+                            (ensure-list (cl-find pkg-name (stp-archive-package-names) :test #'string=))
                           (stp-archive-package-names)))
          (name-or-remote (stp-comp-read-remote prompt archive-names :default default-remote :normalize nil)))
     (if (member name-or-remote archive-names)
