@@ -843,7 +843,7 @@ in `stp-install'."
               (cl-incf stp-total-requirements)))
           (error
            (push requirement stp-failed-requirements)
-           (message "Failed to install or upgrade %s to version %s: proceeding with the next requirement" pkg-name version))))))
+           (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err))))))
   (when stp-ensure-requirements-toplevel
     (stp-report-requirements 'install/upgrade)))
 
@@ -874,7 +874,7 @@ in `stp-install'."
                                              :test #'string=)))))
         (error
          (push pkg-name stp-failed-requirements)
-         (message "Failed to uninstall %s: proceeding with the next requirement" pkg-name)))))
+         (message "Failed to uninstall %s: %s" pkg-name err)))))
   (when stp-ensure-requirements-toplevel
     (stp-report-requirements 'uninstall)))
 
