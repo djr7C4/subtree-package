@@ -586,6 +586,8 @@ installed."
                                                     (member pkg-name pkg-names))
                                                   stp-latest-versions-cache)))))
 
+(defvar stp-requirements-toplevel t)
+
 (cl-defun stp-install-command (&key pkg-name min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
   "Install a package interactively as a git subtree.
 
@@ -656,12 +658,14 @@ dependency."
                              do-push)
         (when ensure-requirements
           (let ((stp-requirements-toplevel nil))
-            (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions))
-          (stp-report-requirements 'install))
+            (ignore stp-requirements-toplevel)
+            (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
         (when (stp-maybe-call do-lock)
           (stp-update-lock-file))
         (when (stp-maybe-call do-actions)
           (stp-post-actions pkg-name))
+        (when ensure-requirements
+          (stp-report-requirements 'install))
         (when refresh
           (stp-update-cached-latest pkg-name)
           (stp-list-refresh :quiet t))))))
@@ -785,17 +789,18 @@ in `stp-install'."
                                    do-push)
               (when ensure-requirements
                 (let ((stp-requirements-toplevel nil))
-                  (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements :do-commit do-commit :do-actions do-actions)))
-                (stp-report-requirements 'upgrade))
+                  (ignore stp-requirements-toplevel)
+                  (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements :do-commit do-commit :do-actions do-actions))))
               (when (stp-maybe-call do-lock)
                 (stp-update-lock-file))
               (when (stp-maybe-call do-actions)
                 (stp-post-actions pkg-name)))
+            (when ensure-requirements
+              (stp-report-requirements 'upgrade))
             (when refresh
               (stp-update-cached-latest pkg-name)
               (stp-list-refresh :quiet t))))))))
 
-(defvar stp-requirements-toplevel t)
 (defvar stp-failed-requirements nil)
 (defvar stp-total-requirements 0)
 
@@ -805,8 +810,8 @@ in `stp-install'."
           stp-total-requirements 0)))
 
 (defun stp-report-requirements (type)
-  (unless (memq type '(install/upgrade uninstall))
-    (error "type must be either 'INSTALL/UPGRADE or 'UNINSTALL"))
+  (unless (memq type '(install upgrade uninstall))
+    (error "type must be 'INSTALL, 'UPGRADE or 'UNINSTALL"))
   (if stp-failed-requirements
       (message "Failed to %s %d/%d dependencies: %s"
                (if (eq type 'install/upgrade)
@@ -826,7 +831,7 @@ in `stp-install'."
                                          requirement))
                                      stp-failed-requirements)))
     (message "Successfully %s %d dependencies"
-             (if (eq type 'install/upgrade)
+             (if (memq type '(install upgrade))
                  "installed or upgraded"
                "uninstalled")
              stp-total-requirements)))
@@ -849,9 +854,7 @@ in `stp-install'."
             (stp-upgrade-command :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions)))
         (error
          (push requirement stp-failed-requirements)
-         (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err)))))
-  (when stp-requirements-toplevel
-    (stp-report-requirements 'install/upgrade)))
+         (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err))))))
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
