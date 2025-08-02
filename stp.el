@@ -450,8 +450,11 @@ interactive commands.")
       (stp-maybe-ensure-clean))
     args))
 
-(cl-defun stp-commit-push-action-args (&key (do-actions nil do-actions-provided-p))
-  (append (stp-commit-push-args)
+(cl-defun stp-commit-push-action-args (&key (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
+  (append (apply #'stp-commit-push-args
+                 (rem-maybe-kwd-args do-commit do-commit-provided-p
+                                     do-push do-push-provided-p
+                                     do-lock do-lock-provided-p))
           (list :do-actions (cond
                              (do-actions-provided-p
                               do-actions)
@@ -540,8 +543,10 @@ cursor position when `stp-list-mode' is active. When non-nil,
 MIN-VERSION indicates the minimum version that should be
 installed."
   (stp-with-package-source-directory
-    (plet* ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock))
-            (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions-provided-p do-actions)))
+    (plet* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p
+                                          do-push do-commit-provided-p
+                                          do-lock do-lock-provided-p))
+            (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions do-actions-provided-p)))
             (args (if actions
                       (apply #'stp-commit-push-action-args kwd-args)
                     (apply #'stp-commit-push-args kwd-action-args)))
@@ -602,7 +607,7 @@ argument, each of these is negated relative to the default."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (let ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock do-actions-provided-p do-actions)))
+      (let ((kwd-args (rem-maybe-kwd-args do-commit do-commit-provided-p do-push do-push-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p)))
         (apply #'stp-install
                (apply #'stp-command-args
                       :pkg-name pkg-name
@@ -715,7 +720,7 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (let ((kwd-args (rem-maybe-kwd-args do-commit-provided-p do-commit do-push-provided-p do-push do-lock-provided-p do-lock do-actions-provided-p do-actions)))
+      (let ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p do-push do-commit-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p)))
         (apply #'stp-upgrade
                (append (apply #'stp-command-args
                               :actions t
