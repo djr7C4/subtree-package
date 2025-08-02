@@ -1123,15 +1123,17 @@ package and updating the load path."
   (when (stp-maybe-call stp-auto-update-info-directories)
     (stp-update-info-directories pkg-name)))
 
-(defun stp-update-lock-file ()
+(defun stp-update-lock-file (&optional interactive-p)
   "Write the hash of the git repository to the lock file."
-  (interactive)
+  (interactive (list t))
   (stp-with-package-source-directory
     (if (stp-git-clean-p)
         (let ((hash (stp-git-rev-to-hash stp-source-directory "HEAD")))
           (with-temp-buffer
             (insert (format "%S\n" hash))
-            (f-write (buffer-string) 'utf-8 stp-lock-file)))
+            (f-write (buffer-string) 'utf-8 stp-lock-file)
+            (when interactive-p
+              (message "Updated the lock file at %s" stp-lock-file))))
       (user-error "Refusing to update the lock file: %s is unclean" (stp-git-root stp-source-directory)))))
 
 (defun stp-lock-file-watcher (event)
