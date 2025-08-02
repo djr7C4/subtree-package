@@ -526,11 +526,19 @@ is one. Otherwise, prompt the user for a package."
            (stp-list-package-on-line))
       (stp-read-existing-name prompt)))
 
+(defun stp-skip-package ()
+  "Skip installing or upgrading this package."
+  (interactive)
+  (throw 'stp-skip 'skip))
+
+(defvar-keymap stp-skip-map
+  "C-c C-k" #'stp-skip-package)
+
 (defvar stp-enforce-min-version nil
   "Determines if the user is allowed to select a version older than
 the minimum required by another package.")
 
-(cl-defun stp-command-args (&key pkg-name pkg-version read-pkg-alist (existing-pkg t) actions (line-pkg t) min-version enforce-min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
+(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) actions (line-pkg t) min-version enforce-min-version allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
   "Prepare an argument list for an interactive command.
 
 The first argument included in the list is the name of the
@@ -543,34 +551,42 @@ When LINE-PKG is non-nil (as it is by default), any data that
 would normally be read from the user will be inferred from the
 cursor position when `stp-list-mode' is active. When non-nil,
 MIN-VERSION indicates the minimum version that should be
-installed."
+installed. When ALLOW-SKIP is non-nil, the user is allowed to
+skip installing the package. This will result in \\='SKIP being
+returned."
   (stp-with-package-source-directory
-    (plet* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p
-                                          do-push do-commit-provided-p
-                                          do-lock do-lock-provided-p))
-            (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions do-actions-provided-p)))
-            (args (if actions
-                      (apply #'stp-commit-push-action-args kwd-args)
-                    (apply #'stp-commit-push-args kwd-action-args)))
-            (`(,pkg-name . ,pkg-alist)
-             (and read-pkg-alist
-                  (stp-read-package :pkg-name pkg-name
-                                    :min-version min-version
-                                    :enforce-min-version enforce-min-version)))
-            (pkg-name (or pkg-name
-                          (cond
-                           (line-pkg
-                            (stp-list-read-package "Package name: "))
-                           (existing-pkg
-                            (stp-read-existing-name "Package name: "))
-                           (t
-                            (stp-read-name "Package name: "))))))
-      (append (list pkg-name)
-              (when pkg-version
-                (list (stp-get-attribute pkg-name 'version)))
-              (when read-pkg-alist
-                (list pkg-alist))
-              args))))
+    (cl-flet ((setup-keymap ()
+                (when allow-skip
+                  (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map))))))
+      (minibuffer-with-setup-hook (:append #'setup-keymap)
+        (catch 'stp-skip
+          (plet* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p
+                                                do-push do-commit-provided-p
+                                                do-lock do-lock-provided-p))
+                  (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions do-actions-provided-p)))
+                  (args (if actions
+                            (apply #'stp-commit-push-action-args kwd-args)
+                          (apply #'stp-commit-push-args kwd-action-args)))
+                  (`(,pkg-name . ,pkg-alist)
+                   (and read-pkg-alist
+                        (stp-read-package :pkg-name pkg-name
+                                          :prompt-prefix prompt-prefix
+                                          :min-version min-version
+                                          :enforce-min-version enforce-min-version)))
+                  (pkg-name (or pkg-name
+                                (cond
+                                 (line-pkg
+                                  (stp-list-read-package "Package name: "))
+                                 (existing-pkg
+                                  (stp-read-existing-name "Package name: "))
+                                 (t
+                                  (stp-read-name "Package name: "))))))
+            (append (list pkg-name)
+                    (when pkg-version
+                      (list (stp-get-attribute pkg-name 'version)))
+                    (when read-pkg-alist
+                      (list pkg-alist))
+                    args)))))))
 
 (defvar stp-latest-versions-stale-interval (timer-duration "1 day")
   "The number of seconds until the cached latest versions in
@@ -595,7 +611,7 @@ installed."
 
 (defvar stp-requirements-toplevel t)
 
-(cl-defun stp-install-command (&key pkg-name min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
+(cl-defun stp-install-command (&key pkg-name (prompt-prefix "") min-version allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
   "Install a package interactively as a git subtree.
 
 If `stp-auto-commit', `stp-auto-push', and
@@ -609,17 +625,25 @@ argument, each of these is negated relative to the default."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (let ((kwd-args (rem-maybe-kwd-args do-commit do-commit-provided-p do-push do-push-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p)))
-        (apply #'stp-install
-               (apply #'stp-command-args
-                      :pkg-name pkg-name
-                      :actions t
-                      :read-pkg-alist t
-                      :existing-pkg nil
-                      :line-pkg nil
-                      :min-version min-version
-                      :enforce-min-version stp-enforce-min-version
-                      kwd-args))))))
+      (let* ((kwd-args (rem-maybe-kwd-args do-commit do-commit-provided-p do-push do-push-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p))
+             (args (apply #'stp-command-args
+                          :pkg-name pkg-name
+                          :prompt-prefix prompt-prefix
+                          :actions t
+                          :read-pkg-alist t
+                          :existing-pkg nil
+                          :line-pkg nil
+                          :min-version min-version
+                          :enforce-min-version stp-enforce-min-version
+                          :allow-skip allow-skip
+                          kwd-args)))
+        (if (eq args 'skip)
+            (progn
+              (message "Skipped installing %s" (if pkg-name
+                                                   pkg-name
+                                                 "a dependency"))
+              'skip)
+          (apply #'stp-install args))))))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions (refresh t) (ensure-requirements t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
@@ -716,21 +740,29 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
-(cl-defun stp-upgrade-command (&key min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
+(cl-defun stp-upgrade-command (&key min-version (prompt-prefix "") allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
   "Upgrade a package interactively."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (let ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p do-push do-commit-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p)))
-        (apply #'stp-upgrade
-               (append (apply #'stp-command-args
-                              :actions t
-                              :min-version min-version
-                              :enforce-min-version stp-enforce-min-version
-                              kwd-args)
-                       (list :min-version min-version
-                             :enforce-min-version stp-enforce-min-version)))))))
+      (let* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p do-push do-commit-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p))
+             (args (append (apply #'stp-command-args
+                                  :prompt-prefix prompt-prefix
+                                  :actions t
+                                  :min-version min-version
+                                  :enforce-min-version stp-enforce-min-version
+                                  kwd-args)
+                           (list :min-version min-version
+                                 :enforce-min-version stp-enforce-min-version
+                                 :allow-skip allow-skip))))
+        (if (eq args 'skip)
+            (progn
+              (message "Skipped upgrading %s" (if pkg-name
+                                                  pkg-name
+                                                "a dependency"))
+              'skip)
+          (apply #'stp-upgrade args))))))
 
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions (refresh t) min-version enforce-min-version (ensure-requirements t))
   "Upgrade the version of the package named PKG-NAME.
@@ -843,25 +875,35 @@ in `stp-install'."
                "uninstalled")
              stp-total-requirements)))
 
+(defvar stp-ignored-requirements '("emacs"))
+
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions)
   (dolist (requirement requirements)
-    (db (pkg-name version)
+    (db (pkg-sym version)
         requirement
-      (condition-case err
-          (cond
-           ((not (member pkg-name (stp-info-names)))
-            (cl-incf stp-total-requirements)
-            (stp-install-command :pkg-name pkg-name :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions)
-            (stp-set-attribute pkg-name 'dependency t))
-           ;; pkg-name is installed so check if it needs to be upgraded. The
-           ;; dependency attribute is left as is in this case because the package
-           ;; might have been installed manually originally.
-           ((stp-version< (stp-get-attribute pkg-name 'version) version)
-            (cl-incf stp-total-requirements)
-            (stp-upgrade-command :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions)))
-        (error
-         (push requirement stp-failed-requirements)
-         (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err))))))
+      (let* ((pkg-name (symbol-name pkg-sym))
+             (prefix (format "[%s] " pkg-name)))
+        (condition-case err
+            (cond
+             ;; Do nothing when a requirement is ignored.
+             ((member pkg-name stp-ignored-requirements))
+             ((not (member pkg-name (stp-info-names)))
+              (cl-incf stp-total-requirements)
+              ;; Sometimes, a single repository can contain multiple packages
+              ;; and so installing the dependencies naively will result in
+              ;; multiple copies. :allow-skip t is passed so that the user can
+              ;; skip these if desired.
+              (unless (eq (stp-install-command :pkg-name pkg-name :prompt-prefix prefix :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions :allow-skip t) 'skip)
+                (stp-set-attribute pkg-name 'dependency t)))
+             ;; pkg-name is installed so check if it needs to be upgraded. The
+             ;; dependency attribute is left as is in this case because the package
+             ;; might have been installed manually originally.
+             ((stp-version< (stp-get-attribute pkg-name 'version) version)
+              (cl-incf stp-total-requirements)
+              (stp-upgrade-command :prompt-prefix prefix :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions :allow-skip t)))
+          (error
+           (push requirement stp-failed-requirements)
+           (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err)))))))
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
@@ -873,7 +915,7 @@ in `stp-install'."
       (condition-case err
           (progn
             (setq old-to-uninstall (cl-copy-list to-uninstall)
-                  pkg-name (pop to-uninstall))
+                  pkg-name (symbol-name (pop to-uninstall)))
             ;; Only uninstall STP packages that were installed as dependencies and
             ;; are no longer required by any package.
             (when (and (member pkg-name (stp-info-names))
