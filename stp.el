@@ -105,7 +105,9 @@ path, it will be treated as a package name unless it contains a
 slash. Return a cons cell the contains the package name and the
 remote or archive. Archives are represented as symbols."
   (stp-archive-ensure-loaded)
-  (let* ((archive-names (stp-archive-package-names))
+  (let* ((archive-names (if pkg-name
+                            (list (cl-find pkg-name (stp-archive-package-names) :test #'string=))
+                          (stp-archive-package-names)))
          (name-or-remote (stp-comp-read-remote prompt archive-names :default default-remote :normalize nil)))
     (if (member name-or-remote archive-names)
         (progn
