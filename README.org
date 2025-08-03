@@ -39,10 +39,24 @@ Stable versions of packages are automatically inferred from tags in the git
 repository. =stp-version-extractor-alist= can be modified in order to support
 unusual version strings if a package uses a scheme that is not supported by the
 defaults. Contributions of missing version extractors are very welcome!
+** Automatically discover git repositories
+STP can automatically discover the git repository of a package if it is
+specified by an archive configured in =package-archive-contents=. Alternatively,
+the user can enter a different repository if desired.
 ** Install any commit by branch or hash
 Git repositories are automatically fetched before packages are installed or
 upgraded when =stp-subtree-fetch= is non-nil. This allows a hash to be specified
 instead of a tag or branch.
+** Automatic dependency resolution
+Once a package is installed or upgraded, its dependencies are automatically
+determined and the required versions will be installed or upgraded. Sometimes,
+the same git repository contains multiple packages that would be installed via
+=package.el= or using the archive method. An example is the =helm= repository
+which contains both the =helm= and =helm-core= packages. When installing via git
+only =helm= should be installed since =helm-core= corresponds to the same
+repository and would result in an extra copy. =C-c C-k= can be used to skip the
+installation of the current dependency once STP prompts the user to begin
+installing it.
 ** Mark packages as stable or unstable
 Stable releases are automatically detected from tags in git repositories or ELPA
 releases. Stable packages are only upgraded to other stable releases by default.
@@ -108,7 +122,7 @@ package database that may have become out of sync with installed packages. This
 can be useful when the package database is not updated because a user updated a
 package using git commands manually or there is a bug.
 ** Supported package types
-Currently, three different types of packages can be installed. STP automatically
+Currently, four different types of packages can be installed. STP automatically
 infers the packages type based on the remote provided so it is not necessary to
 specify the type manually.
 *** Git repositories
@@ -118,6 +132,12 @@ usually best to install them as git packages instead.
 *** GNU ELPA packages
 Use the page for the package on =elpa.gnu.org= as the remote. For example, for
 =ace-window= this would be =https://elpa.gnu.org/packages/ace-window.html=.
+Unlike other archives supported by STP, older versions of ELPA packages can be
+chosen instead of just the current one.
+*** Archive packages
+Other archives such as =melpa= and =melpa-stable= are also supported. STP
+inspects =package-archive-contents= and supports all archives specified there.
+Unlike ELPA packages, only the current version can be installed.
 *** URL packages
 When the source is a single file or a tarball that can be accessed via a URL the
 package can be installed as a URL package using this URL as the remote. Unlike
@@ -167,7 +187,7 @@ bootstraping code in =early-init.el=.
     (stp-update-load-paths)
 #+end_src
 
-In your =~/.emacs= or =~/.emacs.d/init.el=, use the following code.
+In your =~/.emacs.el=, =~/.emacs=, =~/.emacs.d/init.el=, use the following code.
 
 #+begin_src emacs-lisp
   (require 'stp)
