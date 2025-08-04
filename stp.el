@@ -1019,13 +1019,14 @@ packages at the same time."
       (stp-refresh-info)
       (let* ((group-name (stp-read-group-name "Group: "))
              (pkg-names (stp-get-info-group group-name))
-             (table (completion-table-in-turn pkg-names (stp-info-names))))
+             (table (completion-table-in-turn pkg-names (stp-info-names)))
+             (args (stp-commit-push-args)))
         (apply #'stp-add-or-edit-package-group
                group-name
                (stp-read-existing-name "Package name: "
                                        :multiple t
                                        :info-names table)
-               (stp-commit-push-args))))))
+               args)))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names &key do-commit do-push do-lock)
   (let ((exists-p (stp-get-info-group group-name)))
@@ -1046,9 +1047,10 @@ packages at the same time."
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (apply #'stp-delete-package-group
-           (stp-read-group-name "Group: ")
-           (stp-commit-push-args))))
+    (let ((args (stp-commit-push-args)))
+      (apply #'stp-delete-package-group
+             (stp-read-group-name "Group: ")
+             args))))
 
 (cl-defun stp-delete-package-group (group-name &key do-commit do-push do-lock)
   (stp-delete-info-group group-name)
