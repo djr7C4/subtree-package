@@ -168,6 +168,24 @@ never ends with a slash (nor does it contain any slashes)."
 (defun stp-set-info-groups (groups)
   (setf (map-elt stp-package-info 'groups) groups))
 
+(defun stp-get-info-group-names ()
+  (mapcar #'car (stp-get-info-groups)))
+
+(defun stp-get-info-group (group-name)
+  (map-elt (stp-get-info-groups) group-name))
+
+(defun stp-set-info-group (group-name pkg-names)
+  (let ((groups (stp-get-info-groups)))
+    (setf (map-elt groups group-name) pkg-names)
+    (stp-set-info-groups groups)
+    pkg-names))
+
+(defun stp-delete-info-group (group-name)
+  (let ((groups (stp-get-info-groups)))
+    (setq groups (map-delete groups group-name))
+    (stp-set-info-groups groups)
+    groups))
+
 (defun stp-get-info-packages ()
   (map-elt stp-package-info 'packages))
 
@@ -195,12 +213,18 @@ never ends with a slash (nor does it contain any slashes)."
   "Read the name of a package."
   (rem-read-from-mini prompt :history 'stp-read-name-history :initial-contents default))
 
-(defun stp-read-existing-name (prompt)
+(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (info-names (stp-info-names)))
   "Read the name of a package that is already installed."
   (rem-comp-read prompt
-                 (stp-info-names)
-                 :require-match t
-                 :history 'stp-read-name-history))
+                 info-names
+                 :require-match require-match
+                 :history 'stp-read-name-history
+                 :multiple multiple))
+
+(defvar stp-read-group-name-history nil)
+
+(defun stp-read-group-name (prompt)
+  (rem-comp-read prompt (stp-get-info-group-names) :require-match nil :history 'stp-read-group-history))
 
 (defvar stp-attribute-order '(method remote other-remotes last-remote version update branch dependency requirements)
   "The order in which package attributes should be sorted before being written

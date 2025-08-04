@@ -1009,6 +1009,53 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
       ;; higher level by `stp-upgrade'.
       (stp-install pkg-name pkg-alist :do-commit do-commit :do-push do-push :do-actions do-actions :do-lock do-lock :refresh refresh))))
 
+(defun stp-add-or-edit-package-group-command ()
+  "Add or edit a package group for easily upgrading multiple related
+packages at the same time."
+  (interactive)
+  (stp-ensure-no-merge-conflicts)
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (let* ((group-name (stp-read-group-name "Group: "))
+             (pkg-names (stp-get-info-group group-name))
+             (table (completion-table-in-turn pkg-names (stp-info-names))))
+        (apply #'stp-add-or-edit-package-group
+               group-name
+               (stp-read-existing-name "Package name: "
+                                       :multiple t
+                                       :info-names table)
+               (stp-commit-push-args))))))
+
+(cl-defun stp-add-or-edit-package-group (group-name pkg-names &key do-commit do-push do-lock)
+  (let ((pkg-names (stp-get-info-group group-name)))
+    (stp-set-info-group group-name pkg-names)
+    (stp-write-info)
+    (stp-git-commit-push (format "%s the package group %s"
+                                 (if pkg-names
+                                     "Edited"
+                                   "Added")
+                                 group-name)
+                         do-commit
+                         do-push)))
+
+(defun stp-delete-package-group-command ()
+  "Remove a package group."
+  (interactive)
+  (stp-ensure-no-merge-conflicts)
+  (stp-with-memoization
+    (stp-refresh-info)
+    (apply #'stp-delete-package-group
+           (stp-read-group-name "Group: ")
+           (stp-commit-push-args))))
+
+(cl-defun stp-delete-package-group (group-name &key do-commit do-push do-lock)
+  (stp-delete-info-group group-name)
+  (stp-write-info)
+  (stp-git-commit-push (format "Deleted the package group %s" group-name)
+                       do-commit
+                       do-push))
+
 (defun stp-repair-command (&optional arg)
   "Repair the stored package information.
 
@@ -2012,8 +2059,9 @@ not slow down Emacs while the fields are being updated."
               "m" #'stp-build-info
               "M" #'stp-build-all-info
               "d" #'stp-uninstall
-              "D" #'stp-toggle-dependency-command
+              "D" #'stp-delete-package-group-command
               "e" #'stp-edit-remotes-command
+              "E" #'stp-add-or-edit-package-group-command
               "g" #'stp-list-refresh
               "G" #'stp-reload
               "i" #'stp-install-command
@@ -2039,6 +2087,7 @@ not slow down Emacs while the fields are being updated."
               "r" #'stp-repair-command
               "R" #'stp-reinstall-command
               "t" #'stp-toggle-update-command
+              "T" #'stp-toggle-dependency-command
               "u" #'stp-upgrade-command
               "v" #'stp-list-update-latest-version
               "V" #'stp-list-update-latest-versions
