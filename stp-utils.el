@@ -513,7 +513,7 @@ Package-Requires header of an elisp file.")
 
 (defun stp-write-info ()
   (with-temp-buffer
-    (insert ";;; mode: read-only; -*- no-byte-compile: t; -*-\n\n")
+    (insert ";;; -*- buffer-read-only: t; no-byte-compile: t; -*-\n\n")
     (pp (stp-sort-info stp-package-info) (current-buffer))
     (f-write (buffer-string) 'utf-8 stp-info-file)))
 
