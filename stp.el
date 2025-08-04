@@ -2246,15 +2246,15 @@ confirmation."
             (orphaned-info-names (cl-set-difference info-pkgs filesystem-pkgs :test #'equal)))
         (unwind-protect
             (dolist (target-name orphaned-info-names)
-              (setq stp-package-info
-                    (cl-delete-if (lambda (pkg)
-                                    (let ((name (car pkg)))
-                                      (and (string= name target-name)
-                                           (cl-incf k)
-                                           (or (not confirm)
-                                               (yes-or-no-p (format "(%d/%d) The directory for %s in %s is missing. Remove the entry in %s?" k (length orphaned-info-names) name stp-source-directory stp-info-file)))
-                                           (cl-incf deleted-entries))))
-                                  stp-package-info)))
+              (stp-set-info-packages
+               (cl-delete-if (lambda (pkg)
+                               (let ((name (car pkg)))
+                                 (and (string= name target-name)
+                                      (cl-incf k)
+                                      (or (not confirm)
+                                          (yes-or-no-p (format "(%d/%d) The directory for %s in %s is missing. Remove the entry in %s?" k (length orphaned-info-names) name stp-source-directory stp-info-file)))
+                                      (cl-incf deleted-entries))))
+                             (stp-get-info-packages))))
           ;; Make sure that changes are written to disk each time so that
           ;; progress isn't lost of the user aborts.
           (stp-write-info))))

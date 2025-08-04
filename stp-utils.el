@@ -162,6 +162,18 @@ never ends with a slash (nor does it contain any slashes)."
   (stp-with-package-source-directory
     (-filter #'f-dir-p (directory-files stp-source-directory nil "^[^.]"))))
 
+(defun stp-get-info-groups ()
+  (map-elt 'groups stp-package-info))
+
+(defun stp-set-info-groups (groups)
+  (setf (map-elt stp-package-info 'groups) groups))
+
+(defun stp-get-info-packages ()
+  (alist-get 'packages stp-package-info))
+
+(defun stp-set-info-packages (packages)
+  (setf (map-elt stp-package-info 'packages) packages))
+
 (defun stp-info-names (&optional method)
   "Return a list of packages stored in `stp-package-info'."
   (sort (mapcar #'car
@@ -169,7 +181,7 @@ never ends with a slash (nor does it contain any slashes)."
                            (or (not method)
                                (let ((pkg-alist (cdr pkg)))
                                  (eq (map-elt pkg-alist 'method) method))))
-                         stp-package-info))
+                         (stp-get-info-packages)))
         #'string<))
 
 (defvar stp-read-name-history nil)
@@ -381,7 +393,7 @@ expression is active.")
                            (cl-find-if (lambda (requirement)
                                          (eq (car requirement) pkg-sym))
                                        .requirements))))
-                     stp-package-info))))
+                     (stp-get-info-packages)))))
 
 (defun stp-no-leading-zeros (string)
   (save-match-data
@@ -487,14 +499,26 @@ Package-Requires header of an elisp file.")
      (cl-position attribute2 stp-attribute-order)))
 
 (defun stp-sort-info (pkg-info)
-  "Sort packages alphabetically by name and sort their attributes according to
-  `stp-attribute-order'."
+  "Sort the groups and packages in PKG-INFO."
+  (let ((groups (map-elt 'groups pkg-info))
+        (packages (map-elt 'packages pkg-info)))
+    (rem-maybe-args (list 'groups (stp-sort-info-groups groups)) groups
+                    (list 'packages (stp-sort-info-packages packages)) packages)))
+
+(defun stp-sort-info-groups (groups)
+  "Sort package groups alphabetically by name."
+  (-sort (fn (string< (car %1) (car %2)))
+         (stp-get-info-groups)))
+
+(defun stp-sort-info-packages (packages)
+  "Sort packages alphabetically by name and sort their attributes
+according to `stp-attribute-order'."
   (mapcar (lambda (cell)
             (cons (car cell)
                   (-sort (fn (stp-attribute< (car %1) (car %2)))
                          (cdr cell))))
           (-sort (fn (string< (car %1) (car %2)))
-                 pkg-info)))
+                 (stp-get-info-packages))))
 
 (defun stp-read-info ()
   ;; We don't signal an error when stp-info-file doesn't exist. This just means
@@ -521,17 +545,20 @@ Package-Requires header of an elisp file.")
   "Get the attribute attr in the alist with the key corresponding to
 pkg-name."
   (let ((pkg-name (stp-name pkg-name)))
-    (map-elt (map-elt stp-package-info pkg-name) attr)))
+    (map-elt (map-elt (stp-get-info-packages) pkg-name) attr)))
 
 (defun stp-set-attribute (pkg-name attr val)
   "Set the attribute attr to val in the alist with the key
 corresponding to pkg-name."
   (let* ((pkg-name (stp-name pkg-name))
-         (alist (map-elt stp-package-info pkg-name)))
+         (packages (stp-get-info-packages))
+         (alist (map-elt packages pkg-name)))
     (if alist
         (setf (map-elt alist attr) val
-              (map-elt stp-package-info pkg-name) alist)
-      (setq stp-package-info (cons `(,pkg-name . ((,attr . ,val))) stp-package-info)))))
+              (map-elt packages pkg-name) alist)
+      (setq packages (cons `(,pkg-name . ((,attr . ,val))) packages))
+      (stp-set-info-packages packages))
+    val))
 
 (defun stp-delete-attribute (pkg-name attr)
   "Remove attr from the alist with the key corresponding to
@@ -543,18 +570,23 @@ pkg-name."
   "Get the alist that contains information corresponding to
 pkg-name."
   (let ((pkg-name (stp-name pkg-name)))
-    (map-elt stp-package-info pkg-name)))
+    (map-elt (stp-get-info-packages) pkg-name)))
 
 (defun stp-set-alist (pkg-name alist)
   "Set the alist that contains information corresponding to pkg-name
 to alist."
-  (let ((pkg-name (stp-name pkg-name)))
-    (setf (map-elt stp-package-info pkg-name) alist)))
+  (let* ((pkg-name (stp-name pkg-name))
+         (packages (stp-get-info-packages)))
+    (setf (map-elt packages pkg-name) alist)
+    (stp-set-info-packages packages)
+    alist))
 
 (defun stp-delete-alist (pkg-name)
   "Remove the alist that contains information corresponding to
 PKG-NAME."
-  (setq stp-package-info (map-delete stp-package-info pkg-name)))
+  (let ((packages (stp-get-info-packages)))
+    (setq packages (map-delete packages pkg-name))
+    (stp-set-info-packages packages)))
 
 (defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?\\)*\\)[-_./]?$")
 
