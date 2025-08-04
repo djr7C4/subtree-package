@@ -132,7 +132,7 @@ remote or archive. Archives are represented as symbols."
                                remote-or-archive))))
       ;; Otherwise the user chose a remote so prompt for its package name.
       (let ((remote (stp-normalize-remote name-or-remote)))
-        (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") (stp-default-name remote)))
+        (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") :default (stp-default-name remote)))
               remote)))))
 
 (cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
@@ -518,21 +518,14 @@ corresponds to that line."
   (or (stp-list-package-on-previous-line)
       (stp-list-package-on-next-line)))
 
-(defun stp-list-read-package (prompt)
+(cl-defun stp-list-read-package (prompt &key allow-skip)
   "In `stp-list-mode', return the package on the current line if there
 is one. Otherwise, prompt the user for a package."
   (stp-refresh-info)
-  (or (and (derived-mode-p 'stp-list-mode)
-           (stp-list-package-on-line))
-      (stp-read-existing-name prompt)))
-
-(defun stp-skip-package ()
-  "Skip installing or upgrading this package."
-  (interactive)
-  (throw 'stp-skip 'skip))
-
-(defvar-keymap stp-skip-map
-  "C-c C-k" #'stp-skip-package)
+  (stp-maybe-allow-skip (allow-skip)
+    (or (and (derived-mode-p 'stp-list-mode)
+             (stp-list-package-on-line))
+        (stp-read-existing-name prompt))))
 
 (defvar stp-enforce-min-version nil
   "Determines if the user is allowed to select a version older than
@@ -555,38 +548,34 @@ installed. When ALLOW-SKIP is non-nil, the user is allowed to
 skip installing the package. This will result in \\='SKIP being
 returned."
   (stp-with-package-source-directory
-    (cl-flet ((setup-keymap ()
-                (when allow-skip
-                  (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map))))))
-      (minibuffer-with-setup-hook (:append #'setup-keymap)
-        (catch 'stp-skip
-          (plet* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p
-                                                do-push do-commit-provided-p
-                                                do-lock do-lock-provided-p))
-                  (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions do-actions-provided-p)))
-                  (args (if actions
-                            (apply #'stp-commit-push-action-args kwd-args)
-                          (apply #'stp-commit-push-args kwd-action-args)))
-                  (`(,pkg-name . ,pkg-alist)
-                   (and read-pkg-alist
-                        (stp-read-package :pkg-name pkg-name
-                                          :prompt-prefix prompt-prefix
-                                          :min-version min-version
-                                          :enforce-min-version enforce-min-version)))
-                  (pkg-name (or pkg-name
-                                (cond
-                                 (line-pkg
-                                  (stp-list-read-package "Package name: "))
-                                 (existing-pkg
-                                  (stp-read-existing-name "Package name: "))
-                                 (t
-                                  (stp-read-name "Package name: "))))))
-            (append (list pkg-name)
-                    (when pkg-version
-                      (list (stp-get-attribute pkg-name 'version)))
-                    (when read-pkg-alist
-                      (list pkg-alist))
-                    args)))))))
+    (stp-maybe-allow-skip (allow-skip)
+      (plet* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p
+                                            do-push do-commit-provided-p
+                                            do-lock do-lock-provided-p))
+              (kwd-action-args (append kwd-args (rem-maybe-kwd-args do-actions do-actions-provided-p)))
+              (args (if actions
+                        (apply #'stp-commit-push-action-args kwd-args)
+                      (apply #'stp-commit-push-args kwd-action-args)))
+              (`(,pkg-name . ,pkg-alist)
+               (and read-pkg-alist
+                    (stp-read-package :pkg-name pkg-name
+                                      :prompt-prefix prompt-prefix
+                                      :min-version min-version
+                                      :enforce-min-version enforce-min-version)))
+              (pkg-name (or pkg-name
+                            (cond
+                             (line-pkg
+                              (stp-list-read-package "Package name: "))
+                             (existing-pkg
+                              (stp-read-existing-name "Package name: "))
+                             (t
+                              (stp-read-name "Package name: "))))))
+        (append (list pkg-name)
+                (when pkg-version
+                  (list (stp-get-attribute pkg-name 'version)))
+                (when read-pkg-alist
+                  (list pkg-alist))
+                args)))))
 
 (defvar stp-latest-versions-stale-interval (timer-duration "1 day")
   "The number of seconds until the cached latest versions in

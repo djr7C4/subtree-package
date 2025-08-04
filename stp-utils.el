@@ -209,17 +209,36 @@ never ends with a slash (nor does it contain any slashes)."
   ;; repository like "abc.el.git" to be "abc".
   (f-no-ext (s-chop-suffix ".git" (f-filename remote))))
 
-(defun stp-read-name (prompt &optional default)
-  "Read the name of a package."
-  (rem-read-from-mini prompt :history 'stp-read-name-history :initial-contents default))
+(defun stp-skip-package ()
+  "Skip installing or upgrading this package."
+  (interactive)
+  (throw 'stp-skip 'skip))
 
-(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (info-names (stp-info-names)))
+(defvar-keymap stp-skip-map
+  "C-c C-k" #'stp-skip-package)
+
+(cl-defmacro stp-maybe-allow-skip ((skip-sym) &rest body)
+  (declare (indent 1))
+  `(cl-flet ((setup-keymap ()
+               (when ,skip-sym
+                 (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map))))))
+     (minibuffer-with-setup-hook (:append #'setup-keymap)
+       (catch 'stp-skip
+         ,@body))))
+
+(cl-defun stp-read-name (prompt &key default allow-skip)
+  "Read the name of a package."
+  (stp-maybe-allow-skip (allow-skip)
+    (rem-read-from-mini prompt :history 'stp-read-name-history :initial-contents default)))
+
+(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (info-names (stp-info-names)) allow-skip)
   "Read the name of a package that is already installed."
-  (rem-comp-read prompt
-                 info-names
-                 :require-match require-match
-                 :history 'stp-read-name-history
-                 :multiple multiple))
+  (stp-maybe-allow-skip (allow-skip)
+    (rem-comp-read prompt
+                   info-names
+                   :require-match require-match
+                   :history 'stp-read-name-history
+                   :multiple multiple)))
 
 (defvar stp-read-group-name-history nil)
 
