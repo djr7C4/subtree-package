@@ -880,9 +880,15 @@ in `stp-install'."
 (defvar stp-ignored-requirements '("emacs"))
 
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions)
+  "Install or upgrade each requirement to ensure that at least the
+specified version is available. REQUIREMENTS should be a list
+where each entry is either the name of a package or a list
+containing the name of the package and the minimum version
+required."
   (dolist (requirement requirements)
-    (db (pkg-sym version)
-        requirement
+    ;; Also allow a list of package names.
+    (db (pkg-sym &optional version)
+        (ensure-list requirement)
       (let* ((pkg-name (symbol-name pkg-sym))
              (prefix (format "[%s] " pkg-name)))
         (condition-case err
@@ -908,7 +914,8 @@ in `stp-install'."
              ;; pkg-name is installed so check if it needs to be upgraded. The
              ;; dependency attribute is left as is in this case because the package
              ;; might have been installed manually originally.
-             ((stp-version< (stp-get-attribute pkg-name 'version) version)
+             ((or (not version)
+                  (stp-version< (stp-get-attribute pkg-name 'version) version))
               (cl-incf stp-total-requirements)
               (stp-upgrade-command :prompt-prefix prefix
                                    :min-version version
