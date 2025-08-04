@@ -163,13 +163,13 @@ never ends with a slash (nor does it contain any slashes)."
     (-filter #'f-dir-p (directory-files stp-source-directory nil "^[^.]"))))
 
 (defun stp-get-info-groups ()
-  (map-elt 'groups stp-package-info))
+  (map-elt stp-package-info 'groups))
 
 (defun stp-set-info-groups (groups)
   (setf (map-elt stp-package-info 'groups) groups))
 
 (defun stp-get-info-packages ()
-  (alist-get 'packages stp-package-info))
+  (map-elt stp-package-info 'packages))
 
 (defun stp-set-info-packages (packages)
   (setf (map-elt stp-package-info 'packages) packages))
@@ -500,10 +500,10 @@ Package-Requires header of an elisp file.")
 
 (defun stp-sort-info (pkg-info)
   "Sort the groups and packages in PKG-INFO."
-  (let ((groups (map-elt 'groups pkg-info))
-        (packages (map-elt 'packages pkg-info)))
-    (rem-maybe-args (list 'groups (stp-sort-info-groups groups)) groups
-                    (list 'packages (stp-sort-info-packages packages)) packages)))
+  (let ((groups (map-elt pkg-info 'groups))
+        (packages (map-elt pkg-info 'packages)))
+    (rem-maybe-args (cons 'groups (stp-sort-info-groups groups)) groups
+                    (cons 'packages (stp-sort-info-packages packages)) packages)))
 
 (defun stp-sort-info-groups (groups)
   "Sort package groups alphabetically by name."
