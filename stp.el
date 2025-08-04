@@ -434,19 +434,19 @@ interactive commands.")
   (let ((args (if current-prefix-arg
                   (list :do-commit (if do-commit-provided-p
                                        do-commit
-                                     (and stp-prefix-negate-auto-commit
-                                          (stp-negate stp-auto-commit)))
+                                     (stp-and stp-prefix-negate-auto-commit
+                                              (stp-negate stp-auto-commit)))
                         :do-push (if do-push-provided-p
                                      do-push
-                                   (and stp-prefix-negate-auto-push
-                                        (stp-negate stp-auto-commit)
-                                        (stp-negate stp-auto-push)))
+                                   (stp-and stp-prefix-negate-auto-push
+                                            (stp-negate stp-auto-commit)
+                                            (stp-negate stp-auto-push)))
                         :do-lock (if do-lock-provided-p
                                      do-lock
-                                   (and stp-prefix-negate-auto-lock
-                                        (stp-negate stp-auto-commit)
-                                        (stp-negate stp-never-auto-lock)
-                                        (stp-negate stp-auto-lock))))
+                                   (stp-and stp-prefix-negate-auto-lock
+                                            (stp-negate stp-auto-commit)
+                                            (stp-negate stp-never-auto-lock)
+                                            (stp-negate stp-auto-lock))))
                 (list :do-commit (if do-commit-provided-p
                                      do-commit
                                    stp-auto-commit)

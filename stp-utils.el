@@ -43,6 +43,20 @@ VALUE."
       (fn (not (apply value &*)))
     (not value)))
 
+(defun stp-and (&rest values)
+  "If no value is a function, return the non-nil if all values
+are non-nil. Otherwise, return a function that calls each value
+that is a function and returns non-nil if all of the results are
+non-nil."
+  (if (cl-some #'functionp values)
+      (lambda (&rest args)
+        (cl-every (lambda (value)
+                    (if (functionp value)
+                        (apply value args)
+                      value))
+                  args))
+    (cl-every #'identity values)))
+
 (defun stp-maybe-call (value &rest args)
   "If VALUE is a function with ARGS, call it and return the result.
 Otherwise, return VALUE."
