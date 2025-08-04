@@ -424,19 +424,27 @@ interactive commands.")
   (unless (stp-git-clean-or-ask-p)
     (user-error "Aborted: the repository is unclean")))
 
+(defvar stp-prefix-negate-auto-commit t)
+(defvar stp-prefix-negate-auto-push t)
+(defvar stp-prefix-negate-auto-lock t)
+(defvar stp-prefix-negate-auto-actions t)
+
 (cl-defun stp-commit-push-args (&key (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p))
   (stp-ensure-no-merge-conflicts)
   (let ((args (if current-prefix-arg
                   (list :do-commit (if do-commit-provided-p
                                        do-commit
-                                     (stp-negate stp-auto-commit))
+                                     (and stp-prefix-negate-auto-commit
+                                          (stp-negate stp-auto-commit)))
                         :do-push (if do-push-provided-p
                                      do-push
-                                   (and (stp-negate stp-auto-commit)
+                                   (and stp-prefix-negate-auto-push
+                                        (stp-negate stp-auto-commit)
                                         (stp-negate stp-auto-push)))
                         :do-lock (if do-lock-provided-p
                                      do-lock
-                                   (and (stp-negate stp-auto-commit)
+                                   (and stp-prefix-negate-auto-lock
+                                        (stp-negate stp-auto-commit)
                                         (stp-negate stp-never-auto-lock)
                                         (stp-negate stp-auto-lock))))
                 (list :do-commit (if do-commit-provided-p
