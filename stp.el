@@ -752,10 +752,10 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
                                   :actions t
                                   :min-version min-version
                                   :enforce-min-version stp-enforce-min-version
+                                  :allow-skip allow-skip
                                   kwd-args)
                            (list :min-version min-version
-                                 :enforce-min-version stp-enforce-min-version
-                                 :allow-skip allow-skip))))
+                                 :enforce-min-version stp-enforce-min-version))))
         (if (eq args 'skip)
             (progn
               (message "Skipped upgrading %s" (if pkg-name
@@ -829,7 +829,7 @@ in `stp-install'."
               (when ensure-requirements
                 (let ((stp-requirements-toplevel nil))
                   (ignore stp-requirements-toplevel)
-                  (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements :do-commit do-commit :do-actions do-actions))))
+                  (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
               (when (stp-maybe-call do-lock)
                 (stp-update-lock-file))
               (when (stp-maybe-call do-actions)
@@ -851,29 +851,31 @@ in `stp-install'."
 (defun stp-report-requirements (type)
   (unless (memq type '(install upgrade uninstall))
     (error "type must be 'INSTALL, 'UPGRADE or 'UNINSTALL"))
-  (if stp-failed-requirements
-      (message "Failed to %s %d/%d dependencies: %s"
-               (if (eq type 'install/upgrade)
-                   "install or upgrade"
-                 "uninstall")
-               (length stp-failed-requirements)
-               stp-total-requirements
-               (rem-join-and (mapcar (lambda (requirement)
-                                       ;; When type is 'uninstall,
-                                       ;; `stp-failed-requirements' can be just
-                                       ;; the package names instead of proper
-                                       ;; requirements.
-                                       (if (listp requirement)
-                                           (db (pkg-name version)
-                                               requirement
-                                             (format "%s (%s)" pkg-name version))
-                                         requirement))
-                                     stp-failed-requirements)))
+  (cond
+   (stp-failed-requirements
+    (message "Failed to %s %d/%d dependencies: %s"
+             (if (eq type 'install/upgrade)
+                 "install or upgrade"
+               "uninstall")
+             (length stp-failed-requirements)
+             stp-total-requirements
+             (rem-join-and (mapcar (lambda (requirement)
+                                     ;; When type is 'uninstall,
+                                     ;; `stp-failed-requirements' can be just
+                                     ;; the package names instead of proper
+                                     ;; requirements.
+                                     (if (listp requirement)
+                                         (db (pkg-name version)
+                                             requirement
+                                           (format "%s (%s)" pkg-name version))
+                                       requirement))
+                                   stp-failed-requirements))))
+   ((> stp-total-requirements 0)
     (message "Successfully %s %d dependencies"
              (if (memq type '(install upgrade))
                  "installed or upgraded"
                "uninstalled")
-             stp-total-requirements)))
+             stp-total-requirements))))
 
 (defvar stp-ignored-requirements '("emacs"))
 
