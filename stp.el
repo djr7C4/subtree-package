@@ -1026,7 +1026,7 @@ packages at the same time."
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names &key do-commit do-push do-lock)
   (let ((exists-p (stp-get-info-group group-name)))
-    (setq pkg-names (-sort #'string< pkg-names))
+    (setq pkg-names (-sort #'string< (-uniq pkg-names)))
     (stp-set-info-group group-name pkg-names)
     (stp-write-info)
     (stp-git-commit-push (format "%s the package group %s"
