@@ -893,14 +893,28 @@ in `stp-install'."
               ;; and so installing the dependencies naively will result in
               ;; multiple copies. :allow-skip t is passed so that the user can
               ;; skip these if desired.
-              (unless (eq (stp-install-command :pkg-name pkg-name :prompt-prefix prefix :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions :allow-skip t) 'skip)
+              (unless (eq (stp-install-command :pkg-name pkg-name
+                                               :prompt-prefix prefix
+                                               :min-version version
+                                               :do-commit do-commit
+                                               :do-push nil
+                                               :do-lock nil
+                                               :do-actions do-actions
+                                               :allow-skip t)
+                          'skip)
                 (stp-set-attribute pkg-name 'dependency t)))
              ;; pkg-name is installed so check if it needs to be upgraded. The
              ;; dependency attribute is left as is in this case because the package
              ;; might have been installed manually originally.
              ((stp-version< (stp-get-attribute pkg-name 'version) version)
               (cl-incf stp-total-requirements)
-              (stp-upgrade-command :prompt-prefix prefix :min-version version :do-commit do-commit :do-push nil :do-lock nil :do-actions do-actions :allow-skip t)))
+              (stp-upgrade-command :prompt-prefix prefix
+                                   :min-version version
+                                   :do-commit do-commit
+                                   :do-push nil
+                                   :do-lock nil
+                                   :do-actions do-actions
+                                   :allow-skip t)))
           (error
            (push requirement stp-failed-requirements)
            (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err)))))))
