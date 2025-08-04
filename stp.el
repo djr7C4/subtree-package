@@ -1028,11 +1028,12 @@ packages at the same time."
                (stp-commit-push-args))))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names &key do-commit do-push do-lock)
-  (let ((pkg-names (stp-get-info-group group-name)))
+  (let ((exists-p (stp-get-info-group group-name)))
+    (setq pkg-names (-sort #'string< pkg-names))
     (stp-set-info-group group-name pkg-names)
     (stp-write-info)
     (stp-git-commit-push (format "%s the package group %s"
-                                 (if pkg-names
+                                 (if exists-p
                                      "Edited"
                                    "Added")
                                  group-name)
