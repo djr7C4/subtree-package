@@ -542,11 +542,9 @@ Refs that do not match any hash will remain unchanged."
   (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
                ;; Be aware that some remotes will not return hashes for
                ;; dereferenced tags in which case it will not be possible to
-               ;; determine the hash for the tag.
-               ;; This is why dereferences of tags are not currently performed.
-               ;; This was previously done by using
-               ;; (stp-git-tag-append-dereference rev) in place of rev but it
-               ;; created a bug for some remotes.
+               ;; determine the hash for the tag. This is why there is a
+               ;; fallback.
+               (rassoc (stp-git-tag-append-dereference rev) (stp-git-remote-hash-tag-alist remote))
                (rassoc rev (stp-git-remote-hash-tag-alist remote))))
       rev))
 
@@ -599,6 +597,9 @@ is present."
   (if (s-ends-with-p "^{}" tag)
       tag
     (concat tag "^{}")))
+
+(defun stp-git-remote-dereferencable-tag-p (remote rev)
+  (car (rassoc (stp-git-tag-append-dereference rev) (stp-git-remote-hash-tag-alist remote))))
 
 (defun stp-git-remote-rev-to-tag (remote rev &optional keep-dereference)
   "If REV is a hash that corresponds to a tag, return the tag.

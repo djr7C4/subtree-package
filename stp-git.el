@@ -300,7 +300,14 @@ returned."
                           (if (string= action "merge")
                               (list version-hash)
                             (list version)))))
-        (when (stp-git-hash= (stp-git-subtree-package-commit pkg-name) version-hash)
+        (when (or (stp-git-hash= (stp-git-subtree-package-commit pkg-name) version-hash)
+                  ;; If the tag is cannot be dereferenced, the above check won't
+                  ;; detect that the versions are in fact the same. See
+                  ;; `stp-git-remote-rev-to-hash'. In this case, we check if the
+                  ;; version strings are the same. This will miss the versions
+                  ;; being the same if the versions were specified in different
+                  ;; ways (e.g. as a hash instead of a tag).
+                  (string= version (stp-get-attribute pkg-name 'version)))
           (user-error "Commit %s of %s is already installed"
                       (if (stp-git-hash= version version-hash)
                           (stp-git-abbreviate-hash version-hash)
@@ -327,11 +334,7 @@ returned."
               (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
               nil)
             (stp-with-package-source-directory
-              (stp-reinstall pkg-name fallback-version)))
-           ;; Handle git subtree merge/pull errors and when the user chose not
-           ;; to proceed with uninstalling and reinstalling the package.
-           (t
-            (error "Uninstalling and reinstalling %s failed: %s" pkg-name (s-trim output))))
+              (stp-reinstall pkg-name fallback-version))))
           ;; If we get this far it means that either the merge succeeded or
           ;; there was a merge conflict which will be resolved manually by the
           ;; user. Either way, we update the package database.
