@@ -123,7 +123,8 @@ operation should be performed."
     (when (and (eq action 'upgrade)
                (string= old-version new-version))
       (user-error "Version %s of %s is already installed" old-version pkg-name))
-    (stp-url-install-or-upgrade-basic pkg-name url new-version action)
+    (stp-url-install-or-upgrade-basic pkg-name url new-version action :set-remote nil)
+    (stp-set-attribute pkg-name 'remote remote)
     (when (eq action 'install)
       (stp-set-attribute pkg-name 'method 'elpa))))
 

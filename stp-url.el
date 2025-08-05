@@ -54,7 +54,7 @@
   ;; one possibility.
   (rem-read-from-mini prompt :default default :history stp-url-version-history))
 
-(defun stp-url-install-or-upgrade-basic (pkg-name remote version action)
+(cl-defun stp-url-install-or-upgrade-basic (pkg-name remote version action &key (set-remote t))
   (let ((pkg-path (stp-canonical-path pkg-name)))
     (cond
      ((and (eq action 'install) (f-exists-p pkg-path))
@@ -72,7 +72,8 @@
           (stp-git-install pkg-name repo branch 'unstable :squash t :set-pkg-info nil)
         ;; fallback-version is needed for when a package has to be reinstalled.
         (stp-git-upgrade pkg-name repo branch :squash t :set-pkg-info nil :fallback-version version)))
-    (stp-set-attribute pkg-name 'remote remote)
+    (when set-remote
+      (stp-set-attribute pkg-name 'remote remote))
     (stp-set-attribute pkg-name 'version version)))
 
 (defun stp-url-install-or-upgrade (pkg-name remote version action)
