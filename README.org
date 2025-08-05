@@ -113,14 +113,16 @@ local git repositories that are registered as remotes for that package or are in
 =stp-development-directory=. When desired, install or upgrade the package from
 the local git repository using =stp-install= or =stp-upgrade=.
 ** Automatically build packages
-Use =M-x stp-build= Packages can be built automatically by detecting Makefiles
-or other build systems as well as compiling the elisp files directly. Info
-manuals are also automatically detected and added to Emacs' info search path.
+By default, building occurs automatically when packages are installed or
+upgraded. Packages can also be built manually using =b= in =stp-list-mode=.
+Packages can be built automatically by detecting Makefiles or other build
+systems as well as compiling the elisp files directly. Info manuals are also
+automatically detected and added to Emacs' info search path.
 ** Automatically repair packages
-Use =M-x stp-repair-all= and =M-x stp-repair= to repair information in the
-package database that may have become out of sync with installed packages. This
-can be useful when the package database is not updated because a user updated a
-package using git commands manually or there is a bug.
+Use =r= in =stp-list-mode= to repair information for a package in the package
+database that may contain errors. This can be useful when the package database
+is not updated because a user updated a package using git commands manually or
+there is a bug. =R= can be used to repair all packages.
 ** Supported package types
 Currently, four different types of packages can be installed. STP automatically
 infers the packages type based on the remote provided so it is not necessary to
@@ -174,6 +176,11 @@ In your =~/.emacs= or =~/.emacs.d/init.el=, enable automatically updating the
   (file-notify-add-watch stp-lock-file '(change) #'stp-lock-file-watcher)
 #+end_src
 
+** Manage related packages as groups
+Groups of related packages can be created or edited with =E= in =stp-list-mode=.
+Use =x= to remove a group that is no longer needed. Use =U= to install or
+upgrade packages in the specified groups. The name of a package can also be
+specified instead of a group. =D= can be used to uninstall a package group.
 * Installation
 Subtree package can manage itself as a package. It is recommended to place the
 bootstraping code in =early-init.el=.

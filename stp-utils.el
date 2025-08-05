@@ -245,11 +245,11 @@ never ends with a slash (nor does it contain any slashes)."
   (stp-maybe-allow-skip (allow-skip)
     (rem-read-from-mini prompt :history 'stp-read-name-history :initial-contents default)))
 
-(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (info-names (stp-info-names)) allow-skip)
+(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (table (stp-info-names)) allow-skip)
   "Read the name of a package that is already installed."
   (stp-maybe-allow-skip (allow-skip)
     (rem-comp-read prompt
-                   info-names
+                   table
                    :require-match require-match
                    :history 'stp-read-name-history
                    :multiple multiple)))
@@ -258,6 +258,12 @@ never ends with a slash (nor does it contain any slashes)."
 
 (defun stp-read-group-name (prompt)
   (rem-comp-read prompt (stp-get-info-group-names) :require-match nil :history 'stp-read-group-history))
+
+(defun stp-expand-groups (group-names)
+  "Return a list of all packages specified by GROUP-NAMES. A group
+name may also be the name of a package."
+  (let ((groups (stp-get-info-groups)))
+    (-uniq (mapcan (fn (or (cdr (assoc % groups)) (list %))) group-names))))
 
 (defvar stp-attribute-order '(method remote other-remotes last-remote version update branch dependency requirements)
   "The order in which package attributes should be sorted before being written

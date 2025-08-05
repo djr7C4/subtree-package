@@ -526,7 +526,7 @@ corresponds to that line."
   (or (stp-list-package-on-previous-line)
       (stp-list-package-on-next-line)))
 
-(cl-defun stp-list-read-package (prompt &key allow-skip)
+(cl-defun stp-list-read-name (prompt &key allow-skip)
   "In `stp-list-mode', return the package on the current line if there
 is one. Otherwise, prompt the user for a package."
   (stp-refresh-info)
@@ -573,7 +573,7 @@ returned."
               (pkg-name (or pkg-name
                             (cond
                              (line-pkg
-                              (stp-list-read-package "Package name: "))
+                              (stp-list-read-name "Package name: "))
                              (existing-pkg
                               (stp-read-existing-name "Package name: "))
                              (t
@@ -876,12 +876,13 @@ in `stp-install'."
 
 (defvar stp-ignored-requirements '("emacs"))
 
-(cl-defun stp-ensure-requirements (requirements &key do-commit do-actions)
+(cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (upgrade t))
   "Install or upgrade each requirement to ensure that at least the
 specified version is available. REQUIREMENTS should be a list
 where each entry is either the name of a package or a list
 containing the name of the package and the minimum version
-required."
+required. When UPGRADE is nil, then packages that are already
+installed will not be upgraded."
   (dolist (requirement requirements)
     ;; Also allow a list of package names.
     (db (pkg-sym &optional version)
@@ -908,11 +909,13 @@ required."
                                                :allow-skip t)
                           'skip)
                 (stp-set-attribute pkg-name 'dependency t)))
-             ;; pkg-name is installed so check if it needs to be upgraded. The
-             ;; dependency attribute is left as is in this case because the package
-             ;; might have been installed manually originally.
-             ((or (not version)
-                  (stp-version< (stp-get-attribute pkg-name 'version) version))
+             ((and upgrade
+                   ;; pkg-name is installed so check if it needs to be upgraded.
+                   ;; The dependency attribute is left as is in this case
+                   ;; because the package might have been installed manually
+                   ;; originally.
+                   (or (not version)
+                       (stp-version< (stp-get-attribute pkg-name 'version) version)))
               (cl-incf stp-total-requirements)
               (stp-upgrade-command :prompt-prefix prefix
                                    :min-version version
@@ -950,6 +953,49 @@ required."
         (error
          (push pkg-name stp-failed-requirements)
          (message "Failed to uninstall %s: %s" pkg-name err))))))
+
+(cl-defun stp-package-group-command (action table &key extra-removed-kwargs)
+  (stp-refresh-info)
+  (let* ((pkg-names (-> (stp-read-existing-name "Group or package name: "
+                                                :table table
+                                                :multiple t)
+                        stp-expand-groups))
+         (args (stp-commit-push-action-args)))
+    (funcall action pkg-names (map-remove (fn2 (memq %1 (append '(:do-push :do-lock) extra-removed-kwargs))) args))
+    (stp-git-push (map-elt args :do-push))
+    (when (stp-maybe-call do-lock)
+      (stp-update-lock-file))))
+
+(cl-defun stp-install-or-upgrade-package-group-command (group-names &key (upgrade t))
+  "Install or upgrade the package groups or packages. If UPGRADE is
+nil, then any packages specified that are already installed will
+not be upgraded."
+  (interactive)
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (let ((table (completion-table-in-turn (stp-get-info-group-names)
+                                             (stp-info-names)
+                                             (stp-archive-package-names))))
+        (stp-package-group-command (lambda (pkg-names args)
+                                     (apply #'stp-ensure-requirements
+                                            pkg-names
+                                            :upgrade upgrade
+                                            args))
+                                   table)))))
+
+(cl-defun stp-uninstall-package-group-command (group-names)
+  "Uninstall the package groups or packages."
+  (interactive)
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (let ((table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
+        (stp-package-group-command (lambda (pkg-names args)
+                                     (apply #'stp-maybe-uninstall-requirements
+                                            pkg-names
+                                            args))
+                                   table)))))
 
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist
@@ -1029,7 +1075,7 @@ packages at the same time."
                group-name
                (stp-read-existing-name "Package name: "
                                        :multiple t
-                                       :info-names table)
+                                       :table table)
                args)))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names &key do-commit do-push do-lock)
@@ -1228,7 +1274,7 @@ package and updating the load path."
   (interactive)
   (stp-with-memoization
     (stp-refresh-info)
-    (stp-post-actions (stp-list-read-package "Package name: "))))
+    (stp-post-actions (stp-list-read-name "Package name: "))))
 
 (defun stp-post-actions (pkg-name)
   (setq stp-current-package pkg-name)
@@ -1282,7 +1328,7 @@ prefix argument."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (stp-build (stp-list-read-package "Package name: ")
+      (stp-build (stp-list-read-name "Package name: ")
                  (xor stp-allow-naive-byte-compile current-prefix-arg)))))
 
 (defun stp-build (pkg-name &optional allow-naive-byte-compile)
@@ -1402,7 +1448,7 @@ inverted with a prefix argument. Packages in
 
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."
-  (interactive (list (stp-list-read-package "Package name: ")))
+  (interactive (list (stp-list-read-name "Package name: ")))
   (when pkg-name
     (setq stp-current-package pkg-name)
     (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
@@ -1477,7 +1523,7 @@ inverted with a prefix argument. Packages in
 
 (cl-defun stp-reload (pkg-name &key quiet)
   "Reload the package."
-  (interactive (list (stp-list-read-package "Package name: ")))
+  (interactive (list (stp-list-read-name "Package name: ")))
   ;; Reload the package twice so that macros are handled properly.
   (stp-reload-once pkg-name)
   (stp-reload-once pkg-name)
@@ -1489,11 +1535,11 @@ inverted with a prefix argument. Packages in
   (interactive "P")
   (if arg
       (stp-update-load-paths t)
-    (stp-update-load-path (stp-canonical-path (stp-list-read-package "Package name: ")) t)))
+    (stp-update-load-path (stp-canonical-path (stp-list-read-name "Package name: ")) t)))
 
 (defun stp-update-info-directories (pkg-name &optional quiet)
   "Make the info files for PKG-NAME available to info commands."
-  (interactive (list (stp-list-read-package "Package name: ")))
+  (interactive (list (stp-list-read-name "Package name: ")))
   (when pkg-name
     (setq stp-current-package pkg-name)
     (let* ((directory (stp-canonical-path pkg-name))
@@ -2066,7 +2112,7 @@ not slow down Emacs while the fields are being updated."
               "m" #'stp-build-info
               "M" #'stp-build-all-info
               "d" #'stp-uninstall
-              "D" #'stp-delete-package-group-command
+              "D" #'stp-uninstall-package-group-command
               "e" #'stp-edit-remotes-command
               "E" #'stp-add-or-edit-package-group-command
               "g" #'stp-list-refresh
@@ -2093,9 +2139,11 @@ not slow down Emacs while the fields are being updated."
               "M->" #'stp-list-last-package
               "r" #'stp-repair-command
               "R" #'stp-reinstall-command
+              "x" #'stp-delete-package-group-command
               "t" #'stp-toggle-update-command
               "T" #'stp-toggle-dependency-command
               "u" #'stp-upgrade-command
+              "U" #'stp-install-or-upgrade-package-group-command
               "v" #'stp-list-update-latest-version
               "V" #'stp-list-update-latest-versions
               "RET" #'stp-find-package)
