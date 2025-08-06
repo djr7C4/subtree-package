@@ -159,6 +159,11 @@ ends with a slash."
       (setq path (f-canonical path)))
     (f-slash path)))
 
+(defun stp-symbol-package-name (sym)
+  (if (symbolp sym)
+      (symbol-name sym)
+    sym))
+
 (defun stp-name (pkg-path)
   "Returns the name of the package. Unlike `stp-relative-path', this
 never ends with a slash (nor does it contain any slashes)."
@@ -231,28 +236,32 @@ never ends with a slash (nor does it contain any slashes)."
 (defvar-keymap stp-skip-map
   "C-c C-k" #'stp-skip-package)
 
-(cl-defmacro stp-maybe-allow-skip ((skip-sym) &rest body)
+(cl-defmacro stp-maybe-allow-skip ((skip-sym &optional skip-form) &rest body)
   (declare (indent 1))
-  `(cl-flet ((setup-keymap ()
-               (when ,skip-sym
-                 (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map))))))
-     (minibuffer-with-setup-hook (:append #'setup-keymap)
-       (catch 'stp-skip
-         ,@body))))
+  (with-gensyms (result)
+    `(cl-flet ((setup-keymap ()
+                 (when ,skip-sym
+                   (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map))))))
+       (let ((,result (minibuffer-with-setup-hook (:append #'setup-keymap)
+                        (catch 'stp-skip
+                          ,@body))))
+         (when (eq ,result 'skip)
+           ,skip-form)
+         ,result))))
 
-(cl-defun stp-read-name (prompt &key default allow-skip)
+(def-edebug-spec stp-maybe-allow-skip ((form) body))
+
+(cl-defun stp-read-name (prompt &key default)
   "Read the name of a package."
-  (stp-maybe-allow-skip (allow-skip)
-    (rem-read-from-mini prompt :history 'stp-read-name-history :initial-contents default)))
+  (rem-read-from-mini prompt :history 'stp-read-name-history :initial-contents default))
 
-(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (table (stp-info-names)) allow-skip)
+(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (table (stp-info-names)))
   "Read the name of a package that is already installed."
-  (stp-maybe-allow-skip (allow-skip)
-    (rem-comp-read prompt
-                   table
-                   :require-match require-match
-                   :history 'stp-read-name-history
-                   :multiple multiple)))
+  (rem-comp-read prompt
+                 table
+                 :require-match require-match
+                 :history 'stp-read-name-history
+                 :multiple multiple))
 
 (defvar stp-read-group-name-history nil)
 
