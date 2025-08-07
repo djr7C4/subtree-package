@@ -877,6 +877,48 @@ in `stp-install'."
 
 (defvar stp-ignored-requirements '("emacs"))
 
+(defvar stp-installed-features nil)
+(defvar stp-versions nil)
+
+(defun stp-compute-versions ()
+  (cons `(emacs ,emacs-version)
+        (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
+                (stp-get-info-packages))))
+
+(defvar stp-always-recompute-features nil
+  "When non-nil, features are always recomputed by
+`stp-update-features' instead of using incremental updates. This
+is slower but will detect packages installed with other package
+managers.")
+
+(defun stp-update-features ()
+  "Update `stp-installed-features'. Add the new features from
+packages that were installed or upgraded since this function was
+last invoked. This is much faster than recomputing all features
+which can take several seconds or more if many packages are
+installed. The downside is that packages installed outside of STP
+will not be detected."
+  (if (and (not stp-always-recompute-features)
+           stp-installed-features
+           ;; If the installed version of Emacs has changed, recompute
+           ;; everything since the built-in packages may have been upgraded.
+           (string= (cadar stp-versions) emacs-version))
+      (let* ((new-versions (stp-compute-versions))
+             (modified-packages (mapcar #'car (cl-set-difference new-versions stp-versions :test #'equal)))
+             (new-paths (mapcan (lambda (pkg-name)
+                                  ;; Protect `load-path' by rebinding it so that
+                                  ;; we can access the values that would be
+                                  ;; added for this package.
+                                  (let ((load-path nil))
+                                    (stp-update-load-path (stp-canonical-path pkg-name))
+                                    load-path))
+                                modified-packages))
+             (new-features (stp-headers-paths-features new-paths)))
+        (setq stp-installed-features (stp-headers-merge-elisp-requirements (append stp-installed-features new-features))
+              stp-versions new-versions))
+    (setq stp-installed-features (stp-headers-paths-features load-path)
+          stp-versions (stp-compute-versions))))
+
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (search-load-path t))
   "Install or upgrade each requirement to ensure that at least the
 specified version is available. REQUIREMENTS should be a list
@@ -884,85 +926,65 @@ where each entry is either the name of a package or a list
 containing the name of the package and the minimum version
 required."
   (when search-load-path
-    (message "Analyzing the load path for installed packages..."))
-  (let* ((installed-features (and search-load-path
-                                  (stp-headers-paths-features load-path)))
-         (stp-versions (and search-load-path
-                            (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
-                                    (stp-get-info-packages)))))
-    (dolist (requirement requirements)
-      ;; Also allow a list of package names.
-      (db (pkg-sym &optional version)
-          (ensure-list requirement)
-        (let* ((pkg-name (stp-symbol-package-name pkg-sym))
-               (prefix (format "[%s] " pkg-name)))
-          (unless (member pkg-name stp-ignored-requirements)
-            (push requirement stp-requirements))
-          (condition-case err
-              (cond
-               ;; Do nothing when a requirement is ignored or a new enough
-               ;; version is installed.
-               ((or (member pkg-name stp-ignored-requirements)
-                    (if search-load-path
-                        (aand (cl-find-if (fn (eq pkg-sym (car %))) installed-features)
-                              (and version
-                                   (version-list-<= (version-to-list version) (version-to-list (cadr it)))))
-                      (aand (stp-get-attribute pkg-name 'version)
-                            (stp-version<= version it)))))
-               ((not (member pkg-name (stp-info-names)))
-                ;; Sometimes, a single repository can contain multiple packages
-                ;; and so installing the dependencies naively will result in
-                ;; multiple copies. :allow-skip t is passed so that the user can
-                ;; skip these if desired.
-                (if (eq (stp-install-command :pkg-name pkg-name
-                                             :prompt-prefix prefix
-                                             :min-version version
-                                             :do-commit do-commit
-                                             :do-push nil
-                                             :do-lock nil
-                                             :do-actions do-actions
-                                             :allow-skip t)
-                        'skip)
-                    (push requirement stp-skipped-requirements)
-                  (stp-set-attribute pkg-name 'dependency t)))
-               (t
-                (if (eq (stp-upgrade-command :pkg-name pkg-name
-                                             :prompt-prefix prefix
-                                             :min-version version
-                                             :do-commit do-commit
-                                             :do-push nil
-                                             :do-lock nil
-                                             :do-actions do-actions
-                                             :allow-skip t)
-                        'skip)
-                    (push requirement stp-skipped-requirements)
-                  ;; The dependency attribute is left as is when upgrading
-                  ;; because the package might have been installed manually
-                  ;; originally.
-                  (when (stp-git-merge-conflict-p)
-                    (message "One or more merge conflicts occurred while upgrading. Resolve the conflict and then press M-x `exit-recursive-edit'")
-                    (recursive-edit)))))
-            (error
-             (push requirement stp-failed-requirements)
-             (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err)))))
-      (when search-load-path
-        ;; Add the new features from packages that were installed or upgraded.
-        ;; This is much faster than recomputing all features which can take
-        ;; several seconds or more if many packages are installed.
-        (let* ((new-stp-versions (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
-                                         (stp-get-info-packages)))
-               (modified-packages (mapcar #'car (cl-set-difference new-stp-versions stp-versions :test #'equal)))
-               (new-paths (mapcan (lambda (pkg-name)
-                                    ;; Protect `load-path' by rebinding it so that
-                                    ;; we can access the values that would be
-                                    ;; added for this package.
-                                    (let ((load-path nil))
-                                      (stp-update-load-path (stp-canonical-path pkg-name))
-                                      load-path))
-                                  modified-packages))
-               (new-features (stp-headers-paths-features new-paths)))
-          (setq installed-features (stp-headers-merge-elisp-requirements (append installed-features new-features))
-                stp-versions new-stp-versions))))))
+    (message "Analyzing the load path for installed packages...")
+    (stp-update-features))
+  (dolist (requirement requirements)
+    ;; Also allow a list of package names.
+    (db (pkg-sym &optional version)
+        (ensure-list requirement)
+      (let* ((pkg-name (stp-symbol-package-name pkg-sym))
+             (prefix (format "[%s] " pkg-name)))
+        (unless (member pkg-name stp-ignored-requirements)
+          (push requirement stp-requirements))
+        (condition-case err
+            (cond
+             ;; Do nothing when a requirement is ignored or a new enough
+             ;; version is installed.
+             ((or (member pkg-name stp-ignored-requirements)
+                  (if search-load-path
+                      (aand (cl-find-if (fn (eq pkg-sym (car %))) stp-installed-features)
+                            (and version
+                                 (version-list-<= (version-to-list version) (version-to-list (cadr it)))))
+                    (aand (stp-get-attribute pkg-name 'version)
+                          (stp-version<= version it)))))
+             ((not (member pkg-name (stp-info-names)))
+              ;; Sometimes, a single repository can contain multiple packages
+              ;; and so installing the dependencies naively will result in
+              ;; multiple copies. :allow-skip t is passed so that the user can
+              ;; skip these if desired.
+              (if (eq (stp-install-command :pkg-name pkg-name
+                                           :prompt-prefix prefix
+                                           :min-version version
+                                           :do-commit do-commit
+                                           :do-push nil
+                                           :do-lock nil
+                                           :do-actions do-actions
+                                           :allow-skip t)
+                      'skip)
+                  (push requirement stp-skipped-requirements)
+                (stp-set-attribute pkg-name 'dependency t)))
+             (t
+              (if (eq (stp-upgrade-command :pkg-name pkg-name
+                                           :prompt-prefix prefix
+                                           :min-version version
+                                           :do-commit do-commit
+                                           :do-push nil
+                                           :do-lock nil
+                                           :do-actions do-actions
+                                           :allow-skip t)
+                      'skip)
+                  (push requirement stp-skipped-requirements)
+                ;; The dependency attribute is left as is when upgrading
+                ;; because the package might have been installed manually
+                ;; originally.
+                (when (stp-git-merge-conflict-p)
+                  (message "One or more merge conflicts occurred while upgrading. Resolve the conflict and then press M-x `exit-recursive-edit'")
+                  (recursive-edit)))))
+          (error
+           (push requirement stp-failed-requirements)
+           (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err)))))
+    (when search-load-path
+      (stp-update-features))))
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit)
   (let* ((to-uninstall (stp-requirements-to-names requirements))

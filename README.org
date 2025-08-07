@@ -229,8 +229,8 @@ features, the ELPA =async= and =queue= packages are required.
 It is recommended to make the latest versions and the last time the package
 archive was updated persistent across sessions. This can be done by adding
 =stp-latest-versions-cache= and =stp-archive-last-refreshed= to
-=savehist-additional-variables=. Adding
-=stp-headers-elisp-file-requirements-cache= and
+=savehist-additional-variables=. Adding =stp-installed-features=,
+=stp-versions=, =stp-headers-elisp-file-requirements-cache= and
 =stp-headers-elisp-file-feature-cache= to =savehist-additional-variables=
 improves performance when checking if the requirements for packages are
 satisfied.
