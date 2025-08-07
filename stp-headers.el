@@ -36,10 +36,34 @@ These are determined according to the Package-Requires field."
                     (list (car cell) (stp-headers-normalize-version (cadr cell))))
                   reqs))))))
 
+(cl-defmacro stp-headers-with-file-cache ((file cache) &rest body)
+  "Return the result of evaluating BODY unless a valid entry in
+CACHE can be used. An entry is valid unless the modification time
+of FILE is different from the last time BODY was evaluated."
+  (declare (indent 1))
+  (with-gensyms (entry new-timestamp result)
+    (once-only (file cache)
+      `(let ((,entry (gethash ,file ,cache))
+             (,new-timestamp (f-change-time ,file)))
+         (if (and ,entry (time-equal-p ,new-timestamp (car ,entry)))
+             (cadr ,entry)
+           (let ((,result (progn ,@body)))
+             (setf (gethash ,file ,cache) (list ,new-timestamp ,result))
+             ,result))))))
+
+(def-edebug-spec stp-headers-with-file-cache ((form form) body))
+
+;; Without caching, checking all the requirements for the load path is slow
+;; (especially when dealing with compressed files). These caches are safe to add
+;; to `savehist-additional-variables' since hash tables can be printed and read
+;; in Emacs Lisp (unlike Common Lisp).
+(defvar stp-headers-elisp-file-requirements-cache (make-hash-table :test #'equal))
+
 (defun stp-headers-elisp-file-requirements (file)
-  (with-temp-buffer
-    (insert-file-contents file)
-    (stp-headers-elisp-requirements)))
+  (stp-headers-with-file-cache (file stp-headers-elisp-file-requirements-cache)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (stp-headers-elisp-requirements))))
 
 (defun stp-headers-elisp-feature (name)
   "Return requirements satisfied by the current buffer."
@@ -48,10 +72,13 @@ These are determined according to the Package-Requires field."
     (when version
       (list (intern name) (stp-headers-normalize-version version)))))
 
-(defun stp-headers-elisp-file-feature (file)
-  (with-temp-buffer
-    (insert-file-contents file)
-    (stp-headers-elisp-feature (rem-no-ext (f-filename file)))))
+(defvar stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
+
+(cl-defun stp-headers-elisp-file-feature (file)
+  (stp-headers-with-file-cache (file stp-headers-elisp-file-feature-cache)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (stp-headers-elisp-feature (rem-no-ext (f-filename file))))))
 
 (defun stp-headers-merge-elisp-requirements (requirements &optional hash-table)
   "Merge duplicate requirements in REQUIREMENTS. Only the most
