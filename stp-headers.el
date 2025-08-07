@@ -49,13 +49,17 @@ is non-nil, then they will be merged into an empty hash table."
     (dolist (requirement requirements)
       (db (pkg-sym version)
           requirement
-        ;; There are packages that use nil versions for some reason.
-        (when version
-          (setq version (version-to-list version))
-          ;; Keep the newest version of each package.
-          (let ((curr-version (gethash pkg-sym versions)))
-            (when (or (not curr-version) (version-list-< curr-version version))
-              (setf (gethash pkg-sym versions) version))))))
+        (when (string= version "")
+          (setq version nil))
+        ;; Keep the newest version of each package.
+        (let ((curr-version (gethash pkg-sym versions)))
+          (when (string= curr-version "")
+            (setq current-version nil))
+          (when (or (not curr-version)
+                    (and version
+                         (version-list-< (version-to-list curr-version)
+                                         (version-to-list version))))
+            (setf (gethash pkg-sym versions) version)))))
     (if hash-table
         versions
       (cl-loop
@@ -65,9 +69,9 @@ is non-nil, then they will be merged into an empty hash table."
 (defun stp-headers-paths-requirements (paths)
   "Find all requirements for the files in PATHS. PATHS may be either
 a single path or a list of paths."
-  (unless (listp paths)
-    (setq paths (list paths)))
-  (->> (mapcar #'stp-headers-elisp-file-requirements paths)
+  (setq paths (ensure-list paths))
+  (->> (-filter (fn (and % (f-directory-p %))) paths)
+       (mapcar #'stp-headers-directory-requirements)
        (apply #'append)
        stp-headers-merge-elisp-requirements))
 
@@ -81,19 +85,7 @@ its elisp files."
          (files (rem-elisp-files-to-load dir)))
     (dolist (file files)
       (setq reqs (append reqs (stp-headers-elisp-file-requirements file))))
-    (mapcar (lambda (cell)
-              (db (pkg-sym . pkg-reqs)
-                  cell
-                (list pkg-sym
-                      ;; Select the most recent version of each package that is
-                      ;; required by one of its files.
-                      (->> (mapcar #'cadr pkg-reqs)
-                           (-sort (lambda (v1 v2)
-                                    (version-list-< v2 v1)))
-                           car
-                           (mapcar #'number-to-string)
-                           (s-join ".")))))
-            (-group-by #'car reqs))))
+    (stp-headers-merge-elisp-requirements reqs)))
 
 (defun stp-headers-requirements-hash-table (requirements)
   "Return a hash table mapping the symbol for each package in
