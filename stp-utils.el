@@ -150,8 +150,8 @@ ends with a slash."
   (stp-full-path pkg-name t))
 
 (defun stp-full-path (pkg-name &optional canonical)
-  "Return the canonical path to pkg-name. The return value always
-ends with a slash."
+  "Return the full path to pkg-name. The return value always ends
+with a slash."
   (let ((path (if (f-absolute-p pkg-name)
                   pkg-name
                 (f-join stp-source-directory pkg-name))))

@@ -31,7 +31,7 @@
         (add-to-list 'load-path path)
         (stp-update-load-path path))))
   (when interactive-p
-    (message "Loaded package at %s" pkg-path)))
+    (message "Updated the load path for %s" (file-name-nondirectory (directory-file-name pkg-path)))))
 
 (defun stp-update-load-paths (&optional interactive-p)
   "Add all appropriate package directories to the `load-path'."
