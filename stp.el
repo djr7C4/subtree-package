@@ -689,7 +689,7 @@ dependency."
           (stp-update-lock-file))
         (when (stp-maybe-call do-actions)
           (stp-post-actions pkg-name))
-        (when ensure-requirements
+        (when (and ensure-requirements stp-requirements-toplevel)
           (stp-report-requirements 'install))
         (when refresh
           (stp-update-cached-latest pkg-name)
@@ -824,7 +824,7 @@ in `stp-install'."
                 (stp-update-lock-file))
               (when (stp-maybe-call do-actions)
                 (stp-post-actions pkg-name)))
-            (when ensure-requirements
+            (when (and ensure-requirements stp-requirements-toplevel)
               (stp-report-requirements 'upgrade))
             (when refresh
               (stp-update-cached-latest pkg-name)
@@ -905,7 +905,7 @@ required."
                     (if search-load-path
                         (aand (cl-find-if (fn (eq pkg-sym (car %))) installed-features)
                               (and version
-                                   (version-list-<= (version-to-list version) (version-to-list it))))
+                                   (version-list-<= (version-to-list version) (version-to-list (cadr it)))))
                       (aand (stp-get-attribute pkg-name 'version)
                             (stp-version<= version it)))))
                ((not (member pkg-name (stp-info-names)))

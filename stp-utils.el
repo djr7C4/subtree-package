@@ -249,7 +249,7 @@ never ends with a slash (nor does it contain any slashes)."
            ,skip-form)
          ,result))))
 
-(def-edebug-spec stp-maybe-allow-skip ((form) body))
+(def-edebug-spec stp-maybe-allow-skip ((form &optional form) body))
 
 (cl-defun stp-read-name (prompt &key default)
   "Read the name of a package."
