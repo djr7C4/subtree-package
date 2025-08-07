@@ -883,7 +883,8 @@ specified version is available. REQUIREMENTS should be a list
 where each entry is either the name of a package or a list
 containing the name of the package and the minimum version
 required."
-  (message "Analyzing the load path for installed packages...")
+  (when search-load-path
+    (message "Analyzing the load path for installed packages..."))
   (let* ((installed-features (and search-load-path
                                   (stp-headers-paths-features load-path)))
          (stp-versions (and search-load-path
