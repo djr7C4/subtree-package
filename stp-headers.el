@@ -84,7 +84,7 @@ is non-nil, then they will be merged into an empty hash table."
 There are determined according to the Package-Requires field of
 its elisp files."
   (let* (reqs
-         (files (rem-elisp-files-to-load dir)))
+         (files (rem-elisp-files-to-load dir t)))
     (dolist (file files)
       (setq reqs (append reqs (funcall fun file))))
     (stp-headers-merge-elisp-requirements reqs)))
@@ -100,8 +100,9 @@ a single path or a list of paths."
 
 (defun stp-headers-directory-features (dir)
   "Find all requirements that are satisfied by files in DIR."
-  (stp-headers-directory-requirements dir (fn (awhen (stp-headers-elisp-file-feature %)
-                                                (list it)))))
+  (stp-headers-directory-requirements dir
+                                      (fn (awhen (stp-headers-elisp-file-feature %)
+                                            (list it)))))
 
 (cl-defun stp-headers-paths-features (paths)
   "Find all requirements that are satisfied by files in PATHS. PATHS

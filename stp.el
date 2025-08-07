@@ -846,7 +846,7 @@ in `stp-install'."
   (cond
    (stp-failed-requirements
     (message "Failed to %s %d/%d dependencies: %s"
-             (if (eq type 'install/upgrade)
+             (if (memq type '(install upgrade))
                  "install or upgrade"
                "uninstall")
              (length stp-failed-requirements)
@@ -890,6 +890,7 @@ required."
           (ensure-list requirement)
         (let* ((pkg-name (stp-symbol-package-name pkg-sym))
                (prefix (format "[%s] " pkg-name)))
+          (cl-incf stp-total-requirements)
           (condition-case err
               (cond
                ;; Do nothing when a requirement is ignored or a new enough
@@ -899,7 +900,6 @@ required."
                           (and version
                                (version-list-<= (version-to-list version) (version-to-list it))))))
                ((not (member pkg-name (stp-info-names)))
-                (cl-incf stp-total-requirements)
                 ;; Sometimes, a single repository can contain multiple packages
                 ;; and so installing the dependencies naively will result in
                 ;; multiple copies. :allow-skip t is passed so that the user can
@@ -916,7 +916,6 @@ required."
                   (push requirement stp-skipped-requirements)
                   (stp-set-attribute pkg-name 'dependency t)))
                (t
-                (cl-incf stp-total-requirements)
                 (unless (eq (stp-upgrade-command :pkg-name pkg-name
                                                  :prompt-prefix prefix
                                                  :min-version version
