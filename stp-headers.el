@@ -51,7 +51,7 @@ These are determined according to the Package-Requires field."
 (defun stp-headers-elisp-file-feature (file)
   (with-temp-buffer
     (insert-file-contents file)
-    (stp-headers-elisp-feature (f-no-ext (f-filename file)))))
+    (stp-headers-elisp-feature (rem-no-ext (f-filename file)))))
 
 (defun stp-headers-merge-elisp-requirements (requirements &optional hash-table)
   "Merge duplicate requirements in REQUIREMENTS. Only the most

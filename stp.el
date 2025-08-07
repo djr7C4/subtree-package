@@ -874,31 +874,37 @@ in `stp-install'."
 
 (defvar stp-ignored-requirements '("emacs"))
 
-(cl-defun stp-ensure-requirements (requirements &key do-commit do-actions)
+(cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (search-load-path t))
   "Install or upgrade each requirement to ensure that at least the
 specified version is available. REQUIREMENTS should be a list
 where each entry is either the name of a package or a list
 containing the name of the package and the minimum version
 required."
   (message "Analyzing the load path for installed packages...")
-  (let* ((installed-features (stp-headers-paths-features load-path))
-         (stp-versions (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
-                               (stp-get-info-packages))))
+  (let* ((installed-features (and search-load-path
+                                  (stp-headers-paths-features load-path)))
+         (stp-versions (and search-load-path
+                            (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
+                                    (stp-get-info-packages)))))
     (dolist (requirement requirements)
       ;; Also allow a list of package names.
       (db (pkg-sym &optional version)
           (ensure-list requirement)
         (let* ((pkg-name (stp-symbol-package-name pkg-sym))
                (prefix (format "[%s] " pkg-name)))
-          (cl-incf stp-total-requirements)
+          (unless (member pkg-name stp-ignored-requirements)
+            (cl-incf stp-total-requirements))
           (condition-case err
               (cond
                ;; Do nothing when a requirement is ignored or a new enough
                ;; version is installed.
                ((or (member pkg-name stp-ignored-requirements)
-                    (aand (cl-find-if (fn (eq pkg-sym (car %))) installed-features)
-                          (and version
-                               (version-list-<= (version-to-list version) (version-to-list it))))))
+                    (if search-load-path
+                        (aand (cl-find-if (fn (eq pkg-sym (car %))) installed-features)
+                              (and version
+                                   (version-list-<= (version-to-list version) (version-to-list it))))
+                      (aand (stp-get-attribute pkg-name 'version)
+                            (stp-version<= version it)))))
                ((not (member pkg-name (stp-info-names)))
                 ;; Sometimes, a single repository can contain multiple packages
                 ;; and so installing the dependencies naively will result in
@@ -935,23 +941,24 @@ required."
             (error
              (push requirement stp-failed-requirements)
              (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err)))))
-      ;; Add the new features from packages that were installed or upgraded.
-      ;; This is much faster than recomputing all features which can take
-      ;; several seconds or more if many packages are installed.
-      (let* ((new-stp-versions (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
-                                       (stp-get-info-packages)))
-             (modified-packages (mapcar #'car (cl-set-difference new-stp-versions stp-versions :test #'equal)))
-             (new-paths (mapcan (lambda (pkg-name)
-                                  ;; Protect `load-path' by rebinding it so that
-                                  ;; we can access the values that would be
-                                  ;; added for this package.
-                                  (let ((load-path nil))
-                                    (stp-update-load-path (stp-canonical-path pkg-name))
-                                    load-path))
-                                modified-packages))
-             (new-features (stp-headers-paths-features new-paths)))
-        (setq installed-features (stp-headers-merge-elisp-requirements (append installed-features new-features))
-              stp-versions new-stp-versions)))))
+      (when search-load-path
+        ;; Add the new features from packages that were installed or upgraded.
+        ;; This is much faster than recomputing all features which can take
+        ;; several seconds or more if many packages are installed.
+        (let* ((new-stp-versions (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
+                                         (stp-get-info-packages)))
+               (modified-packages (mapcar #'car (cl-set-difference new-stp-versions stp-versions :test #'equal)))
+               (new-paths (mapcan (lambda (pkg-name)
+                                    ;; Protect `load-path' by rebinding it so that
+                                    ;; we can access the values that would be
+                                    ;; added for this package.
+                                    (let ((load-path nil))
+                                      (stp-update-load-path (stp-canonical-path pkg-name))
+                                      load-path))
+                                  modified-packages))
+               (new-features (stp-headers-paths-features new-paths)))
+          (setq installed-features (stp-headers-merge-elisp-requirements (append installed-features new-features))
+                stp-versions new-stp-versions))))))
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
@@ -1327,14 +1334,12 @@ package and updating the load path."
   "Write the hash of the git repository to the lock file."
   (interactive (list t))
   (stp-with-package-source-directory
-    (if (stp-git-clean-p)
-        (let ((hash (stp-git-rev-to-hash stp-source-directory "HEAD")))
-          (with-temp-buffer
-            (insert (format "%S\n" hash))
-            (f-write (buffer-string) 'utf-8 stp-lock-file)
-            (when interactive-p
-              (message "Updated the lock file at %s" stp-lock-file))))
-      (user-error "Refusing to update the lock file: %s is unclean" (stp-git-root stp-source-directory)))))
+    (let ((hash (stp-git-rev-to-hash stp-source-directory "HEAD")))
+      (with-temp-buffer
+        (insert (format "%S\n" hash))
+        (f-write (buffer-string) 'utf-8 stp-lock-file)
+        (when interactive-p
+          (message "Updated the lock file at %s" stp-lock-file))))))
 
 (defun stp-lock-file-watcher (event)
   (let ((action (cadr event)))
