@@ -881,7 +881,7 @@ where each entry is either the name of a package or a list
 containing the name of the package and the minimum version
 required."
   (message "Analyzing the load path for installed packages...")
-  (let* ((installed-features (map-into (stp-headers-paths-features load-path) 'hash-table))
+  (let* ((installed-features (stp-headers-paths-features load-path))
          (stp-versions (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
                                (stp-get-info-packages))))
     (dolist (requirement requirements)
@@ -896,7 +896,8 @@ required."
                ;; version is installed.
                ((or (member pkg-name stp-ignored-requirements)
                     (aand (cl-find-if (fn (eq pkg-sym (car %))) installed-features)
-                          (version-list-<= (version-to-list version) (version-to-list it)))))
+                          (and version
+                               (version-list-<= (version-to-list version) (version-to-list it))))))
                ((not (member pkg-name (stp-info-names)))
                 (cl-incf stp-total-requirements)
                 ;; Sometimes, a single repository can contain multiple packages
@@ -940,7 +941,7 @@ required."
       ;; several seconds or more if many packages are installed.
       (let* ((new-stp-versions (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
                                        (stp-get-info-packages)))
-             (modified-packages (mapcar #'car (cl-set-difference new-stp-versions stp-versions :test #'string=)))
+             (modified-packages (mapcar #'car (cl-set-difference new-stp-versions stp-versions :test #'equal)))
              (new-paths (mapcan (lambda (pkg-name)
                                   ;; Protect `load-path' by rebinding it so that
                                   ;; we can access the values that would be
@@ -950,7 +951,7 @@ required."
                                     load-path))
                                 modified-packages))
              (new-features (stp-headers-paths-features new-paths)))
-        (setq installed-features (stp-headers-merge-elisp-requirements new-features installed-features)
+        (setq installed-features (stp-headers-merge-elisp-requirements (append installed-features new-features))
               stp-versions new-stp-versions)))))
 
 (cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit)
@@ -993,10 +994,8 @@ required."
     (when (stp-maybe-call (map-elt args :do-lock))
       (stp-update-lock-file))))
 
-(cl-defun stp-install-or-upgrade-package-group-command (&key (upgrade t))
-  "Install or upgrade the package groups or packages. If UPGRADE is
-nil, then any packages specified that are already installed will
-not be upgraded."
+(defun stp-install-or-upgrade-package-group-command ()
+  "Install or upgrade the package groups or packages."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -1008,7 +1007,6 @@ not be upgraded."
         (stp-package-group-command (lambda (pkg-names args)
                                      (apply #'stp-ensure-requirements
                                             pkg-names
-                                            :upgrade upgrade
                                             args))
                                    table)
         (stp-report-requirements 'install t)))))
