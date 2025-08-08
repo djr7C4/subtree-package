@@ -880,6 +880,13 @@ in `stp-install'."
 (defvar stp-installed-features nil)
 (defvar stp-versions nil)
 
+(defun stp-recompute-features ()
+  "Recompute all features in the load path. This may be necessary if
+a package is installed outside of STP."
+  (interactive)
+  (setq stp-installed-features nil)
+  (stp-update-features))
+
 (defun stp-compute-versions ()
   (cons `(emacs ,emacs-version)
         (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
