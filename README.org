@@ -2,12 +2,32 @@
 Subtree package (STP) is a package manager for Emacs that stores packages as git
 subtrees in a git repository.
 * Motivation
-- Reproducing your configuration is trivial on a new machine using git clone
-- This works even if some of the repositories for packages it depends on no
-  longer exist
-- There is no need to initialize submodules since git subtree is used
-- It is easy to migrate existing configurations that manually use git subtree to
-  manage packages
+Anyone with a sufficiently complex Emacs configuration knows that upgrading
+installed packages can break one's configuration. Therefore, it is important to
+be able to restore the installed packages to a previous version. The natural way
+to do this is using git.
+
+One approach is to simply use the built-in =package.el= but make
+=~/.emacs.d/elpa= into a git repository. This works but sometimes does not allow
+for sufficient control over the versions of the installed packages since package
+archives only allow installing the most recent version of a package.
+
+The approach STP takes is to represent each package as git subtrees. This can
+also be done using manual git commands but several common tasks are tedious.
+1. Navigating to Github in a web browser to find the URL for each new package
+2. Determining what version to upgrade to via =git subtree pull= via another
+   trip to Github
+3. Managing the dependencies of source packages
+
+STP addresses all of these issues and much more.
+1. Package repositories are automatically determined from the package name using
+   package archives enabled in =package-archives=.
+2. The version to install or upgrade to can be selected using completion. STP
+   automatically detects the suitable tags and branches to provide as completion
+   candidates.
+3. Dependencies of packages are detected automatically when a package is
+   installed or upgraded and are automatically upgraded or installed as
+   necessary.
 * Features
 ** Easily manage packages
 The main entry point to STP is =M-x stp-list= which shows all installed packages
@@ -49,14 +69,18 @@ upgraded when =stp-subtree-fetch= is non-nil. This allows a hash to be specified
 instead of a tag or branch.
 ** Automatic dependency resolution
 Once a package is installed or upgraded, its dependencies are automatically
-determined and the required versions will be installed or upgraded. Sometimes,
-the same git repository contains multiple packages that would be installed via
-=package.el= or using the archive method. An example is the =helm= repository
-which contains both the =helm= and =helm-core= packages. When installing via git
-only =helm= should be installed since =helm-core= corresponds to the same
-repository and would result in an extra copy. =C-c C-k= can be used to skip the
-installation of the current dependency once STP prompts the user to begin
-installing it.
+determined and the required versions will be installed or upgraded. STP keeps
+track of which packages were installed as dependencies. When a package is
+uninstalled, its dependencies are also removed if they are no longer needed and
+were not installed manually by the user.
+
+Sometimes, the same git repository contains multiple packages that would be
+installed via =package.el= or using the archive method. An example is the =helm=
+repository which contains both the =helm= and =helm-core= packages. When
+installing via git only =helm= should be installed since =helm-core= corresponds
+to the same repository and would result in an extra copy. =C-c C-k= can be used
+to skip the installation of the current dependency once STP prompts the user to
+begin installing it.
 ** Mark packages as stable or unstable
 Stable releases are automatically detected from tags in git repositories or ELPA
 releases. Stable packages are only upgraded to other stable releases by default.

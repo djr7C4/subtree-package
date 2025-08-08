@@ -986,7 +986,8 @@ required."
                     pkg-name
                     (if version
                         (format " to version %s" version)
-                      "")
+                      "
+")
                     err)))))
     (when search-load-path
       (stp-update-features))))
