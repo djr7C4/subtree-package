@@ -982,7 +982,12 @@ required."
                   (recursive-edit)))))
           (error
            (push requirement stp-failed-requirements)
-           (message "Failed to install or upgrade %s to version %s: %s" pkg-name version err)))))
+           (message "Failed to install or upgrade %s%s: %s"
+                    pkg-name
+                    (if version
+                        (format " to version %s" version)
+                      "")
+                    err)))))
     (when search-load-path
       (stp-update-features))))
 
