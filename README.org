@@ -247,14 +247,16 @@ STP also requires that you install =atool= if you wish to install ELPA and
 compressed URL packages. Additionally, to support certain non-essential
 features, the ELPA =async= and =queue= packages are required.
 
-It is recommended to make the latest versions and the last time the package
-archive was updated persistent across sessions. This can be done by adding
-=stp-latest-versions-cache= and =stp-archive-last-refreshed= to
-=savehist-additional-variables=. Adding =stp-installed-features=,
-=stp-versions=, =stp-headers-elisp-file-requirements-cache= and
-=stp-headers-elisp-file-feature-cache= to =savehist-additional-variables=
-improves performance when checking if the requirements for packages are
-satisfied.
+Finally, it is recommended to add
+
+#+begin_src emacs-lisp
+  (stp-setup)
+  (savehist-mode 1)
+#+end_src
+
+to your STP configuration to improve performance. =stp-setup= adds various
+variables to =savehist-additional-variables= in order to avoid repeating
+expensive computations.
 
 #+begin_src bash
   (add-to-list 'savehist-additional-variables 'stp-latest-versions-cache)
