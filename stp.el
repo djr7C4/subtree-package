@@ -62,19 +62,6 @@ each type per interactive command."
 
 (def-edebug-spec stp-with-memoization t)
 
-(defun stp-setup ()
-  (stp-savehist-setup))
-
-(defun stp-savehist-setup ()
-  (with-eval-after-load "savehist"
-    (dolist (var '(stp-latest-versions-cache
-                   stp-archive-last-refreshed
-                   stp-headers-elisp-file-requirements-cache
-                   stp-headers-elisp-file-feature-cache
-                   stp-installed-features
-                   stp-versions))
-      (add-to-list 'savehist-additional-variables var))))
-
 (defvar stp-current-package nil
   "The name of the package that is currently being operated on.")
 
@@ -936,6 +923,7 @@ will not be detected."
              (new-features (stp-headers-paths-features new-paths)))
         (setq stp-installed-features (stp-headers-merge-elisp-requirements (append stp-installed-features new-features))
               stp-versions new-versions))
+    (message "Installed features have not yet been computed. This will take a moment the first time")
     (setq stp-installed-features (stp-headers-paths-features load-path)
           stp-versions (stp-compute-versions))))
 
@@ -2524,6 +2512,21 @@ development or for opening packages from `stp-list-mode'."
                   (rem-goto-line-column line column t)
                   (rem-move-current-window-line-to-pos window-line))))
           (message "%s was not found in the local filesystem" pkg-name))))))
+
+(defun stp-setup ()
+  (unless stp-installed-features
+    (stp-update-features))
+  (stp-savehist-setup))
+
+(defun stp-savehist-setup ()
+  (with-eval-after-load "savehist"
+    (dolist (var '(stp-latest-versions-cache
+                   stp-archive-last-refreshed
+                   stp-headers-elisp-file-requirements-cache
+                   stp-headers-elisp-file-feature-cache
+                   stp-installed-features
+                   stp-versions))
+      (add-to-list 'savehist-additional-variables var))))
 
 (provide 'stp)
 ;;; stp.el ends here
