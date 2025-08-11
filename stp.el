@@ -66,8 +66,6 @@ each type per interactive command."
   (stp-savehist-setup))
 
 (defun stp-savehist-setup ()
-  (when (bound-and-true-p savehist-mode)
-    (error "Cannot setup `savehist-additional-variables': `savehist-mode' is already enabled"))
   (with-eval-after-load "savehist"
     (dolist (var '(stp-latest-versions-cache
                    stp-archive-last-refreshed
