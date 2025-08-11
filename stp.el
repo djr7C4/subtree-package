@@ -69,14 +69,13 @@ each type per interactive command."
   (when (bound-and-true-p savehist-mode)
     (error "Cannot setup `savehist-additional-variables': `savehist-mode' is already enabled"))
   (with-eval-after-load "savehist"
-    (setq savehist-additional-variables
-          (cl-list* '(stp-latest-versions-cache
-                      stp-archive-last-refreshed
-                      stp-headers-elisp-file-requirements-cache
-                      stp-headers-elisp-file-feature-cache
-                      stp-installed-features
-                      stp-versions)
-                    savehist-additional-variables))))
+    (dolist (var '(stp-latest-versions-cache
+                   stp-archive-last-refreshed
+                   stp-headers-elisp-file-requirements-cache
+                   stp-headers-elisp-file-feature-cache
+                   stp-installed-features
+                   stp-versions))
+      (add-to-list 'savehist-additional-variables var))))
 
 (defvar stp-current-package nil
   "The name of the package that is currently being operated on.")
