@@ -2529,7 +2529,7 @@ development or for opening packages from `stp-list-mode'."
                    (user-error "No file is associated with this buffer")))
          (pt (point))
          (version (stp-headers-version))
-         (new-version (rem-read-from-mini (format "New version (> %s): " version))))
+         (new-version (rem-read-from-mini (format "New version (> %s): " version) :initial-contents version)))
     (unless version
       (goto-char pt)
       (user-error "No Version header was found in this buffer"))
