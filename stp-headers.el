@@ -292,7 +292,7 @@ was inserted."
       (when insert
         (insert-version t)))))
 
-(defun stp-headers-update-elisp (&optional insert)
+(defun stp-headers-update-elisp-headers (&optional insert)
   "Update the elisp headers.
 
 When INSERT is non-nil, insert the headers if they are not
