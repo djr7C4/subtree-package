@@ -2542,7 +2542,7 @@ development or for opening packages from `stp-list-mode'."
     (when (stp-maybe-call do-commit)
       (save-buffer)
       (stp-git-add file)
-      (stp-git-commit (format "Bumped version to %s" new-version))
+      (stp-git-commit (format "Bumped the version to %s" new-version))
       (let ((tag (concat "v" new-version)))
         (stp-git-tag tag (stp-git-head default-directory))
         (message "Added the git tag %s" tag))
