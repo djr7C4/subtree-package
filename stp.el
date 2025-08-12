@@ -2525,9 +2525,9 @@ development or for opening packages from `stp-list-mode'."
 (cl-defun stp-bump-version (&key do-commit do-push)
   (unless (stp-git-clean-or-ask-p)
     (user-error "Aborted: the repository is unclean"))
-  (unless buffer-file-name
-    (user-error "No file is associated with this buffer"))
-  (let* ((pt (point))
+  (let* ((file (or (buffer-file-name (buffer-base-buffer))
+                   (user-error "No file is associated with this buffer")))
+         (pt (point))
          (version (stp-headers-version))
          (new-version (rem-read-from-mini (format "New version (> %s): " version))))
     (unless version
@@ -2540,7 +2540,7 @@ development or for opening packages from `stp-list-mode'."
     (delete-region (point) (line-end-position))
     (insert new-version)
     (when (stp-maybe-call do-commit)
-      (stp-git-add buffer-file-name)
+      (stp-git-add file)
       (stp-git-commit (format "Bumped version to %s" new-version))
       (let ((tag (concat "v" new-version)))
         (stp-git-tag tag (stp-git-head default-directory))
