@@ -2546,6 +2546,7 @@ development or for opening packages from `stp-list-mode'."
       (let ((tag (concat "v" new-version)))
         (stp-git-tag tag (stp-git-head default-directory))
         (message "Added the git tag %s" tag))
+      (stp-git-push :do-push do-push)
       (stp-git-push :do-push do-push :tags t))))
 
 (defun stp-savehist-setup ()
