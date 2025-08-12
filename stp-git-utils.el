@@ -429,8 +429,8 @@ installed as a git subtree."
 (defun stp-git-subtree-p (path)
   (and (stp-git-subtree-commit path) t))
 
-(defun stp-git-head (&optional dir)
-  (stp-git-remote-head (stp-git-root (or dir stp-source-directory))))
+(defun stp-git-head (&optional path)
+  (stp-git-remote-head (stp-git-root (or path stp-source-directory))))
 
 (defun stp-git-diff (hash hash2)
   (rem-run-command (list "git" "diff" hash hash2) :error t))
