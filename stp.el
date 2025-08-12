@@ -2540,6 +2540,7 @@ development or for opening packages from `stp-list-mode'."
     (delete-region (point) (line-end-position))
     (insert new-version)
     (when (stp-maybe-call do-commit)
+      (save-buffer)
       (stp-git-add file)
       (stp-git-commit (format "Bumped version to %s" new-version))
       (let ((tag (concat "v" new-version)))
