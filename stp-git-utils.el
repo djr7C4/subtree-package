@@ -219,7 +219,7 @@ repository. Return the path to the repository."
     (stp-git-push :do-push do-push :all all :tags tags)))
 
 (defun stp-git-tag (tag revision)
-  (rem-run-command (list "git" "tag" tag revision :error t)))
+  (rem-run-command (list "git" "tag" tag revision) :error t))
 
 (cl-defun stp-git-status (&key keep-ignored keep-untracked)
   "Return a list of the status of each file in the repository.
