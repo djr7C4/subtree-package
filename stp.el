@@ -679,8 +679,8 @@ dependency."
         (stp-git-commit-push (format "Installed version %s of %s"
                                      (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                      pkg-name)
-                             do-commit
-                             do-push)
+                             :do-commit do-commit
+                             :do-push do-push)
         (when ensure-requirements
           (let ((stp-requirements-toplevel nil))
             (ignore stp-requirements-toplevel)
@@ -720,11 +720,11 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
             (stp-git-commit-push (format "Uninstalled version %s of %s"
                                          (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                          pkg-name)
-                                 do-commit
-                                 (and (not uninstall-requirements) do-push))
+                                 :do-commit do-commit
+                                 :do-push (and (not uninstall-requirements) do-push))
             (when uninstall-requirements
               (stp-maybe-uninstall-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit)
-              (stp-git-push do-push))
+              (stp-git-push :do-push do-push))
             (when (stp-maybe-call do-lock)
               (stp-update-lock-file))
             (when refresh
@@ -814,8 +814,8 @@ in `stp-install'."
               (stp-git-commit-push (format "Upgraded to version %s of %s"
                                            (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
                                            pkg-name)
-                                   do-commit
-                                   do-push)
+                                   :do-commit do-commit
+                                   :do-push do-push)
               (when ensure-requirements
                 (let ((stp-requirements-toplevel nil))
                   (ignore stp-requirements-toplevel)
@@ -1036,7 +1036,7 @@ required."
          (args (stp-commit-push-action-args))
          (args2 (map-into (map-remove (fn2 (memq %1 (append '(:do-push :do-lock) extra-removed-kwargs))) args) 'plist)))
     (funcall fun pkg-names args2)
-    (stp-git-push (map-elt args :do-push))
+    (stp-git-push :do-push (map-elt args :do-push))
     (when (stp-maybe-call (map-elt args :do-lock))
       (stp-update-lock-file))))
 
@@ -1163,8 +1163,8 @@ packages at the same time."
                                      "Edited"
                                    "Added")
                                  group-name)
-                         do-commit
-                         do-push)
+                         :do-commit do-commit
+                         :do-push do-push)
     (when (stp-maybe-call do-lock)
       (stp-update-lock-file))))
 
@@ -1183,8 +1183,8 @@ packages at the same time."
   (stp-delete-info-group group-name)
   (stp-write-info)
   (stp-git-commit-push (format "Deleted the package group %s" group-name)
-                       do-commit
-                       do-push)
+                       :do-commit do-commit
+                       :do-push do-push)
   (when (stp-maybe-call do-lock)
     (stp-update-lock-file)))
 
@@ -1208,7 +1208,9 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   (when pkg-name
     (stp-repair-info :quiet nil :pkg-names (list pkg-name))
     (stp-write-info)
-    (stp-git-commit-push (format "Repaired the source package %s" pkg-name) do-commit do-push)
+    (stp-git-commit-push (format "Repaired the source package %s" pkg-name)
+                         :do-commit do-commit
+                         :do-push do-push)
     (when (stp-maybe-call do-lock)
       (stp-update-lock-file))
     (when refresh
@@ -1225,7 +1227,9 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   "Repair the stored package information for all packages."
   (stp-repair-info :quiet nil)
   (stp-write-info)
-  (stp-git-commit-push (format "Repaired source packages") do-commit do-push)
+  (stp-git-commit-push (format "Repaired source packages")
+                       :do-commit do-commit
+                       :do-push do-push)
   (when (stp-maybe-call do-lock)
     (stp-update-lock-file))
   (when refresh
@@ -1273,8 +1277,8 @@ remotes and the rest will be other-remotes."
                                            new-other-remotes
                                            pkg-name)
                                  (format "Edited the remotes for %s" pkg-name))
-                               do-commit
-                               do-push)
+                               :do-commit do-commit
+                               :do-push do-push)
           (when (stp-maybe-call do-lock)
             (stp-update-lock-file))
           (when refresh
@@ -1312,8 +1316,8 @@ in `stp-install'."
             (stp-git-commit-push (format "Changed update to %s for %s"
                                          (stp-invert-update .update)
                                          pkg-name)
-                                 do-commit
-                                 do-push)
+                                 :do-commit do-commit
+                                 :do-push do-push)
             (when (stp-maybe-call do-lock)
               (stp-update-lock-file))
             (when refresh
@@ -1340,8 +1344,8 @@ package requires it rather than explicitly by the user."
       (stp-git-commit-push (format "Changed dependency to %s for %s"
                                    (not dependency)
                                    pkg-name)
-                           do-commit
-                           do-push)
+                           :do-commit do-commit
+                           :do-push do-push)
       (when (stp-maybe-call do-lock)
         (stp-update-lock-file)))))
 
@@ -2513,10 +2517,32 @@ development or for opening packages from `stp-list-mode'."
                   (rem-move-current-window-line-to-pos window-line))))
           (message "%s was not found in the local filesystem" pkg-name))))))
 
-(defun stp-setup ()
-  (unless stp-installed-features
-    (stp-update-features))
-  (stp-savehist-setup))
+(cl-defun stp-bump-version-command ()
+  "Increase the version header for the current file."
+  (interactive)
+  (apply #'stp-bump-version (map-delete (stp-commit-push-args) :do-lock)))
+
+(cl-defun stp-bump-version (&key do-commit do-push)
+  (unless (stp-git-clean-or-ask-p)
+    (user-error "Aborted: the repository is unclean"))
+  (let* ((pt (point))
+         (version (stp-headers-version))
+         (new-version (rem-read-from-mini (format "New version (> %s): " version))))
+    (unless version
+      (goto-char pt)
+      (user-error "No Version header was found in this buffer"))
+    (unless (and (ignore-errors (version-to-list new-version))
+                 (version< version new-version))
+      (goto-char pt)
+      (user-error "%s must a valid version newer than %s" new-version version))
+    (delete-region (point) (line-end-position))
+    (insert new-version)
+    (when (stp-maybe-call do-commit)
+      (stp-git-commit (format "Bumped version to %s" new-version))
+      (let ((tag (concat "v" new-version)))
+        (stp-git-tag tag (stp-git-head "."))
+        (message "Added the git tag %s" tag))
+      (stp-git-push :do-push do-push :tags t))))
 
 (defun stp-savehist-setup ()
   (with-eval-after-load "savehist"
@@ -2527,6 +2553,11 @@ development or for opening packages from `stp-list-mode'."
                    stp-installed-features
                    stp-versions))
       (add-to-list 'savehist-additional-variables var))))
+
+(defun stp-setup ()
+  (unless stp-installed-features
+    (stp-update-features))
+  (stp-savehist-setup))
 
 (provide 'stp)
 ;;; stp.el ends here
