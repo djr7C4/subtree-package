@@ -2538,10 +2538,10 @@ development or for opening packages from `stp-list-mode'."
     (delete-region (point) (line-end-position))
     (insert new-version)
     (when (stp-maybe-call do-commit)
-      (stp-git-add ".")
+      (stp-git-add default-directory)
       (stp-git-commit (format "Bumped version to %s" new-version))
       (let ((tag (concat "v" new-version)))
-        (stp-git-tag tag (stp-git-head "."))
+        (stp-git-tag tag (stp-git-head default-directory))
         (message "Added the git tag %s" tag))
       (stp-git-push :do-push do-push :tags t))))
 
