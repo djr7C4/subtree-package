@@ -53,6 +53,15 @@ of FILE is different from the last time BODY was evaluated."
 
 (def-edebug-spec stp-headers-with-file-cache ((form form) body))
 
+(defun stp-headers-version ()
+  (or (lm-header "Package-Version")
+      (lm-header "Version")))
+
+(defun stp-headers-get-header ()
+  (save-match-data
+    (looking-back " \\([^ \t:]+\\):[ \t]*")
+    (match-string 1)))
+
 ;; Without caching, checking all the requirements for the load path is slow
 ;; (especially when dealing with compressed files). These caches are safe to add
 ;; to `savehist-additional-variables' since hash tables can be printed and read
@@ -67,8 +76,7 @@ of FILE is different from the last time BODY was evaluated."
 
 (defun stp-headers-elisp-feature (name)
   "Return requirements satisfied by the current buffer."
-  (let ((version (or (lm-header "Package-Version")
-                     (lm-header "Version"))))
+  (let ((version (save-excursion (stp-headers-version))))
     (when version
       (list (intern name) (stp-headers-normalize-version version)))))
 
@@ -278,19 +286,22 @@ was inserted."
               t)))))))
 
 (defun stp-headers-update-version-header (&optional insert)
-  (cl-flet ((insert-version (value)
-              (insert (format ";; Version: %s\n"
-                              (or (stp-git-latest-stable-version (stp-git-root))
-                                  "TODO")))
-              value))
-    (if (save-excursion (lm-header "Version"))
-        (save-excursion
-          ;; Move point to the line with the version.
-          (lm-header "Version")
-          (delete-line)
-          (insert-version nil))
-      (when insert
-        (insert-version t)))))
+  (let ((header "Version: "))
+    (cl-flet ((insert-version (value)
+                (insert (format ";; %s: %s\n"
+                                header
+                                (or (stp-git-latest-stable-version (stp-git-root))
+                                    "TODO")))
+                value))
+      (if (save-excursion (stp-headers-version))
+          (save-excursion
+            ;; Move point to the line with the version.
+            (stp-headers-version)
+            (setq header (stp-headers-get-header))
+            (delete-line)
+            (insert-version nil))
+        (when insert
+          (insert-version t))))))
 
 (defun stp-headers-update-elisp-headers (&optional insert)
   "Update the elisp headers.
