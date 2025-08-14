@@ -246,8 +246,9 @@ Finally, it is recommended to add
 #+begin_src emacs-lisp
   (require 'savehist)
 
-  (stp-setup)
+  ;; The order of these calls is important.
   (savehist-mode 1)
+  (stp-setup)
 #+end_src
 
 to improve performance. =stp-setup= adds various variables to
