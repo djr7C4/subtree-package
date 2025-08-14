@@ -21,6 +21,10 @@ fi
 
 repos=("https://github.com/rolandwalker/anaphora.git master" "https://github.com/magnars/dash.el.git master" "https://github.com/rejeep/f.el.git master" "https://github.com/djr7C4/emacs-memoize.git master" "https://github.com/magnars/s.el.git master" "https://github.com/jwiegley/emacs-async master" "https://github.com/tarsius/llama main" "https://github.com/djr7C4/rem.git main" "https://github.com/djr7C4/subtree-package.git main")
 
+pkg_info_file="stp-pkg-info.eld"
+
+echo "((packages" > "$pkg_info_file"
+
 for item in "${repos[@]}"; do
     repo="$(echo "$item" | cut -d ' ' -f 1)"
     branch="$(echo "$item" | cut -d ' ' -f 2)"
@@ -28,4 +32,7 @@ for item in "${repos[@]}"; do
     pkg_name="${pkg_name%.git}"
     pkg_name="${pkg_name%.el}"
     git subtree add --prefix "package-source/${pkg_name}" --squash "$repo" "$branch"
+    echo "(\"${pkg_name}\" (method . git) (remote . \"${repo}\") (update . unstable) (branch . \"${branch}\"))" >> "$pkg_info_file"
 done
+
+echo -e "))\n" >> "$pkg_info_file"
