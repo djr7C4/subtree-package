@@ -285,7 +285,8 @@ occurred."
                       (when valid-other-remotes
                         (stp-set-attribute pkg-name 'other-remotes valid-other-remotes)))
                     (unless .requirements
-                      (stp-set-attribute 'requirements (funcall callback 'requirements pkg-name)))
+                      (setq .requirements (funcall callback 'requirements pkg-name))
+                      (stp-set-attribute pkg-name 'requirements .requirements))
                     (db (version update)
                         (stp-git-subtree-version pkg-name)
                       (cl-case .method
