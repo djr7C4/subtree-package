@@ -26,5 +26,6 @@ for item in "${repos[@]}"; do
     branch="$(echo "$item" | cut -d ' ' -f 2)"
     pkg_name="${repo##*/}"
     pkg_name="${pkg_name%.git}"
+    pkg_name="${pkg_name%.el}"
     git subtree add --prefix "package-source/${pkg_name}" --squash "$repo" "$branch"
 done
