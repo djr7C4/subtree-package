@@ -217,7 +217,7 @@ remote or archive. Archives are represented as symbols."
                 (unless .requirements
                   (stp-set-attribute pkg-name 'requirements (stp-update-requirements pkg-name)))))
       (cl-case type
-        (requirements (stp-update-requirements pkg-name))
+        (requirements (stp-package-requirements pkg-name))
         (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
         (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " .remote pkg-name)))
         (unknown-git-version (stp-git-read-version (format "Unable to determine verion for %s; enter version: " pkg-name)
