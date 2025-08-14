@@ -203,8 +203,26 @@ Use =x= to remove a group that is no longer needed. Use =U= to install or
 upgrade packages in the specified groups. The name of a package can also be
 specified instead of a group. =D= can be used to uninstall a package group.
 * Installation
-Subtree package can manage itself as a package. It is recommended to place the
-bootstraping code in =early-init.el=.
+Subtree package can manage itself as a package but first it needs to be
+installed along with its dependencies using other means. The simplest way is to
+run the bootstrap script from this repository in the top-level directory of this
+git repository for your Emacs configuration.
+
+#+begin_src bash
+  cd <emacs-git-directory>
+  curl -s https://raw.githubusercontent.com/djr7C4/subtree-packages/refs/heads/main/bootstrap | bash
+#+end_src
+
+After the packages are installed, restart Emacs, set =stp-source-directory= to
+the directory that the packages were installed in and run =M-x stp-repair-all=
+to initialize the package information database from the git repository.
+
+STP also requires that you install =atool= if you wish to install ELPA and
+compressed URL packages. Additionally, to support certain non-essential
+features, the ELPA =async= and =queue= packages are required.
+
+It is recommended to place the bootstraping code in =early-init.el=.
+
 #+begin_src emacs-lisp
   (require 'stp-locked (expand-file-name "path/to/package-source/subtree-package/stp-locked.el"))
   (require 'stp-bootstrap (expand-file-name "path/to/package-source/subtree-package/stp-bootstrap.el"))
@@ -222,30 +240,6 @@ In your =~/.emacs.el=, =~/.emacs=, =~/.emacs.d/init.el=, use the following code.
 
   (keymap-global-set "C-c P" #'stp-list)
 #+end_src
-
-You will also need to manually install the dependencies of STP before it can
-used. The simplest way is to run the bootstrap script from this repository in
-the top-level directory of the git repository for your Emacs configuration.
-
-#+begin_src bash
-  cd <emacs-git-directory>
-  curl -s https://raw.githubusercontent.com/djr7C4/subtree-packages/refs/heads/main/bootstrap | bash
-#+end_src
-
-After the packages are installed, restart Emacs and run =M-x stp-repair-all= to
-initialize the package information database from the git repository.
-
-Alternatively, you can manually install each of the dependencies using
-
-#+begin_src bash
-  git subtree add --prefix "path/to/package-source/pkg-name" --squash <repo-url> <package-ref>
-#+end_src
-
-for each dependency.
-
-STP also requires that you install =atool= if you wish to install ELPA and
-compressed URL packages. Additionally, to support certain non-essential
-features, the ELPA =async= and =queue= packages are required.
 
 Finally, it is recommended to add
 
