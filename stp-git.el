@@ -69,7 +69,7 @@ available; otherwise, use the hash."
                 (aif (cl-assoc-if (lambda (hash)
                                     (stp-git-hash= cur-hash hash))
                                   hash-tags)
-                    (list (cdr it) 'stable)
+                    (list (stp-git-tag-strip-dereference (cdr it)) 'stable)
                   (list cur-hash 'unstable))
               ;; When cur-hash is nil, it means that the subtree version was not
               ;; found.
