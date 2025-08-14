@@ -220,7 +220,8 @@ features, the =async= and =queue= packages are required.
 The bootstraping code should be placed in =~/.emacs.d/early-init.el=.
 
 #+begin_src emacs-lisp
-  (setq stp-source-directory "<path/to/package-source>")
+  (setq stp-source-directory "<path/to/package-source>"
+        stp-info-file "<path/to/package-source/../>/pkg-info.eld")
 
   (require 'stp-locked (expand-file-name "<path/to/package-source>/subtree-package/stp-locked.el"))
   (require 'stp-bootstrap (expand-file-name "<path/to/package-source>/subtree-package/stp-bootstrap.el"))
