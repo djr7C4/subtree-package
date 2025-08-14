@@ -314,11 +314,11 @@ occurred."
                              (message "Failed to determine the version of %s" pkg-name)))
                          ;; Use callback to determine update if it could not be
                          ;; deduced above.
-                         (setq update (or update (funcall callback 'unknown-git-update pkg-name)))
-                         (if update
+                         (setq .update (or .update update (funcall callback 'unknown-git-update pkg-name)))
+                         (if .update
                              (progn
-                               (stp-set-attribute pkg-name 'update update)
-                               (when (eq update 'unstable)
+                               (stp-set-attribute pkg-name 'update .update)
+                               (when (eq .update 'unstable)
                                  ;; If the 'update attribute is 'unstable, there
                                  ;; should be a 'branch attribute. If it is
                                  ;; missing, we try to get it from the callback
