@@ -205,14 +205,19 @@ remote or archive. Archives are represented as symbols."
                     (cl-ecase .method
                       (elpa (setq .version (stp-elpa-read-version prompt pkg-name .remote)))
                       (url (setq .version (stp-url-read-version prompt))))
-                    (stp-set-attribute pkg-name 'version .version))))
+                    (stp-set-attribute pkg-name 'version .version)))
+                (unless .requirements
+                  (stp-set-attribute pkg-name 'requirements (stp-update-requirements pkg-name))))
               (handle-partial-archive (pkg-name)
                 (stp-archive-ensure-loaded)
                 (unless .remote
                   (let ((prompt (format "[%s] archive: " pkg-name)))
                     (setq .remote (stp-comp-read-remote prompt (stp-archives pkg-name)))
-                    (stp-set-attribute pkg-name 'remote .remote)))))
+                    (stp-set-attribute pkg-name 'remote .remote)))
+                (unless .requirements
+                  (stp-set-attribute pkg-name 'requirements (stp-update-requirements pkg-name)))))
       (cl-case type
+        (requirements (stp-update-requirements pkg-name))
         (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
         (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " .remote pkg-name)))
         (unknown-git-version (stp-git-read-version (format "Unable to determine verion for %s; enter version: " pkg-name)
@@ -279,6 +284,8 @@ occurred."
                     (let* ((valid-other-remotes (-filter (-rpartial #'stp-valid-remote-p .method) .other-remotes)))
                       (when valid-other-remotes
                         (stp-set-attribute pkg-name 'other-remotes valid-other-remotes)))
+                    (unless .requirements
+                      (stp-set-attribute 'requirements (funcall callback 'requirements pkg-name)))
                     (db (version update)
                         (stp-git-subtree-version pkg-name)
                       (cl-case .method
