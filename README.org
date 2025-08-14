@@ -217,13 +217,13 @@ STP also requires that you install =atool= if you wish to install archive, ELPA
 and compressed URL packages. Additionally, to support certain non-essential
 features, the =async= and =queue= packages are required.
 
-The bootstraping code should be placed in =early-init.el=.
+The bootstraping code should be placed in =~/.emacs.d/early-init.el=.
 
 #+begin_src emacs-lisp
-  (setq stp-source-directory "path/to/package-source/")
+  (setq stp-source-directory "<path/to/package-source>")
 
-  (require 'stp-locked (expand-file-name "path/to/package-source/subtree-package/stp-locked.el"))
-  (require 'stp-bootstrap (expand-file-name "path/to/package-source/subtree-package/stp-bootstrap.el"))
+  (require 'stp-locked (expand-file-name "<path/to/package-source>/subtree-package/stp-locked.el"))
+  (require 'stp-bootstrap (expand-file-name "<path/to/package-source>/subtree-package/stp-bootstrap.el"))
 
     ;; Set up dependencies for STP itself.
     (stp-bootstrap)
@@ -243,6 +243,8 @@ code.
 Finally, it is recommended to add
 
 #+begin_src emacs-lisp
+  (require 'savehist)
+
   (stp-setup)
   (savehist-mode 1)
 #+end_src

@@ -762,14 +762,15 @@ and REV2 do not share a common ancestor."
   "Cached repos can be deleted if they have not been used this long.")
 
 (defun stp-git-delete-stale-cached-repos ()
-  (f-entries stp-git-cache-directory
-             (lambda (file)
-               (and (s-ends-with-p stp-git-cached-repo-timestamp-suffix file)
-                    (let ((updated (string-to-number (f-read file 'utf-8))))
-                      (when (> (- (float-time) updated)
-                               stp-git-stale-cached-repo-interval)
-                        (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
-                        (f-delete file)))))))
+  (when (f-dir-p stp-git-cache-directory)
+    (f-entries stp-git-cache-directory
+               (lambda (file)
+                 (and (s-ends-with-p stp-git-cached-repo-timestamp-suffix file)
+                      (let ((updated (string-to-number (f-read file 'utf-8))))
+                        (when (> (- (float-time) updated)
+                                 stp-git-stale-cached-repo-interval)
+                          (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
+                          (f-delete file))))))))
 
 (cl-defun stp-git-count-remote-commits (remotes rev rev2)
   "This is `stp-git-count-commits' for remote repositories.
