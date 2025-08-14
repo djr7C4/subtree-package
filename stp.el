@@ -2556,6 +2556,7 @@ development or for opening packages from `stp-list-mode'."
 
 (defun stp-savehist-setup ()
   (with-eval-after-load "savehist"
+    (defvar savehist-additional-variables)
     (dolist (var '(stp-latest-versions-cache
                    stp-archive-last-refreshed
                    stp-headers-elisp-file-requirements-cache
