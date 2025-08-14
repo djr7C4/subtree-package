@@ -31,6 +31,7 @@ for item in "${repos[@]}"; do
     pkg_name="${repo##*/}"
     pkg_name="${pkg_name%.git}"
     pkg_name="${pkg_name%.el}"
+    pkg_name="${pkg_name#emacs-}"
     git subtree add --prefix "package-source/${pkg_name}" --squash "$repo" "$branch"
     echo "(\"${pkg_name}\" (method . git) (remote . \"${repo}\") (update . unstable) (branch . \"${branch}\"))" >> "$pkg_info_file"
 done
