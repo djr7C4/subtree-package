@@ -352,9 +352,12 @@ inserted."
           (insert ";; Package-Requires: ()")))
       inserted)))
 
+(defvar stp-main-package-name-transform (fn (s-chop-suffix ".el" (s-chop-prefix "emacs-" %)))
+  "The function to apply ")
+
 (cl-defun stp-main-package-file (pkg-name &key no-directory relative)
   (let* ((pkg-path (stp-full-path pkg-name))
-         (pkg-file (concat pkg-name ".el"))
+         (pkg-file (concat (funcall stp-main-package-name-transform (stp-name pkg-name)) ".el"))
          (paths (->> (regexp-quote pkg-file)
                      (directory-files-recursively pkg-path)
                      stp-sort-paths-top-down))
