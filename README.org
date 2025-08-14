@@ -213,17 +213,15 @@ git repository for your Emacs configuration.
   curl -s https://raw.githubusercontent.com/djr7C4/subtree-packages/refs/heads/main/bootstrap | bash
 #+end_src
 
-After the packages are installed, restart Emacs, set =stp-source-directory= to
-the directory that the packages were installed in and run =M-x stp-repair-all=
-to initialize the package information database from the git repository.
+STP also requires that you install =atool= if you wish to install archive, ELPA
+and compressed URL packages. Additionally, to support certain non-essential
+features, the =async= and =queue= packages are required.
 
-STP also requires that you install =atool= if you wish to install ELPA and
-compressed URL packages. Additionally, to support certain non-essential
-features, the ELPA =async= and =queue= packages are required.
-
-It is recommended to place the bootstraping code in =early-init.el=.
+The bootstraping code should be placed in =early-init.el=.
 
 #+begin_src emacs-lisp
+  (setq stp-source-directory "path/to/package-source/")
+
   (require 'stp-locked (expand-file-name "path/to/package-source/subtree-package/stp-locked.el"))
   (require 'stp-bootstrap (expand-file-name "path/to/package-source/subtree-package/stp-bootstrap.el"))
 
@@ -233,7 +231,8 @@ It is recommended to place the bootstraping code in =early-init.el=.
     (stp-update-load-paths)
 #+end_src
 
-In your =~/.emacs.el=, =~/.emacs=, =~/.emacs.d/init.el=, use the following code.
+In your =~/.emacs.el=, =~/.emacs= or =~/.emacs.d/init.el=, add the following
+code.
 
 #+begin_src emacs-lisp
   (require 'stp)
@@ -248,14 +247,13 @@ Finally, it is recommended to add
   (savehist-mode 1)
 #+end_src
 
-to your STP configuration to improve performance. =stp-setup= adds various
-variables to =savehist-additional-variables= in order to avoid repeating
-expensive computations.
+to improve performance. =stp-setup= adds various variables to
+=savehist-additional-variables= in order to avoid repeating expensive
+computations.
 
-#+begin_src bash
-  (add-to-list 'savehist-additional-variables 'stp-latest-versions-cache)
-  (add-to-list 'savehist-additional-variables 'stp-archive-last-refreshed)
-#+end_src
+Start Emacs and run =M-x stp-repair-all= to initialize the package information
+database from the git repository. This will cause the packages installed by the
+bootstrap script to be recognized as STP packages.
 
 * Recommended bindings
 #+begin_src emacs-lisp
