@@ -202,6 +202,13 @@ Groups of related packages can be created or edited with =E= in =stp-list-mode=.
 Use =x= to remove a group that is no longer needed. Use =U= to install or
 upgrade packages in the specified groups. The name of a package can also be
 specified instead of a group. =D= can be used to uninstall a package group.
+** Manage package headers
+STP provides some utilities to streamline the management of elisp package
+headers. Use =M-x stp-bump-version= to change the version header of the current
+file and automatically add a git tag with the same name. Use =M-x
+stp-headers-update-elisp-headers= to try to infer updated values of a number of
+elisp headers and automatically update them. In particular, this updates the
+requirements to the versions that are currently installed.
 * Installation
 Subtree package can manage itself as a package but first it needs to be
 installed along with its dependencies using other means. The simplest way is to
