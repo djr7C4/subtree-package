@@ -829,7 +829,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
   (let* ((pkg-path (stp-canonical-path pkg-name))
          ;; Reload those features that were already loaded and correspond to
          ;; files in the package.
-         (files (mapcar #'f-no-ext (rem-elisp-files-to-load pkg-path))))
+         (files (mapcar #'f-no-ext (rem-elisp-files-to-load pkg-path :recursive t))))
     (dolist (f files)
       (load f))))
 
