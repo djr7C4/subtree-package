@@ -59,7 +59,7 @@ of FILE is different from the last time BODY was evaluated."
 
 (defun stp-headers-get-header ()
   (save-match-data
-    (looking-back " \\([^ \t:]+\\):[ \t]*")
+    (looking-back " \\([^ \t:]+\\):[ \t]*" nil)
     (match-string 1)))
 
 ;; Without caching, checking all the requirements for the load path is slow
@@ -113,36 +113,37 @@ is non-nil, then they will be merged into an empty hash table."
        for pkg-sym being the hash-keys of versions using (hash-values version)
        collect (list pkg-sym version)))))
 
-(cl-defun stp-headers-directory-requirements (dir &optional (fun #'stp-headers-elisp-file-requirements))
+(cl-defun stp-headers-directory-requirements (dir &key (fun #'stp-headers-elisp-file-requirements) recursive)
   "Find all packages that are required by DIR.
 
 There are determined according to the Package-Requires field of
 its elisp files."
   (let* (reqs
-         (files (rem-elisp-files-to-load dir t)))
+         (files (rem-elisp-files-to-load dir :compressed t :recursive recursive)))
     (dolist (file files)
       (setq reqs (append reqs (funcall fun file))))
     (stp-headers-merge-elisp-requirements reqs)))
 
-(cl-defun stp-headers-paths-requirements (paths &optional (fun #'stp-headers-directory-requirements))
+(cl-defun stp-headers-paths-requirements (paths &key (fun #'stp-headers-directory-requirements) recursive)
   "Find all requirements for the files in PATHS. PATHS may be either
 a single path or a list of paths."
   (setq paths (ensure-list paths))
   (->> (-filter (fn (and % (f-directory-p %))) paths)
-       (mapcar fun)
+       (mapcar (-rpartial fun :recursive recursive))
        (apply #'append)
        stp-headers-merge-elisp-requirements))
 
-(defun stp-headers-directory-features (dir)
+(cl-defun stp-headers-directory-features (dir &key recursive)
   "Find all requirements that are satisfied by files in DIR."
   (stp-headers-directory-requirements dir
-                                      (fn (awhen (stp-headers-elisp-file-feature %)
-                                            (list it)))))
+                                      :fun (fn (awhen (stp-headers-elisp-file-feature %)
+                                                 (list it)))
+                                      :recursive recursive))
 
-(cl-defun stp-headers-paths-features (paths)
+(cl-defun stp-headers-paths-features (paths &key recursive)
   "Find all requirements that are satisfied by files in PATHS. PATHS
 may be either a single path or a list of paths."
-  (stp-headers-paths-requirements paths #'stp-headers-directory-features))
+  (stp-headers-paths-requirements paths :fun #'stp-headers-directory-features :recursive recursive))
 
 (defun stp-headers-requirements-hash-table (requirements)
   "Return a hash table mapping the symbol for each package in
