@@ -150,6 +150,56 @@ REQUIREMENTS to its version."
   ;; Make sure that there are no duplicate packages.
   (stp-headers-merge-elisp-requirements requirements t))
 
+(defvar stp-headers-installed-features nil)
+(defvar stp-headers-versions nil)
+
+(defvar stp-headers-always-recompute-features nil
+  "When non-nil, features are always recomputed by
+`stp-headers-update-features' instead of using incremental updates. This
+is slower but will detect packages installed with other package
+managers.")
+
+(defun stp-headers-update-features ()
+  "Update `stp-headers-installed-features'. Add the new features from
+packages that were installed or upgraded since this function was
+last invoked. This is much faster than recomputing all features
+which can take several seconds or more if many packages are
+installed. The downside is that packages installed outside of STP
+will not be detected."
+  (if (and (not stp-headers-always-recompute-features)
+           stp-headers-installed-features
+           ;; If the installed version of Emacs has changed, recompute
+           ;; everything since the built-in packages may have been upgraded.
+           (string= (cadar stp-headers-versions) emacs-version))
+      (let* ((new-versions (stp-headers-compute-versions))
+             (modified-packages (mapcar #'car (cl-set-difference new-versions stp-headers-versions :test #'equal)))
+             (new-paths (mapcan (lambda (pkg-name)
+                                  ;; Protect `load-path' by rebinding it so that
+                                  ;; we can access the values that would be
+                                  ;; added for this package.
+                                  (let ((load-path nil))
+                                    (stp-update-load-path (stp-canonical-path pkg-name))
+                                    load-path))
+                                modified-packages))
+             (new-features (stp-headers-paths-features new-paths)))
+        (setq stp-headers-installed-features (stp-headers-merge-elisp-requirements (append stp-headers-installed-features new-features))
+              stp-headers-versions new-versions))
+    (message "Installed features have not yet been computed. This will take a moment the first time")
+    (setq stp-headers-installed-features (stp-headers-paths-features load-path)
+          stp-headers-versions (stp-headers-compute-versions))))
+
+(defun stp-headers-recompute-features ()
+  "Recompute all features in the load path. This may be necessary if
+a package is installed outside of STP."
+  (interactive)
+  (setq stp-headers-installed-features nil)
+  (stp-headers-update-features))
+
+(defun stp-headers-compute-versions ()
+  (cons `(emacs ,emacs-version)
+        (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
+                (stp-get-info-packages))))
+
 (defun stp-headers-requirement-satisfied-p (requirement requirements-map)
   "Determine if REQUIREMENT is satisfied by REQUIREMENTS-MAP which
 should map each package symbol to the version that is installed."
