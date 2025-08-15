@@ -32,8 +32,8 @@ These are determined according to the Package-Requires field."
       (db (reqs . index)
           (read-from-string text)
         (when (>= index (length text))
-          (mapcar (lambda (cell)
-                    (list (car cell) (stp-headers-normalize-version (cadr cell))))
+          (mapcar (lambda (entry)
+                    (list (car entry) (stp-headers-normalize-version (cadr entry))))
                   reqs))))))
 
 (cl-defmacro stp-headers-with-file-cache ((file cache) &rest body)
@@ -356,6 +356,27 @@ was inserted."
         (when insert
           (insert-version t))))))
 
+(defvar stp-headers-ignored-requirements '("emacs"))
+
+(defun stp-headers-update-requirements-header (&optional insert)
+  (interactive (list t))
+  (stp-headers-update-features)
+  ;; Update each requirement to the latest installed version.
+  (let ((new-requirements (mapcar (lambda (entry)
+                                    (if (member (symbol-name (car entry)) stp-headers-ignored-requirements)
+                                        entry
+                                      (assoc (car entry) stp-headers-installed-features)))
+                                  (stp-headers-elisp-requirements))))
+    (if (save-excursion (lm-header "Package-Requires"))
+        (save-excursion
+          (lm-header "Package-Requires")
+          (progn
+            (delete-region (point) (progn (forward-sexp) (point)))
+            (insert (prin1-to-string new-requirements))
+            nil))
+      (when insert
+        (insert (format ";; Package-Requires: %S" new-requirements))))))
+
 (defun stp-headers-update-elisp-headers (&optional insert)
   "Update the elisp headers.
 
@@ -399,6 +420,8 @@ inserted."
             (setq inserted t)
             (insert (format ";; URL: %s\n" it))))
         (when (stp-headers-update-version-header insert)
+          (setq inserted t))
+        (when (stp-headers-update-requirements-header insert)
           (setq inserted t))
         (unless (save-excursion (lm-header-multiline "Package-Requires"))
           (setq inserted t)

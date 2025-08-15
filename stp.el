@@ -888,8 +888,6 @@ in `stp-install'."
                  "packages"
                "dependencies")))))
 
-(defvar stp-ignored-requirements '("emacs"))
-
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (search-load-path t))
   "Install or upgrade each requirement to ensure that at least the
 specified version is available. REQUIREMENTS should be a list
@@ -905,13 +903,13 @@ required."
         (ensure-list requirement)
       (let* ((pkg-name (stp-symbol-package-name pkg-sym))
              (prefix (format "[%s] " pkg-name)))
-        (unless (member pkg-name stp-ignored-requirements)
+        (unless (member pkg-name stp-headers-ignored-requirements)
           (push requirement stp-requirements))
         (condition-case err
             (cond
              ;; Do nothing when a requirement is ignored or a new enough
              ;; version is installed.
-             ((or (member pkg-name stp-ignored-requirements)
+             ((or (member pkg-name stp-headers-ignored-requirements)
                   (if search-load-path
                       (aand (cl-find-if (fn (eq pkg-sym (car %))) stp-headers-installed-features)
                             (and version
