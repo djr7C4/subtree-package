@@ -2572,7 +2572,7 @@ if no version header is found for the current file."
         (insert new-version)
         (when (stp-maybe-call do-commit)
           (save-buffer)
-          (stp-git-add filename)
+          (stp-git-add default-directory :update t)
           (let ((msg (format "Bumped the version to %s" new-version)))
             ;; Give the user a chance to use their own message if we aren't just
             ;; bumping the version in this commit.

@@ -122,15 +122,20 @@ within that package."
     (unless (eql (car (rem-call-process-shell-command "git init")) 0)
       (error "git init failed"))))
 
-(cl-defun stp-git-add (path)
-  "Run \"git add\" on path."
+(cl-defun stp-git-add (path &key update)
+  "Run \"git add\" on path. When UPDATE is non-nil, only add changes
+to tracked files."
   (db (dir target)
       (if (f-dir-p path)
           ;; This allows path to be the top-level of a git repository.
           (list path ".")
         (list (f-dirname path) (f-filename path)))
-    (let ((default-directory dir))
-      (rem-run-command (list "git" "add" target) :error t))))
+    (let ((default-directory (f-full dir)))
+      (rem-run-command (cl-list* "git"
+                                 "add"
+                                 target
+                                 (rem-maybe-args "-u" update))
+                       :error t))))
 
 (defvar stp-git-synthetic-repos nil)
 
