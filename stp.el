@@ -4,8 +4,8 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: git tools
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.8.3
-;; Package-Requires: ((emacs "29.1") (dash "2.19.1") (f "0.21.0") (s "1.12.0") (queue "0.2") (async "1.9.9") (anaphora "1.0.4") (rem "0.6.0"))
+;; Version: 0.8.4
+;; Package-Requires: ((emacs "29.1") (dash "2.19.1") (f "0.21.0") (s "1.12.0") (queue "0.2") (async "1.9.9") (anaphora "1.0.4") (memoize "1.2.0") (rem "0.6.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
@@ -379,6 +379,10 @@ installed or upgraded. The value t indicates that all post
 actions should be performed. When this variable is a function it
 will be called to determine the value when it is needed.")
 
+(defvar stp-auto-tag t
+  "When bumping the version, automatically tag the commit with the
+new version.")
+
 (defvar stp-auto-update-load-path t
   "When non-nil, automatically update the load path.
 
@@ -436,8 +440,9 @@ interactive commands.")
 (defvar stp-prefix-negate-auto-push t)
 (defvar stp-prefix-negate-auto-lock t)
 (defvar stp-prefix-negate-auto-actions t)
+(defvar stp-prefix-negate-auto-tag t)
 
-(cl-defun stp-commit-push-args (&key (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p))
+(cl-defun stp-commit-push-args (&key (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (ensure-clean t))
   (stp-ensure-no-merge-conflicts)
   (let ((args (if current-prefix-arg
                   (list :do-commit (if do-commit-provided-p
@@ -464,7 +469,7 @@ interactive commands.")
                       :do-lock (if do-lock-provided-p
                                    do-lock
                                  (and (not stp-never-auto-lock) stp-auto-lock))))))
-    (when (plist-get args :do-commit)
+    (when (and ensure-clean (plist-get args :do-commit))
       (stp-maybe-ensure-clean))
     args))
 
@@ -2525,35 +2530,61 @@ development or for opening packages from `stp-list-mode'."
                   (rem-move-current-window-line-to-pos window-line))))
           (message "%s was not found in the local filesystem" pkg-name))))))
 
-(cl-defun stp-bump-version-command ()
-  "Increase the version header for the current file."
-  (interactive)
-  (apply #'stp-bump-version (map-delete (stp-commit-push-args) :do-lock)))
-
-(cl-defun stp-bump-version (&key do-commit do-push)
-  (unless (stp-git-clean-or-ask-p)
+(cl-defun stp-bump-version (filename &key do-commit do-push do-tag)
+  "Increase the version header for FILENAME. Interactively, this is
+the file for the current buffer or the main file for the package
+if no version header is found for the current file."
+  (interactive (cons (cl-flet ((has-version-header-p (filename)
+                                 (when filename
+                                   (when (functionp filename)
+                                     (setq filename (funcall filename)))
+                                   (with-temp-buffer
+                                     (insert-file-contents filename)
+                                     (and (stp-headers-version) filename)))))
+                       (cl-some #'has-version-header-p
+                                (list (buffer-file-name (buffer-base-buffer))
+                                      ;; `stp-main-package-file' can prompt the user so we don't want
+                                      ;; to actually call it unless it's really necessary.
+                                      (fn (aand (stp-git-root)
+                                                (stp-main-package-file (stp-git-root it))))
+                                      (fn (user-error "No Version header was found")))))
+                     (let* ((args (map-delete (stp-commit-push-args :ensure-clean nil) :do-lock))
+                            (do-commit (map-elt args :do-commit))
+                            (do-tag (stp-and do-commit
+                                             (if current-prefix-arg
+                                                 (stp-negate stp-auto-tag)
+                                               stp-auto-tag))))
+                       (append args (list :do-tag do-tag)))))
+  (unless (or (not (stp-maybe-call do-commit))
+              (stp-git-clean-or-ask-p))
     (user-error "Aborted: the repository is unclean"))
-  (save-excursion
-    (let* ((file (or (buffer-file-name (buffer-base-buffer))
-                     (user-error "No file is associated with this buffer")))
-           (version (stp-headers-version))
-           (new-version (rem-read-from-mini (format "New version (> %s): " version) :initial-contents version)))
-      (unless version
-        (user-error "No Version header was found in this buffer"))
-      (unless (and (ignore-errors (version-to-list new-version))
-                   (version< version new-version))
-        (user-error "%s must a valid version newer than %s" new-version version))
-      (delete-region (point) (line-end-position))
-      (insert new-version)
-      (when (stp-maybe-call do-commit)
-        (save-buffer)
-        (stp-git-add file)
-        (stp-git-commit (format "Bumped the version to %s" new-version))
-        (let ((tag (concat "v" new-version)))
-          (stp-git-tag tag (stp-git-head default-directory))
-          (message "Added the git tag %s" tag))
-        (stp-git-push :do-push do-push)
-        (stp-git-push :do-push do-push :tags t)))))
+  (let ((clean (stp-git-clean-p)))
+    (save-excursion
+      (find-file filename)
+      (let* ((version (stp-headers-version))
+             (new-version (rem-read-from-mini (format "New version (> %s): " version) :initial-contents version)))
+        (unless version
+          (error "No Version header was found in this buffer"))
+        (unless (and (ignore-errors (version-to-list new-version))
+                     (version< version new-version))
+          (user-error "%s must a valid version newer than %s" new-version version))
+        (delete-region (point) (line-end-position))
+        (insert new-version)
+        (when (stp-maybe-call do-commit)
+          (save-buffer)
+          (stp-git-add filename)
+          (let ((msg (format "Bumped the version to %s" new-version)))
+            ;; Give the user a chance to use their own message if we aren't just
+            ;; bumping the version in this commit.
+            (unless clean
+              (setq msg (rem-read-from-mini "Commit message: " :initial-contents msg)))
+            (stp-git-commit msg :do-commit t))
+          (when (stp-maybe-call do-tag)
+            (let ((tag (concat "v" new-version)))
+              (stp-git-tag tag (stp-git-head default-directory))
+              (message "Added the git tag %s" tag)))
+          (stp-git-push :do-push do-push)
+          (stp-git-push :do-push do-push :tags t))))))
 
 (defun stp-savehist-setup ()
   (with-eval-after-load "savehist"

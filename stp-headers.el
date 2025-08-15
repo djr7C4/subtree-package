@@ -353,7 +353,8 @@ inserted."
       inserted)))
 
 (defvar stp-main-package-name-transform (fn (s-chop-suffix ".el" (s-chop-prefix "emacs-" %)))
-  "The function to apply ")
+  "The function to apply to transform the name of a package when
+looking for the main file.")
 
 (cl-defun stp-main-package-file (pkg-name &key no-directory relative)
   (let* ((pkg-path (stp-full-path pkg-name))
