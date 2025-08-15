@@ -166,6 +166,8 @@ last invoked. This is much faster than recomputing all features
 which can take several seconds or more if many packages are
 installed. The downside is that packages installed outside of STP
 will not be detected."
+  (when stp-headers-always-recompute-features
+    (setq stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal)))
   (if (and (not stp-headers-always-recompute-features)
            stp-headers-installed-features
            ;; If the installed version of Emacs has changed, recompute
@@ -192,7 +194,9 @@ will not be detected."
   "Recompute all features in the load path. This may be necessary if
 a package is installed outside of STP."
   (interactive)
-  (setq stp-headers-installed-features nil)
+  (stp-refresh-info)
+  (setq stp-headers-installed-features nil
+        stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
   (stp-headers-update-features))
 
 (defun stp-headers-compute-versions ()
@@ -360,6 +364,7 @@ was inserted."
 
 (defun stp-headers-update-requirements-header (&optional insert)
   (interactive (list t))
+  (stp-refresh-info)
   (stp-headers-update-features)
   ;; Update each requirement to the latest installed version.
   (let ((new-requirements (mapcar (lambda (entry)
