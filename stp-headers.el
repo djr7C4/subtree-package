@@ -290,7 +290,10 @@ was inserted."
     (cl-flet ((insert-version (value)
                 (insert (format ";; %s: %s\n"
                                 header
-                                (or (stp-git-latest-stable-version (stp-git-root))
+                                (or (->> (stp-git-root)
+                                         stp-git-latest-stable-version
+                                         stp-version-extract
+                                         (s-join "."))
                                     "TODO")))
                 value))
       (if (save-excursion (stp-headers-version))
