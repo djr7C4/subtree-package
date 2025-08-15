@@ -19,9 +19,17 @@ if [[ ! -d ".git" ]]; then
     exit 1
 fi
 
+latest_stable() {
+    repo="$1"
+    git ls-remote "$repo" | awk '{ print $2 }' | sed -n 's:\^{}::; s:^refs/tags/::p' | sort -V | uniq | tail -n 1
+}
+
 repos=("https://github.com/rolandwalker/anaphora.git master" "https://github.com/magnars/dash.el.git master" "https://github.com/rejeep/f.el.git master" "https://github.com/djr7C4/emacs-memoize.git master" "https://github.com/magnars/s.el.git master" "https://github.com/jwiegley/emacs-async master" "https://github.com/tarsius/llama main" "https://github.com/djr7C4/rem.git main" "https://github.com/djr7C4/subtree-package.git main")
 
 pkg_info_file="stp-pkg-info.eld"
+
+echo "Should stable or unstable (latest) versions be installed?"
+select update in "stable" "unstable"; do break; done
 
 echo "((packages" > "$pkg_info_file"
 
@@ -32,8 +40,17 @@ for item in "${repos[@]}"; do
     pkg_name="${pkg_name%.git}"
     pkg_name="${pkg_name%.el}"
     pkg_name="${pkg_name#emacs-}"
-    git subtree add --prefix "package-source/${pkg_name}" --squash "$repo" "$branch"
-    echo "(\"${pkg_name}\" (method . git) (remote . \"${repo}\") (update . unstable) (branch . \"${branch}\"))" >> "$pkg_info_file"
+
+    if [[ "$update" = "stable" ]]; then
+        version="$(latest_stable "$repo")"
+        branch_cell=""
+    else
+        version="$branch"
+        branch_cell=" (branch . \"${branch}\")"
+    fi
+
+    git subtree add --prefix "package-source/${pkg_name}" --squash "$repo" "$version"
+    echo "(\"${pkg_name}\" (method . git) (remote . \"${repo}\") (update . ${update})${branch_cell})" >> "$pkg_info_file"
 done
 
 echo -e "))\n" >> "$pkg_info_file"
