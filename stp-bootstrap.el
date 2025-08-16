@@ -1,5 +1,6 @@
 ;;; -*- lexical-binding: t; -*-
 
+(defvar stp-source-directory)
 (defvar stp-pkg-source-directories '("clients" "contrib" "core" "elisp" "extensions" "lisp" "src"))
 
 (defun stp-bootstrap ()

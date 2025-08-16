@@ -579,8 +579,7 @@ Package-Requires header of an elisp file.")
 
 (defun stp-sort-info-groups (groups)
   "Sort package groups alphabetically by name."
-  (-sort (fn (string< (car %1) (car %2)))
-         (stp-get-info-groups)))
+  (-sort (fn (string< (car %1) (car %2))) groups))
 
 (defun stp-sort-info-packages (packages)
   "Sort packages alphabetically by name and sort their attributes
@@ -590,7 +589,7 @@ according to `stp-attribute-order'."
                   (-sort (fn (stp-attribute< (car %1) (car %2)))
                          (cdr cell))))
           (-sort (fn (string< (car %1) (car %2)))
-                 (stp-get-info-packages))))
+                 packages)))
 
 (defun stp-read-info ()
   ;; We don't signal an error when stp-info-file doesn't exist. This just means

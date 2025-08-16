@@ -273,6 +273,7 @@ headers did not exist and was inserted."
           (beginning-of-line)
           (insert ";;; "))))
      (insert
+      (ignore it)
       (setq inserted t)
       ;; We make sure that there is a prop line because package.el requires
       ;; it. See `package-buffer-info'.
@@ -295,6 +296,7 @@ headers did not exist and was inserted."
           (insert (format ";;; %s ends here" filename)))))
      ;; Insert the end of buffer header if it is missing.
      (insert
+      (ignore it)
       (setq inserted t)
       (goto-char (point-max))
       (skip-chars-backward rem-whitespace)
