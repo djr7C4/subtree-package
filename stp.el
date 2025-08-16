@@ -1076,9 +1076,13 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
       (save-window-excursion
         (when (and tree-hashes
                    (unwind-protect
+                       ;; curr-hash is the hash of the most recent version of
+                       ;; the subtree (which may include user modifications).
+                       ;; last-hash is the hash of the last subtree that was
+                       ;; merged (e.g. by installing or upgrading the package).
                        (and (db (curr-hash last-hash)
                                 tree-hashes
-                              (stp-git-show-diff curr-hash last-hash)
+                              (stp-git-show-diff (list last-hash curr-hash))
                               t)
                             (not (yes-or-no-p (format "The package %s has been modified locally. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
                      (awhen (get-buffer stp-git-diff-buffer-name)
