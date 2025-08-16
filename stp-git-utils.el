@@ -437,14 +437,17 @@ installed as a git subtree."
 (defun stp-git-head (&optional path)
   (stp-git-remote-head (stp-git-root (or path stp-source-directory))))
 
-(defun stp-git-diff (hash hash2)
-  (rem-run-command (list "git" "diff" hash hash2) :error t))
+(defun stp-git-diff (&optional hashes)
+  (rem-run-command (cl-list* "git" "diff" hashes) :error t))
 
 (defvar stp-git-diff-buffer-name "*stp-git-diff*")
-
-(defun stp-git-show-diff (hash hash2)
+;; This is a change
+(defun stp-git-show-diff (&optional hashes)
+  ;; (stp-git-show-diff hash new-hash): show the changes from hash to new-hash
+  ;; (stp-git-show-diff hash): show the changes from hash to the index
+  ;; (stp-git-show-diff): show the changes from the index to the working tree
   (let ((buf (get-buffer-create stp-git-diff-buffer-name))
-        (diff (stp-git-diff hash hash2)))
+        (diff (stp-git-diff hashes)))
     (with-current-buffer buf
       (read-only-mode 0)
       (erase-buffer)

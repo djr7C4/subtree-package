@@ -4,7 +4,7 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: git tools
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.8.5
+;; Version: 0.8.6
 ;; Package-Requires: ((emacs "29.1") (dash "2.19.1") (f "0.21.0") (s "1.12.0") (queue "0.2") (async "1.9.9") (anaphora "1.0.4") (memoize "1.2.0") (rem "0.7.6"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -617,6 +617,23 @@ installed."
                                                     (member pkg-name pkg-names))
                                                   stp-latest-versions-cache)))))
 
+(defvar stp-audit-changes nil
+  "Show diffs whenever a package changes or new code is added. This
+is useful for security purposes.")
+
+(defun stp-maybe-audit-changes (pkg-name type last-hash)
+  (unless (memq type '(install upgrade))
+    (error "type must be either 'install or 'upgrade"))
+  (when (stp-maybe-call stp-audit-changes)
+    (stp-git-show-diff (list last-hash))
+    (unless (yes-or-no-p "Are the changes to the package safe? ")
+      (signal 'quit
+              (list (format "aborted %s %s due to a failed security audit: use git reset to undo the suspicious commits"
+                            pkg-name
+                            (if (eq type 'install)
+                                "installing"
+                              "upgrading")))))))
+
 (defvar stp-requirements-toplevel t)
 
 (cl-defun stp-install-command (&key pkg-name (prompt-prefix "") min-version allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p))
@@ -672,41 +689,43 @@ dependency."
   (when pkg-name
     (setq stp-current-package pkg-name)
     (stp-requirements-initialize-toplevel)
-    (let-alist pkg-alist
-      ;; Guess the method if it isn't already known.
-      (unless .method
-        (setq .method (stp-remote-method .remote))
-        (stp-set-attribute pkg-name 'method .method))
-      (when (stp-url-safe-remote-p .remote)
-        (cl-ecase .method
-          (git (stp-git-install pkg-name .remote .version .update :branch .branch))
-          (elpa (stp-elpa-install pkg-name .remote .version))
-          (archive (stp-archive-install pkg-name .remote))
-          (url (stp-url-install pkg-name .remote .version)))
-        (stp-update-remotes pkg-name .remote .remote .other-remotes)
-        (stp-update-requirements pkg-name)
-        (stp-write-info)
-        ;; For archives, the version is determined automatically instead of
-        ;; being read and so .version will be nil here.
-        (setq .version (stp-get-attribute pkg-name 'version))
-        (stp-git-commit-push (format "Installed version %s of %s"
-                                     (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                     pkg-name)
-                             :do-commit do-commit
-                             :do-push do-push)
-        (when ensure-requirements
-          (let ((stp-requirements-toplevel nil))
-            (ignore stp-requirements-toplevel)
-            (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
-        (when (stp-maybe-call do-lock)
-          (stp-update-lock-file))
-        (when (stp-maybe-call do-actions)
-          (stp-post-actions pkg-name))
-        (when (and ensure-requirements stp-requirements-toplevel)
-          (stp-report-requirements 'install))
-        (when refresh
-          (stp-update-cached-latest pkg-name)
-          (stp-list-refresh :quiet t))))))
+    (let ((last-hash (stp-git-head)))
+      (let-alist pkg-alist
+        ;; Guess the method if it isn't already known.
+        (unless .method
+          (setq .method (stp-remote-method .remote))
+          (stp-set-attribute pkg-name 'method .method))
+        (when (stp-url-safe-remote-p .remote)
+          (cl-ecase .method
+            (git (stp-git-install pkg-name .remote .version .update :branch .branch))
+            (elpa (stp-elpa-install pkg-name .remote .version))
+            (archive (stp-archive-install pkg-name .remote))
+            (url (stp-url-install pkg-name .remote .version)))
+          (stp-maybe-audit-changes pkg-name 'install last-hash)
+          (stp-update-remotes pkg-name .remote .remote .other-remotes)
+          (stp-update-requirements pkg-name)
+          (stp-write-info)
+          ;; For archives, the version is determined automatically instead of
+          ;; being read and so .version will be nil here.
+          (setq .version (stp-get-attribute pkg-name 'version))
+          (stp-git-commit-push (format "Installed version %s of %s"
+                                       (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                       pkg-name)
+                               :do-commit do-commit
+                               :do-push do-push)
+          (when ensure-requirements
+            (let ((stp-requirements-toplevel nil))
+              (ignore stp-requirements-toplevel)
+              (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
+          (when (stp-maybe-call do-lock)
+            (stp-update-lock-file))
+          (when (stp-maybe-call do-actions)
+            (stp-post-actions pkg-name))
+          (when (and ensure-requirements stp-requirements-toplevel)
+            (stp-report-requirements 'install))
+          (when refresh
+            (stp-update-cached-latest pkg-name)
+            (stp-list-refresh :quiet t)))))))
 
 (defun stp-uninstall-command ()
   "Uninstall a package interactively."
@@ -775,73 +794,75 @@ in `stp-install'."
   (when pkg-name
     (setq stp-current-package pkg-name)
     (stp-requirements-initialize-toplevel)
-    (let-alist (stp-get-alist pkg-name)
-      ;; Automatically determine missing other remotes for archive packages.
-      (when (eq .method 'archive)
-        (setq .other-remotes (cl-set-difference (stp-archives pkg-name) (cons .remote .other-remotes))))
-      (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
-             (extra-versions (and (eq .method 'git)
-                                  (or stp-git-upgrade-always-offer-remote-heads
-                                      (eq .update 'unstable))
-                                  (stp-git-remote-heads-sorted chosen-remote)))
-             (prompt (format "Upgrade from %s to version%s: "
-                             (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
-                             (stp-min-version-annotation min-version enforce-min-version))))
-        (when (stp-url-safe-remote-p chosen-remote)
-          (when (and .branch (member .branch extra-versions))
-            (setq extra-versions (cons .branch (remove .branch extra-versions))))
-          (cl-ecase .method
-            (git (--> extra-versions
-                      (stp-git-read-version
-                       prompt
-                       chosen-remote
-                       :extra-versions-position (if (eq .update 'unstable) 'first 'last)
-                       :extra-versions it
-                       :branch-to-hash nil
-                       :min-version min-version)
-                      (stp-git-upgrade pkg-name chosen-remote it)))
-            (elpa (->> (stp-elpa-read-version
-                        prompt
-                        pkg-name
-                        chosen-remote
-                        :min-version min-version)
-                       (stp-elpa-upgrade pkg-name chosen-remote)))
-            (archive (stp-archive-upgrade pkg-name .remote))
-            (url (->> (stp-url-read-version prompt)
-                      (stp-url-upgrade pkg-name chosen-remote))))
-          ;; The call to `stp-get-attribute' can't be replaced with
-          ;; .version because the 'version attribute will have changed
-          ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
-          ;; `stp-url-upgrade'.
-          (let ((new-version (stp-get-attribute pkg-name 'version)))
-            (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
-            (stp-update-requirements pkg-name)
-            (stp-write-info)
-            ;; Don't commit, push or perform push actions when there are
-            ;; merge conflicts.
-            (if (stp-git-merge-conflict-p)
-                (message "%s occurred. Please resolve and commit manually."
-                         (if (> (length (stp-git-conflicted-files)) 1)
-                             "Merge conflicts"
-                           "A merge conflict"))
-              (stp-git-commit-push (format "Upgraded to version %s of %s"
-                                           (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
-                                           pkg-name)
-                                   :do-commit do-commit
-                                   :do-push do-push)
-              (when ensure-requirements
-                (let ((stp-requirements-toplevel nil))
-                  (ignore stp-requirements-toplevel)
-                  (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
-              (when (stp-maybe-call do-lock)
-                (stp-update-lock-file))
-              (when (stp-maybe-call do-actions)
-                (stp-post-actions pkg-name)))
-            (when (and ensure-requirements stp-requirements-toplevel)
-              (stp-report-requirements 'upgrade))
-            (when refresh
-              (stp-update-cached-latest pkg-name)
-              (stp-list-refresh :quiet t))))))))
+    (let ((last-hash (stp-git-head)))
+      (let-alist (stp-get-alist pkg-name)
+        ;; Automatically determine missing other remotes for archive packages.
+        (when (eq .method 'archive)
+          (setq .other-remotes (cl-set-difference (stp-archives pkg-name) (cons .remote .other-remotes))))
+        (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
+               (extra-versions (and (eq .method 'git)
+                                    (or stp-git-upgrade-always-offer-remote-heads
+                                        (eq .update 'unstable))
+                                    (stp-git-remote-heads-sorted chosen-remote)))
+               (prompt (format "Upgrade from %s to version%s: "
+                               (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
+                               (stp-min-version-annotation min-version enforce-min-version))))
+          (when (stp-url-safe-remote-p chosen-remote)
+            (when (and .branch (member .branch extra-versions))
+              (setq extra-versions (cons .branch (remove .branch extra-versions))))
+            (cl-ecase .method
+              (git (--> extra-versions
+                        (stp-git-read-version
+                         prompt
+                         chosen-remote
+                         :extra-versions-position (if (eq .update 'unstable) 'first 'last)
+                         :extra-versions it
+                         :branch-to-hash nil
+                         :min-version min-version)
+                        (stp-git-upgrade pkg-name chosen-remote it)))
+              (elpa (->> (stp-elpa-read-version
+                          prompt
+                          pkg-name
+                          chosen-remote
+                          :min-version min-version)
+                         (stp-elpa-upgrade pkg-name chosen-remote)))
+              (archive (stp-archive-upgrade pkg-name .remote))
+              (url (->> (stp-url-read-version prompt)
+                        (stp-url-upgrade pkg-name chosen-remote))))
+            (stp-maybe-audit-changes pkg-name 'upgrade last-hash)
+            ;; The call to `stp-get-attribute' can't be replaced with
+            ;; .version because the 'version attribute will have changed
+            ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
+            ;; `stp-url-upgrade'.
+            (let ((new-version (stp-get-attribute pkg-name 'version)))
+              (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
+              (stp-update-requirements pkg-name)
+              (stp-write-info)
+              ;; Don't commit, push or perform push actions when there are
+              ;; merge conflicts.
+              (if (stp-git-merge-conflict-p)
+                  (message "%s occurred. Please resolve and commit manually."
+                           (if (> (length (stp-git-conflicted-files)) 1)
+                               "Merge conflicts"
+                             "A merge conflict"))
+                (stp-git-commit-push (format "Upgraded to version %s of %s"
+                                             (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
+                                             pkg-name)
+                                     :do-commit do-commit
+                                     :do-push do-push)
+                (when ensure-requirements
+                  (let ((stp-requirements-toplevel nil))
+                    (ignore stp-requirements-toplevel)
+                    (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
+                (when (stp-maybe-call do-lock)
+                  (stp-update-lock-file))
+                (when (stp-maybe-call do-actions)
+                  (stp-post-actions pkg-name)))
+              (when (and ensure-requirements stp-requirements-toplevel)
+                (stp-report-requirements 'upgrade))
+              (when refresh
+                (stp-update-cached-latest pkg-name)
+                (stp-list-refresh :quiet t)))))))))
 
 (defvar stp-failed-requirements nil)
 (defvar stp-skipped-requirements nil)
