@@ -209,6 +209,16 @@ file and automatically add a git tag with the same name. Use =M-x
 stp-headers-update-elisp-headers= to try to infer updated values of a number of
 elisp headers and automatically update them. In particular, this updates the
 requirements to the versions that are currently installed.
+** Auditing changes to packages
+STP supports auditing changes to packages as diffs before the code is loaded.
+This can improve security if you feel there is a risk of malicious code finding
+its way into packages. Add
+
+#+begin_src emacs-lisp
+(setq stp-audit-changes t)
+#+end_src emacs-lisp
+
+to your configuration to enable this.
 * Installation
 Subtree package can manage itself as a package but first it needs to be
 installed along with its dependencies using other means. The simplest way is to
