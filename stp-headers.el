@@ -1,5 +1,12 @@
-;;; -*- lexical-binding: t; -*-
+;;; stp-headers.el --- -*- lexical-binding: t; -*-
+
 ;; Copyright (C) 2025 David J. Rosenbaum <djr7c4@gmail.com>
+
+;; Author: David J. Rosenbaum <djr7c4@gmail.com>
+;; Keywords: TODO
+;; URL: https://github.com/djr7C4/subtree-package
+;; Version: : 0.9.0
+
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
@@ -160,6 +167,10 @@ REQUIREMENTS to its version."
 is slower but will detect packages installed with other package
 managers.")
 
+(defvar stp-headers-update-recompute-development-directory t
+  "When non-nil, always recompute features for packages in
+`stp-development-directory'.")
+
 (defun stp-headers-update-features ()
   "Update `stp-headers-installed-features'. Add the new features from
 packages that were installed or upgraded since this function was
@@ -176,15 +187,12 @@ will not be detected."
            (string= (cadar stp-headers-versions) emacs-version))
       (let* ((new-versions (stp-headers-compute-versions))
              (modified-packages (mapcar #'car (cl-set-difference new-versions stp-headers-versions :test #'equal)))
-             (new-paths (mapcan (lambda (pkg-name)
-                                  ;; Protect `load-path' by rebinding it so that
-                                  ;; we can access the values that would be
-                                  ;; added for this package.
-                                  (let ((load-path nil))
-                                    (stp-update-load-path (stp-canonical-path pkg-name))
-                                    load-path))
+             (new-paths (mapcan (-compose #'stp-compute-load-path #'stp-canonical-path)
                                 modified-packages))
-             (new-features (stp-headers-paths-features new-paths)))
+             ;; stp-headers-update-recompute-development-directory
+             (dev-paths (and stp-headers-update-recompute-development-directory
+                             (stp-compute-load-paths stp-development-directory)))
+             (new-features (stp-headers-paths-features (append new-paths dev-paths))))
         (setq stp-headers-installed-features (stp-headers-merge-elisp-requirements (append stp-headers-installed-features new-features))
               stp-headers-versions new-versions))
     (message "Installed features have not yet been computed. This will take a moment the first time")
