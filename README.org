@@ -59,6 +59,11 @@ and has convenience bindings for
 - adding to the load path (=l=),
 - running post actions (=a=) and
 - viewing the source code (=RET=)
+
+Most complex commands such as =stp-install-command= and =stp-upgrade-command=
+allow their default options (automatically committing, pushing and so forth) to
+be modified via an interactive menu when the command is run with a prefix
+argument.
 ** Freely edit installed packages
 Packages installed in =stp-source-directory= can be freely modified. If you
 later upgrade the package to a newer version, any conflicts that arise due to
