@@ -953,7 +953,15 @@ required."
                   (if search-load-path
                       (aand (cl-find-if (fn (eq pkg-sym (car %))) stp-headers-installed-features)
                             (and version
-                                 (version-list-<= (version-to-list version) (version-to-list (cadr it)))))
+                                 ;; Check the newest version found in the load
+                                 ;; path.
+                                 (version-list-<= (version-to-list version) (version-to-list (cadr it)))
+                                 ;; If the version installed in STP is older we
+                                 ;; upgrade anyway. This can be the case if the
+                                 ;; package was installed outside STP or the
+                                 ;; source code is included in the load path.
+                                 (not (aand (stp-get-attribute pkg-name 'version)
+                                            (stp-version< it version)))))
                     (aand (stp-get-attribute pkg-name 'version)
                           (stp-version<= version it)))))
              ((not (member pkg-name (stp-info-names)))
