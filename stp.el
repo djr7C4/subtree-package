@@ -628,23 +628,26 @@ installed."
   "Indicates if git reset should be used to undo changes to the
 prior state after an audit fails.")
 
-(defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
+(defun stp-audit-changes (pkg-name type last-hash)
   (unless (memq type '(install upgrade))
     (error "type must be either 'install or 'upgrade"))
+  (stp-git-show-diff (list last-hash))
+  (unless (yes-or-no-p "Are the changes to the package safe? ")
+    (when stp-audit-auto-reset
+      (stp-git-reset last-hash :mode 'hard))
+    (signal 'quit
+            (list (format "aborted %s %s due to a failed security audit%s"
+                          (if (eq type 'install)
+                              "installing"
+                            "upgrading")
+                          pkg-name
+                          (if stp-audit-auto-reset
+                              ""
+                            ": use git reset to undo the suspicious commits"))))))
+
+(defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
   (when (stp-maybe-call do-audit)
-    (stp-git-show-diff (list last-hash))
-    (unless (yes-or-no-p "Are the changes to the package safe? ")
-      (when stp-audit-auto-reset
-        (stp-git-reset last-hash :mode 'hard))
-      (signal 'quit
-              (list (format "aborted %s %s due to a failed security audit%s"
-                            (if (eq type 'install)
-                                "installing"
-                              "upgrading")
-                            pkg-name
-                            (if stp-audit-auto-reset
-                                ""
-                              ": use git reset to undo the suspicious commits")))))))
+    (stp-audit-changes pkg-name type last-hash)))
 
 (defvar stp-requirements-toplevel t)
 
@@ -690,13 +693,15 @@ repository after installing the package. If both DO-COMMIT and
 DO-PUSH are non-nil, push to the remote repository as well. If
 DO-LOCK is non-nil, automatically update `stp-lock-file'. If
 DO-ACTIONS is non-nil, call `stp-post-actions' after installing
-the package. DO-COMMIT, DO-PUSH, DO-LOCK and DO-ACTIONS can also
-be functions called to determine if the associated operation
-should be performed.
+the package. If DO-AUDIT is non-nil, call `stp-audit-changes'.
+DO-COMMIT, DO-PUSH, DO-LOCK, DO-ACTIONS and DO-AUDIT can also be
+functions that are called to determine if the associated
+operation should be performed.
 
 When MIN-VERSION is non-nil, it indicates the minimum version
 that is required for this package due to installation as a
-dependency."
+dependency. When ENSURE-REQUIREMENTS is non-nil, dependencies of
+packages are installed or upgraded as needed."
   ;; pkg-name may be nil in interactive calls depending on the value of
   ;; `stp-allow-unclean'. See `stp-maybe-ensure-clean'.
   (when pkg-name
@@ -751,8 +756,9 @@ dependency."
 (cl-defun stp-uninstall (pkg-name &key do-commit do-push do-lock (refresh t) (uninstall-requirements t))
   "Uninstall the package named PKG-NAME.
 
-  The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
-  `stp-install'."
+The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
+`stp-install'. UNINSTALL-REQUIREMENTS means that dependencies
+that are not needed anymore should also be removed."
   (when pkg-name
     (setq stp-current-package pkg-name)
     (let-alist (stp-get-alist pkg-name)
@@ -780,7 +786,10 @@ dependency."
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
 (cl-defun stp-upgrade-command (&key pkg-name min-version (prompt-prefix "") allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p))
-  "Upgrade a package interactively."
+  "Upgrade a package interactively.
+
+The arguments DO-COMMIT, DO-PUSH, DO-LOCK, DO-ACTIONS and
+DO-AUDIT are as in `stp-install'."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -1087,8 +1096,8 @@ required."
 (cl-defun stp-reinstall (pkg-name version &key do-commit do-push do-lock do-actions do-audit refresh skip-subtree-check)
   "Uninstall and reinstall PKG-NAME as VERSION.
 
-  The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
-  `stp-install'."
+The DO-COMMIT, DO-PUSH, DO-LOCK, DO-ACTIONS and DO-AUDIT
+arguments are as in `stp-install'."
   (when (and (stp-git-tree-package-modified-p pkg-name)
              (not (yes-or-no-p (format "The package %s has been modified since the last commit in the working tree. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
     (user-error "Reinstall aborted"))
@@ -1200,7 +1209,7 @@ packages at the same time."
   "Repair the package named pkg-name.
 
 The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
-  `stp-install'."
+`stp-install'."
   (when pkg-name
     (stp-repair-info :quiet nil :pkg-names (list pkg-name))
     (stp-write-info)
@@ -1245,7 +1254,8 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   "Edit the remote and other-remotes attributes of PKG-NAME.
 
 This uses `completing-read-multiple'. The first chosen will be
-remotes and the rest will be other-remotes."
+remotes and the rest will be other-remotes. The arguments
+DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
   (let-alist (stp-get-alist pkg-name)
     (if (and pkg-name .remote (not (eq .method 'archive)))
         (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
@@ -1294,8 +1304,8 @@ remotes and the rest will be other-remotes."
 (cl-defun stp-toggle-update (pkg-name &key do-commit do-push do-lock (refresh t))
   "Toggle the update attribute for the package named PKG-NAME.
 
-  The arguments DO-COMMIT, DO-PUSH, DO-LOCK and DO-ACTIONS are as
-  in `stp-install'."
+The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
+`stp-install'."
   (when pkg-name
     (setq stp-current-package pkg-name)
     (let-alist (stp-get-alist pkg-name)
