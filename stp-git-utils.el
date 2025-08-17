@@ -322,13 +322,6 @@ Otherwise, return nil. BRANCH defualts to the current branch."
 (defun stp-git-remote-url (remote)
   (rem-run-command (list "git" "remote" "get-url" remote) :error t))
 
-(defvar stp-git-ask-when-unclean-p t)
-
-(defun stp-git-clean-or-ask-p ()
-  (or (not stp-git-ask-when-unclean-p)
-      (stp-git-clean-p)
-      (yes-or-no-p "The git repo is unclean. Proceed anyway?")))
-
 (defvar stp-git-abbreviated-hash-length 7)
 
 (defun stp-git-abbreviate-hash (hash)

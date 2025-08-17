@@ -436,9 +436,34 @@ interactive commands.")
   (when (stp-git-merge-conflict-p)
     (user-error "Merge conflicts must be resolved before running this command")))
 
+(defun stp-unclean-fun ()
+  "This function is intended as a value of `stp-allow-unclean'.
+
+It requires the repository to be clean when run inside
+`stp-source-directory'. Otherwise, it causes the user to be
+prompted."
+  (rem-ancestor-of-inclusive-p (stp-git-root) default-directory))
+
+(defvar stp-allow-unclean #'stp-unclean-fun
+  "This variable determines the behavior when the git repository is
+unclean at the beginning of commands.
+
+When it is nil, an error occurs. :allow means that the command
+should proceed without user intervention. If the value is a
+function, it will be called with no arguments and the return
+value will be interpreted as described here. Any other value
+means that the user should be prompted to determine if the
+command should proceed.")
+
 (defun stp-maybe-ensure-clean ()
-  (unless (stp-git-clean-or-ask-p)
-    (user-error "Aborted: the repository is unclean")))
+  (let ((unclean (if (functionp stp-allow-unclean)
+                     (funcall stp-allow-unclean)
+                   stp-allow-unclean)))
+    (or (eq unclean :allow)
+        (stp-git-clean-p)
+        (and (not unclean)
+             (user-error "Aborted: the repository is unclean"))
+        (yes-or-no-p "The git repo is unclean. Proceed anyway?"))))
 
 (cl-defun stp-command-kwd-args (&key (lock t) actions audit tag (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p) (ensure-clean t))
   (stp-ensure-no-merge-conflicts)
@@ -663,8 +688,8 @@ should be performed.
 When MIN-VERSION is non-nil, it indicates the minimum version
 that is required for this package due to installation as a
 dependency."
-  ;; pkg-name may be nil in interactive calls when the user answers no when the
-  ;; repository is dirty and `stp-git-clean-or-ask-p' is called.
+  ;; pkg-name may be nil in interactive calls depending on the value of
+  ;; `stp-allow-unclean'. See `stp-maybe-ensure-clean'.
   (when pkg-name
     (setq stp-current-package pkg-name)
     (stp-requirements-initialize-toplevel)
@@ -2496,9 +2521,8 @@ if no version header is found for the current file."
                                                 (stp-main-package-file (stp-git-root it))))
                                       (fn (user-error "No Version header was found")))))
                      (stp-command-kwd-args :lock nil :tag t :ensure-clean nil)))
-  (unless (or (not (stp-maybe-call do-commit))
-              (stp-git-clean-or-ask-p))
-    (user-error "Aborted: the repository is unclean"))
+  (when (stp-maybe-call do-commit)
+    (stp-maybe-ensure-clean))
   (let ((clean (stp-git-clean-p)))
     (save-excursion
       (find-file filename)
