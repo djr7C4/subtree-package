@@ -237,7 +237,9 @@ its way into packages. Add
 (setq stp-audit-changes t)
 #+end_src emacs-lisp
 
-to your configuration to enable this.
+to your configuration to enable this. By default, =git reset= is used to restore
+the previous state when an audit fails. =stp-audit-auto-reset= controls this
+behavior.
 * Installation
 Subtree package can manage itself as a package but first it needs to be
 installed along with its dependencies using other means. The simplest way is to
