@@ -223,6 +223,17 @@ repository. Return the path to the repository."
     ;; Pushing does not make sense if we did not commit earlier.
     (stp-git-push :do-push do-push :all all :tags tags)))
 
+(cl-defun stp-git-reset (revision &key mode)
+  (let* ((mode-flags '((soft . "--soft")
+                       (mixed . "--mixed")
+                       (hard . "--hard")))
+         (mode-flag (and mode
+                         (or (map-elt mode-flags mode)
+                             (error "mode must be in %S" mode-flags)))))
+    (rem-run-command (append (list "git" "reset")
+                             (rem-maybe-args mode-flag mode-flag)
+                             (list revision)))))
+
 (defun stp-git-tag (tag revision)
   (rem-run-command (list "git" "tag" tag revision) :error t))
 

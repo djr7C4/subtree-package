@@ -624,18 +624,27 @@ installed."
                                                     (member pkg-name pkg-names))
                                                   stp-latest-versions-cache)))))
 
+(defvar stp-audit-auto-reset t
+  "Indicates if git reset should be used to undo changes to the
+prior state after an audit fails.")
+
 (defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
   (unless (memq type '(install upgrade))
     (error "type must be either 'install or 'upgrade"))
   (when (stp-maybe-call do-audit)
     (stp-git-show-diff (list last-hash))
     (unless (yes-or-no-p "Are the changes to the package safe? ")
+      (when stp-audit-auto-reset
+        (stp-git-reset last-hash :mode 'hard))
       (signal 'quit
-              (list (format "aborted %s %s due to a failed security audit: use git reset to undo the suspicious commits"
+              (list (format "aborted %s %s due to a failed security audit%s"
                             pkg-name
                             (if (eq type 'install)
                                 "installing"
-                              "upgrading")))))))
+                              "upgrading")
+                            (if stp-audit-auto-reset
+                                ""
+                              ": use git reset to undo the suspicious commits")))))))
 
 (defvar stp-requirements-toplevel t)
 
