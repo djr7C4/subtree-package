@@ -638,10 +638,10 @@ prior state after an audit fails.")
         (stp-git-reset last-hash :mode 'hard))
       (signal 'quit
               (list (format "aborted %s %s due to a failed security audit%s"
-                            pkg-name
                             (if (eq type 'install)
                                 "installing"
                               "upgrading")
+                            pkg-name
                             (if stp-audit-auto-reset
                                 ""
                               ": use git reset to undo the suspicious commits")))))))
