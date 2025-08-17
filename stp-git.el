@@ -81,15 +81,13 @@ available; otherwise, use the hash."
 (defun stp-git-read-remote (prompt &optional default)
   (stp-read-remote-with-predicate prompt #'stp-git-valid-remote-p default 'stp-git-remote-history))
 
-(defvar stp-git-version-hash-separator "  ")
-
 (defun stp-git-versions-with-hashes (remote versions)
   (let ((n (if versions
                (apply #'max (mapcar #'length versions))
              0)))
     (mapcar (lambda (version)
               (concat (string-pad version n)
-                      stp-git-version-hash-separator
+                      stp-candidate-separator
                       (stp-git-abbreviate-hash (stp-git-remote-rev-to-hash remote version))))
             versions)))
 

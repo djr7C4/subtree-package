@@ -4,7 +4,7 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: git tools
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.8.6
+;; Version: 0.9.0
 ;; Package-Requires: ((emacs "29.1") (dash "2.19.1") (f "0.21.0") (s "1.12.0") (queue "0.2") (async "1.9.9") (anaphora "1.0.4") (memoize "1.2.0") (rem "0.7.6"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -440,50 +440,29 @@ interactive commands.")
   (unless (stp-git-clean-or-ask-p)
     (user-error "Aborted: the repository is unclean")))
 
-(defvar stp-prefix-negate-auto-commit t)
-(defvar stp-prefix-negate-auto-push t)
-(defvar stp-prefix-negate-auto-lock t)
-(defvar stp-prefix-negate-auto-actions t)
-(defvar stp-prefix-negate-auto-tag t)
-
-(cl-defun stp-commit-push-args (&key actions audit (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (ensure-clean t))
+(cl-defun stp-command-kwd-args (&key (lock t) actions audit tag (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p) (ensure-clean t))
   (stp-ensure-no-merge-conflicts)
-  (let ((args (if current-prefix-arg
-                  (list :do-commit (if do-commit-provided-p
-                                       do-commit
-                                     (stp-and stp-prefix-negate-auto-commit
-                                              (stp-negate stp-auto-commit)))
-                        :do-push (if do-push-provided-p
-                                     do-push
-                                   (stp-and stp-prefix-negate-auto-push
-                                            (stp-negate stp-auto-commit)
-                                            (stp-negate stp-auto-push)))
-                        :do-lock (if do-lock-provided-p
-                                     do-lock
-                                   (stp-and stp-prefix-negate-auto-lock
-                                            (stp-negate stp-auto-commit)
-                                            (stp-negate stp-never-auto-lock)
-                                            (stp-negate stp-auto-lock))))
-                (list :do-commit (if do-commit-provided-p
-                                     do-commit
-                                   stp-auto-commit)
-                      :do-push (if do-push-provided-p
-                                   do-push
-                                 stp-auto-push)
-                      :do-lock (if do-lock-provided-p
-                                   do-lock
-                                 (and (not stp-never-auto-lock) stp-auto-lock))))))
-    (when actions
-      (setq args (append args
-                         (list :do-actions (cond
-                                            (do-actions-provided-p
-                                             do-actions)
-                                            (current-prefix-arg
-                                             (stp-negate stp-auto-post-actions))
-                                            (t
-                                             stp-auto-post-actions))))))
-    (when audit
-      (setq args (append args (list :do-audit (if do-audit-provided-p do-audit stp-audit-changes)))))
+  (let ((args
+         (apply #'append
+                (list :do-commit (if do-commit-provided-p do-commit stp-auto-commit)
+                      :do-push (if do-push-provided-p do-push stp-auto-push))
+                (rem-maybe-args
+                 (list :do-lock
+                       (if do-lock-provided-p do-lock (and (not stp-never-auto-lock) stp-auto-lock)))
+                 lock
+                 (list :do-actions (if do-actions-provided-p do-actions stp-auto-post-actions))
+                 actions
+                 (list :do-audit (if do-audit-provided-p do-audit stp-audit-changes))
+                 audit
+                 (list :do-tag (if do-tag-provided-p do-tag stp-auto-tag))
+                 tag))))
+    (when current-prefix-arg
+      (setq args (stp-toggle-plist "Toggle option: " args)))
+    ;; Perform sanity checks.
+    (when (and (not (plist-get args :do-commit)) (plist-get args :do-push))
+      (user-error "Pushing without committing is not allowed"))
+    (when (and (not (plist-get args :do-commit)) (plist-get args :do-tag))
+      (user-error "Tagging without committing is not allowed"))
     (when (and ensure-clean (plist-get args :do-commit))
       (stp-maybe-ensure-clean))
     args))
@@ -554,7 +533,7 @@ is one. Otherwise, prompt the user for a package."
   "Determines if the user is allowed to select a version older than
 the minimum required by another package.")
 
-(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) actions audit (line-pkg t) min-version enforce-min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p))
+(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) actions audit tag (line-pkg t) min-version enforce-min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p))
   "Prepare an argument list for an interactive command.
 
 The first argument included in the list is the name of the
@@ -574,8 +553,9 @@ installed."
                                           do-push do-commit-provided-p
                                           do-lock do-lock-provided-p
                                           do-actions do-actions-provided-p
-                                          do-audit do-audit-provided-p))
-            (args (apply #'stp-commit-push-args :actions actions :audit audit kwd-args))
+                                          do-audit do-audit-provided-p
+                                          do-tag do-tag-provided-p))
+            (args (apply #'stp-command-kwd-args :actions actions :audit audit :tag tag kwd-args))
             (`(,pkg-name . ,pkg-alist)
              (or (and read-pkg-alist
                       (stp-read-package :pkg-name pkg-name
@@ -635,10 +615,12 @@ installed."
 (defvar stp-requirements-toplevel t)
 
 (cl-defun stp-install-command (&key pkg-name (prompt-prefix "") min-version allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p))
-  "If `stp-auto-commit', `stp-auto-push', and
-`stp-auto-post-actions' are non-nil, commit, push and perform
-post actions (see `stp-auto-post-actions'). With a prefix
-argument, each of these is negated relative to the default.
+  "If `stp-auto-commit', `stp-auto-push', `stp-auto-lock',
+`stp-auto-post-actions' and `stp-audit-changes' are non-nil,
+commit, push update the lock file, perform post actions (see
+`stp-auto-post-actions') and audit the package before running
+actions. With a prefix argument, each of these can be toggled via
+an interactive menu before running the command.
 
 When ALLOW-SKIP is non-nil, the user is allowed to skip
 installing the package. This will result in \\='SKIP being
@@ -785,10 +767,6 @@ dependency."
           (apply #'stp-upgrade args))))))
 
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions do-audit (refresh t) min-version enforce-min-version (ensure-requirements t))
-  "Upgrade the version of the package named PKG-NAME.
-
-  The arguments DO-COMMIT, DO-PUSH, DO-LOCK and DO-ACTIONS are as
-  in `stp-install'."
   (when pkg-name
     (setq stp-current-package pkg-name)
     (stp-requirements-initialize-toplevel)
@@ -909,10 +887,10 @@ dependency."
 
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (search-load-path t))
   "Install or upgrade each requirement to ensure that at least the
-  specified version is available. REQUIREMENTS should be a list
-  where each entry is either the name of a package or a list
-  containing the name of the package and the minimum version
-  required."
+specified version is available. REQUIREMENTS should be a list
+where each entry is either the name of a package or a list
+containing the name of the package and the minimum version
+required."
   (when search-load-path
     (message "Analyzing the load path for installed packages...")
     (stp-headers-update-features))
@@ -1013,7 +991,7 @@ dependency."
                                                 :table table
                                                 :multiple t)
                         stp-expand-groups))
-         (args (stp-commit-push-args :actions t))
+         (args (stp-command-kwd-args :actions t))
          (args2 (map-into (map-remove (fn2 (memq %1 (append '(:do-push :do-lock) extra-removed-kwargs))) args) 'plist)))
     (funcall fun pkg-names args2)
     (stp-git-push :do-push (map-elt args :do-push))
@@ -1120,7 +1098,7 @@ dependency."
 
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group for easily upgrading multiple related
-  packages at the same time."
+packages at the same time."
   (interactive)
   (stp-ensure-no-merge-conflicts)
   (stp-with-package-source-directory
@@ -1129,7 +1107,7 @@ dependency."
       (let* ((group-name (stp-read-group-name "Group: "))
              (pkg-names (stp-get-info-group group-name))
              (table (completion-table-in-turn pkg-names (stp-info-names)))
-             (args (stp-commit-push-args)))
+             (args (stp-command-kwd-args)))
         (apply #'stp-add-or-edit-package-group
                group-name
                (stp-read-existing-name "Package name: "
@@ -1158,7 +1136,7 @@ dependency."
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (let ((args (stp-commit-push-args)))
+    (let ((args (stp-command-kwd-args)))
       (apply #'stp-delete-package-group
              (stp-read-group-name "Group: ")
              args))))
@@ -1187,7 +1165,7 @@ dependency."
 (cl-defun stp-repair (pkg-name &key do-commit do-push do-lock (refresh t))
   "Repair the package named pkg-name.
 
-  The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
+The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   `stp-install'."
   (when pkg-name
     (stp-repair-info :quiet nil :pkg-names (list pkg-name))
@@ -1205,7 +1183,7 @@ dependency."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-repair-all (stp-commit-push-args)))))
+      (apply #'stp-repair-all (stp-command-kwd-args)))))
 
 (cl-defun stp-repair-all (&key do-commit do-push do-lock (refresh t))
   "Repair the stored package information for all packages."
@@ -1232,8 +1210,8 @@ dependency."
 (cl-defun stp-edit-remotes (pkg-name &key do-commit do-push do-lock (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME.
 
-  This uses `completing-read-multiple'. The first chosen will be
-  remotes and the rest will be other-remotes."
+This uses `completing-read-multiple'. The first chosen will be
+remotes and the rest will be other-remotes."
   (let-alist (stp-get-alist pkg-name)
     (if (and pkg-name .remote (not (eq .method 'archive)))
         (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
@@ -1312,8 +1290,8 @@ dependency."
   "Toggle the dependency attribute of a package interactively.
 
 
-  This indicates that the packages was installed because another
-  package requires it rather than explicitly by the user."
+This indicates that the packages was installed because another
+package requires it rather than explicitly by the user."
   (interactive)
   (apply #'stp-toggle-dependency (stp-command-args)))
 
@@ -1336,8 +1314,8 @@ dependency."
 (defun stp-post-actions-command ()
   "Perform actions for newly installed or upgraded packages.
 
-  These include building, updating info directories loading the
-  package and updating the load path."
+These include building, updating info directories loading the
+package and updating the load path."
   (interactive)
   (stp-with-memoization
     (stp-refresh-info)
@@ -1379,16 +1357,16 @@ dependency."
 (defvar stp-allow-naive-byte-compile nil
   "If non-nil, do not naively byte compile packages.
 
-  Naive byte compilation can cause problems if the packages need to
-  be byte-compiled in some special way.")
+Naive byte compilation can cause problems if the packages need to
+be byte-compiled in some special way.")
 
 (defun stp-build-command ()
   "Build a package interactively.
 
-  When `stp-allow-naive-byte-compile' is non-nil, byte compilation
-  will be performed even when no build system is present. The
-  meaning of `stp-allow-naive-byte-compile' is inverted with a
-  prefix argument."
+  When `stp-allow-naive-byte-compile' is non-nil, byte
+compilation will be performed even when no build system is
+present. The meaning of `stp-allow-naive-byte-compile' is
+inverted with a prefix argument."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -1399,9 +1377,9 @@ dependency."
 (defun stp-build (pkg-name &optional allow-naive-byte-compile)
   "Build the package PKG-NAME.
 
-  This is done by running the appropriate build systems or
-  performing naive byte compilation. Return non-nil if there were
-  no errors."
+This is done by running the appropriate build systems or
+performing naive byte compilation. Return non-nil if there were
+no errors."
   (when pkg-name
     (setq stp-current-package pkg-name)
     (let* ((output-buffer stp-build-output-buffer-name)
@@ -1485,11 +1463,11 @@ dependency."
 (defun stp-build-all-command ()
   "Build all packages.
 
-  When `stp-allow-naive-byte-compile' is non-nil, naive byte
-  compilation will be performed even when no build system is
-  present. The meaning of `stp-allow-naive-byte-compile' is
-  inverted with a prefix argument. Packages in
-  `stp-build-blacklist' will not be built."
+When `stp-allow-naive-byte-compile' is non-nil, naive byte
+compilation will be performed even when no build system is
+present. The meaning of `stp-allow-naive-byte-compile' is
+inverted with a prefix argument. Packages in
+`stp-build-blacklist' will not be built."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -1713,9 +1691,9 @@ dependency."
 (defun stp-list-next-package-with-predicate (predicate &optional n)
   "Go forward N lines where predicate is non-nil.
 
-  Only lines that correspond to packages are counted. If the
-  beginning or end of the buffer is reached before then, go as far
-  forward as possible."
+Only lines that correspond to packages are counted. If the
+beginning or end of the buffer is reached before then, go as far
+forward as possible."
   (setq n (or n 1))
   (let (pt
         valid
@@ -1752,16 +1730,16 @@ dependency."
 (defun stp-list-next-package (&optional n)
   "Go to the next package.
 
-  With a prefix argument, go forward that many packages. With a
-  negative prefix argument, go backward that many packages."
+With a prefix argument, go forward that many packages. With a
+negative prefix argument, go backward that many packages."
   (interactive "p")
   (stp-list-next-package-with-predicate #'always n))
 
 (defun stp-list-previous-package (&optional n)
   "Go to the previous package.
 
-  With a prefix argument, go backward that many packages. With a
-  negative prefix argument, go forward that many packages."
+With a prefix argument, go backward that many packages. With a
+negative prefix argument, go forward that many packages."
   (interactive "p")
   (stp-list-next-package (- n)))
 
@@ -1777,8 +1755,8 @@ dependency."
 (defun stp-list-next-upgradable (&optional n)
   "Go to the next package that can be repaired.
 
-  With a prefix argument, go forward that many packages. With a
-  negative prefix argument, go backward that many packages."
+With a prefix argument, go forward that many packages. With a
+negative prefix argument, go backward that many packages."
   (interactive "p")
   (stp-with-memoization
     (stp-refresh-info)
@@ -1790,8 +1768,8 @@ dependency."
 (defun stp-list-previous-upgradable (&optional n)
   "Go to the previous package that needs to be repaired.
 
-  With a prefix argument, go forward that many packages. With a
-  negative prefix argument, go backward that many packages."
+With a prefix argument, go forward that many packages. With a
+negative prefix argument, go backward that many packages."
   (interactive "p")
   (stp-list-next-upgradable (- n)))
 
@@ -1808,8 +1786,8 @@ dependency."
 (defun stp-list-next-repair (&optional n)
   "Go to the next package that needs to be repaired.
 
-  With a prefix argument, go forward that many packages. With a
-  negative prefix argument, go backward that many packages."
+With a prefix argument, go forward that many packages. With a
+negative prefix argument, go backward that many packages."
   (interactive "p")
   (stp-with-memoization
     (stp-list-next-package-with-predicate (lambda ()
@@ -1820,8 +1798,8 @@ dependency."
 (defun stp-list-previous-repair (&optional n)
   "Go to the previous package that needs to be repaired.
 
-  With a prefix argument, go backward that many packages. With a
-  negative prefix argument, go forward that many packages."
+With a prefix argument, go backward that many packages. With a
+negative prefix argument, go forward that many packages."
   (interactive "p")
   (stp-list-next-repair (- n)))
 
@@ -1890,8 +1868,8 @@ dependency."
 (defvar stp-latest-num-processes 16
   "The number of processes for computing the latest versions.
 
-  This only has an effect when the latest versions are computed
-  asynchronously. See `stp-latest-version-async'.")
+This only has an effect when the latest versions are computed
+asynchronously. See `stp-latest-version-async'.")
 
 (defvar stp-latest-retries 3
   "Retry computing latest versions up to this many times.")
@@ -1899,16 +1877,14 @@ dependency."
 (cl-defun stp-latest-versions (package-callback final-callback pkg-names &key quiet async (num-processes stp-latest-num-processes) (max-tries stp-latest-retries))
   "Compute the latest versions for the packages in PACKAGES.
 
-  Once the latest version becomes available for package, call
-  PACKAGE-CALLBACK with the latest version alist as the argument.
-  Once all latest versions are available, call FINAL-CALLBACK with
-  the alist mapping the names of the packages to their latest
-  version alists.
-
-  The latest versions are computed asynchronously using
-  NUM-PROCESSES simultaneously. In case an error occurs while
-  computing the latest version for a package, it will be retried up
-  to TRIES times."
+Once the latest version becomes available for package, call
+PACKAGE-CALLBACK with the latest version alist as the argument.
+Once all latest versions are available, call FINAL-CALLBACK with
+the alist mapping the names of the packages to their latest
+version alists. he latest versions are computed asynchronously
+using NUM-PROCESSES simultaneously. In case an error occurs while
+computing the latest version for a package, it will be retried up
+to TRIES times."
   (cond
    ((not (featurep 'queue))
     (display-warning 'STP "Updating the latest versions requires the ELPA queue package"))
@@ -2023,28 +1999,28 @@ dependency."
 (cl-defun stp-list-update-latest-versions (&key (pkg-names (stp-stale-packages)) quiet (async stp-latest-version-async) focus parallel (batch t))
   "Compute the latest fields in `stp-list-mode'.
 
-  This allows the user to see which packages can be upgraded. This
-  is an expensive operation that may take several minutes if many
-  packages are installed. It is performed synchronously if
-  `stp-latest-version-async' is nil and otherwise it is done
-  asynchronously. A universal prefix argument inverts the meaning
-  of this variable.
+This allows the user to see which packages can be upgraded. This
+is an expensive operation that may take several minutes if many
+packages are installed. It is performed synchronously if
+`stp-latest-version-async' is nil and otherwise it is done
+asynchronously. A universal prefix argument inverts the meaning
+of this variable.
 
-  By default, only compute the latest field for packages that are
-  not already in the cache or were last updated more than
-  `stp-latest-versions-stale-interval' seconds ago. With a negative
-  prefix argument, recompute the latest versions for all packages.
+By default, only compute the latest field for packages that are
+not already in the cache or were last updated more than
+`stp-latest-versions-stale-interval' seconds ago. With a negative
+prefix argument, recompute the latest versions for all packages.
 
-  Multiple instances of this command will not be allowed to run at
-  the same time unless PARALLEL is non-nil.
+Multiple instances of this command will not be allowed to run at
+the same time unless PARALLEL is non-nil.
 
-  When BATCH is nil, each time the latest fields become available
-  for a package, `stp-list-buffer-name' will be updated. This
-  results in some overhead depending on the number of parallel
-  processes (see `stp-latest-num-processes') and will make Emacs
-  less responsive. When BATCH is non-nil, no updates will be
-  performed until all latest fields have been computed. This will
-  not slow down Emacs while the fields are being updated."
+When BATCH is nil, each time the latest fields become available
+for a package, `stp-list-buffer-name' will be updated. This
+results in some overhead depending on the number of parallel
+processes (see `stp-latest-num-processes') and will make Emacs
+less responsive. When BATCH is non-nil, no updates will be
+performed until all latest fields have been computed. This will
+not slow down Emacs while the fields are being updated."
   (interactive (let ((async (xor (consp current-prefix-arg) stp-latest-version-async)))
                  (list :pkg-names (if (>= (prefix-numeric-value current-prefix-arg) 0)
                                       (stp-stale-packages)
@@ -2367,10 +2343,10 @@ refresh `package-archive-contents' asynchronously."
   "List the packages installed in `stp-source-directory'.
 
 When `stp-list-auto-update-latest-versions',
- `stp-list-auto-delete-stale-cached-repos' and
- `stp-list-auto-refresh-package-archives' are non-nil update the
- latest versions, delete stale cached repositories and refresh
- the package archives asynchronously."
+`stp-list-auto-delete-stale-cached-repos' and
+`stp-list-auto-refresh-package-archives' are non-nil update the
+latest versions, delete stale cached repositories and refresh
+the package archives asynchronously."
   (interactive "P")
   (stp-refresh-info)
   (let* ((default-directory stp-source-directory)
@@ -2519,13 +2495,7 @@ if no version header is found for the current file."
                                       (fn (aand (stp-git-root)
                                                 (stp-main-package-file (stp-git-root it))))
                                       (fn (user-error "No Version header was found")))))
-                     (let* ((args (map-delete (stp-commit-push-args :ensure-clean nil) :do-lock))
-                            (do-commit (map-elt args :do-commit))
-                            (do-tag (stp-and do-commit
-                                             (if current-prefix-arg
-                                                 (stp-negate stp-auto-tag)
-                                               stp-auto-tag))))
-                       (append args (list :do-tag do-tag)))))
+                     (stp-command-kwd-args :lock nil :tag t :ensure-clean nil)))
   (unless (or (not (stp-maybe-call do-commit))
               (stp-git-clean-or-ask-p))
     (user-error "Aborted: the repository is unclean"))
