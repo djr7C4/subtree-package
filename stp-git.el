@@ -152,7 +152,9 @@ returned."
                         ;; Some completion frameworks (e.g. vertico) don't
                         ;; handle symbols as expected when a default is
                         ;; specified.
-                        (list (format "stable %s" (or stable-annotation ""))
+                        (list (format "stable%s" (if stable-annotation
+                                                     (format " (%s)" (s-trim stable-annotation))
+                                                   ""))
                               "unstable")
                         :require-match t
                         :default default
