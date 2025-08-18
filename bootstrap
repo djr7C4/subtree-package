@@ -56,7 +56,7 @@ repos=("anaphora https://github.com/rolandwalker/anaphora.git master" "dash http
 pkg_info_file="stp-pkg-info.eld"
 
 echo "Which version should be installed?"
-select update in "latest stable" "recommended stable" "unstable"; do break; done
+select update in "recommended stable" "latest stable" "unstable"; do break; done
 
 echo "((packages" > "$pkg_info_file"
 
