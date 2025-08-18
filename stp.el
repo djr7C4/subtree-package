@@ -949,7 +949,8 @@ required."
           (push requirement stp-requirements))
         (condition-case err
             (cond
-             ;; Handle Emacs requirements.
+             ;; Handle Emacs requirements. This should be done before we check
+             ;; if a requirement is ignored.
              ((string= pkg-name "emacs")
               (when (version< (format "%d.%d" emacs-major-version emacs-minor-version) version)
                 (error "Version %s of Emacs is required but %d.%d is installed"
