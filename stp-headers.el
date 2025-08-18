@@ -35,13 +35,12 @@
 
 These are determined according to the Package-Requires field."
   (let ((text (apply #'concat (lm-header-multiline "Package-Requires"))))
-    (ignore-errors
-      (db (reqs . index)
-          (read-from-string text)
-        (when (>= index (length text))
-          (mapcar (lambda (entry)
-                    (list (car entry) (stp-headers-normalize-version (cadr entry))))
-                  reqs))))))
+    (db (reqs . index)
+        (read-from-string text)
+      (when (>= index (length text))
+        (mapcar (lambda (entry)
+                  (list (car entry) (stp-headers-normalize-version (cadr entry))))
+                reqs)))))
 
 (cl-defmacro stp-headers-with-file-cache ((file cache) &rest body)
   "Return the result of evaluating BODY unless a valid entry in
@@ -386,11 +385,12 @@ was inserted."
   (stp-refresh-info)
   (stp-headers-update-features)
   ;; Update each requirement to the latest installed version.
-  (let* ((new-requirements (mapcar (lambda (requirement)
-                                     (aif (assoc (car requirement) stp-headers-installed-features)
-                                         it
-                                       requirement))
-                                   (stp-headers-elisp-requirements)))
+  (let* ((new-requirements (->> (mapcar (lambda (requirement)
+                                          (aif (assoc (car requirement) stp-headers-installed-features)
+                                              it
+                                            requirement))
+                                        (stp-headers-elisp-requirements))
+                                (-sort (fn (string< (car %1) (car %2))))))
          (requirements-string (stp-headers-package-requirements-multiline new-requirements)))
     (if (save-excursion (lm-header "Package-Requires"))
         (save-excursion
