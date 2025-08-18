@@ -582,7 +582,7 @@ toggled by the user via an interactive menu."
                                           do-actions do-actions-provided-p
                                           do-audit do-audit-provided-p
                                           do-tag do-tag-provided-p))
-            (args (apply #'stp-command-kwd-args :actions actions :audit audit :tag tag kwd-args :toggle-p toggle-p))
+            (args (apply #'stp-command-kwd-args :actions actions :audit audit :tag tag :toggle-p toggle-p kwd-args))
             (`(,pkg-name . ,pkg-alist)
              (or (and read-pkg-alist
                       (stp-read-package :pkg-name pkg-name
@@ -1221,7 +1221,7 @@ negative, repair all packages."
     (stp-with-memoization
       (stp-refresh-info)
       (if (< (prefix-numeric-value current-prefix-arg) 0)
-          (stp-repair-all-command)
+          (stp-repair-all-command :toggle-p (fn (listp current-prefix-arg)))
         (apply #'stp-repair (stp-command-args :toggle-p (fn (listp current-prefix-arg))))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push do-lock (refresh t))
@@ -1240,12 +1240,13 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
     (when refresh
       (stp-list-refresh :quiet t))))
 
-(defun stp-repair-all-command ()
+(cl-defun stp-repair-all-command (&key (toggle-p nil toggle-p-provided-p))
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-repair-all (stp-command-kwd-args)))))
+      (apply #'stp-repair-all (apply #'stp-command-kwd-args
+                                     (rem-maybe-kwd-args toggle-p toggle-p-provided-p))))))
 
 (cl-defun stp-repair-all (&key do-commit do-push do-lock (refresh t))
   "Repair the stored package information for all packages."
