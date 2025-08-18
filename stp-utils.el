@@ -470,6 +470,8 @@ expression is active.")
 
 (defun stp-transform-remote (remote)
   "Transform REMOTE by applying `stp-remote-transformers'."
+  ;; `cl-dolist' is used because of the use of `cl-return'. `dolist' only works
+  ;; with `cl-return' when the deprecated `cl' library is loaded.
   (or (cl-dolist (cell stp-remote-transformers)
         (db (regexp . transformer)
             cell
