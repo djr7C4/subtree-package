@@ -4,7 +4,7 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: git tools
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.9.0
+;; Version: 0.9.1
 ;; Package-Requires: (
 ;;   (anaphora "1.0.4")
 ;;   (async "1.9.9")
@@ -2568,7 +2568,7 @@ if no version header is found for the current file."
                                       ;; `stp-main-package-file' can prompt the user so we don't want
                                       ;; to actually call it unless it's really necessary.
                                       (fn (aand (stp-git-root)
-                                                (stp-main-package-file (stp-git-root it))))
+                                                (stp-main-package-file it)))
                                       (fn (user-error "No Version header was found")))))
                      (stp-command-kwd-args :lock nil :tag t :ensure-clean nil)))
   (when (stp-maybe-call do-commit)
