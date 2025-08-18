@@ -83,7 +83,7 @@ refresh even if the last refresh was less than
         (async-start
          `(lambda ()
             (require 'package)
-            ,(async-inject-variables "^package-archives$")
+            ,(async-inject-variables "^\\(package-archives\\|user-emacs-directory\\|package-user-dir\\)$")
             (package-refresh-contents)
             nil)
          (lambda (_result)
