@@ -18,6 +18,7 @@
 (require 'crm)
 (require 'f)
 (require 'map)
+(require 'pp)
 (require 'rem)
 (require 'rem-abbrev)
 (require 's)

@@ -370,6 +370,13 @@ was inserted."
         (when insert
           (insert-version t))))))
 
+(defun stp-headers-package-requirements-multiline (requirements)
+  (let ((prefix ";;   "))
+    (--> requirements
+         (mapcar (fn (format "%s%S" prefix %)) it)
+         (s-join "\n" it)
+         (concat "(\n" it ")"))))
+
 (defvar stp-headers-ignored-requirements nil)
 
 (defun stp-headers-update-requirements-header (&optional insert)
@@ -377,20 +384,29 @@ was inserted."
   (stp-refresh-info)
   (stp-headers-update-features)
   ;; Update each requirement to the latest installed version.
-  (let ((new-requirements (mapcar (lambda (entry)
-                                    (if (member (symbol-name (car entry)) stp-headers-ignored-requirements)
-                                        entry
-                                      (assoc (car entry) stp-headers-installed-features)))
-                                  (stp-headers-elisp-requirements))))
+  (let* ((new-requirements (mapcar (lambda (requirement)
+                                     (aif (assoc (car requirement) stp-headers-installed-features)
+                                         it
+                                       requirement))
+                                   (stp-headers-elisp-requirements)))
+         (requirements-string (stp-headers-package-requirements-multiline new-requirements)))
     (if (save-excursion (lm-header "Package-Requires"))
         (save-excursion
           (lm-header "Package-Requires")
           (progn
-            (delete-region (point) (progn (forward-sexp) (point)))
-            (insert (prin1-to-string new-requirements))
+            (delete-region (point)
+                           ;; Don't ignore comments because otherwise
+                           ;; `forward-sexp' won't work on multiline headers.
+                           (let ((parse-sexp-ignore-comments nil))
+                             (forward-sexp)
+                             (point)))
+            (insert requirements-string)
             nil))
       (when insert
-        (insert (format ";; Package-Requires: %S" new-requirements))))))
+        (insert (format ";; Package-Requires: %s" requirements-string))))))
+
+(defvar stp-headers-update-hook nil
+  "Hook to run after headers are updated.")
 
 (defun stp-headers-update-elisp-headers (&optional insert)
   "Update the elisp headers.
@@ -441,6 +457,7 @@ inserted."
         (unless (save-excursion (lm-header-multiline "Package-Requires"))
           (setq inserted t)
           (insert ";; Package-Requires: ()")))
+      (run-hooks 'stp-headers-update-hook)
       inserted)))
 
 (defvar stp-main-package-name-transform (fn (s-chop-suffix ".el" (s-chop-prefix "emacs-" %)))
