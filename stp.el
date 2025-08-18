@@ -465,7 +465,7 @@ command should proceed.")
              (user-error "Aborted: the repository is unclean"))
         (yes-or-no-p "The git repo is unclean. Proceed anyway?"))))
 
-(cl-defun stp-command-kwd-args (&key (lock t) actions audit tag (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p) (ensure-clean t))
+(cl-defun stp-command-kwd-args (&key (lock t) actions audit tag (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p) (ensure-clean t) (toggle-p (fn current-prefix-arg)))
   (stp-ensure-no-merge-conflicts)
   (let ((args
          (apply #'append
@@ -481,7 +481,7 @@ command should proceed.")
                  audit
                  (list :do-tag (if do-tag-provided-p do-tag stp-auto-tag))
                  tag))))
-    (when current-prefix-arg
+    (when (funcall toggle-p)
       (setq args (stp-toggle-plist "Toggle option: " args)))
     ;; Perform sanity checks.
     (when (and (not (plist-get args :do-commit)) (plist-get args :do-push))
@@ -558,7 +558,7 @@ is one. Otherwise, prompt the user for a package."
   "Determines if the user is allowed to select a version older than
 the minimum required by another package.")
 
-(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) actions audit tag (line-pkg t) min-version enforce-min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p))
+(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) actions audit tag (line-pkg t) min-version enforce-min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p) (toggle-p (fn current-prefix-arg)))
   "Prepare an argument list for an interactive command.
 
 The first argument included in the list is the name of the
@@ -567,12 +567,14 @@ the package will be included as the next positional argument. If
 READ-PKG-LIST is non-nil, a package alist will be read from the
 user and included as an additional positional argument. ACTIONS
 determines if the do-actions keyword argument should be included.
-Similarly, AUDIT determines if do-audit should be included. When
-LINE-PKG is non-nil (as it is by default), any data that would
-normally be read from the user will be inferred from the cursor
-position when `stp-list-mode' is active. When non-nil,
-MIN-VERSION indicates the minimum version that should be
-installed."
+Similarly, AUDIT determines if do-audit should be included. TAG
+indicates if do-tag should be included. When LINE-PKG is
+non-nil (as it is by default), any data that would normally be
+read from the user will be inferred from the cursor position when
+`stp-list-mode' is active. When non-nil, MIN-VERSION indicates
+the minimum version that should be installed. TOGGLE-P is a
+function that can be used to check if command options should be
+toggled by the user via an interactive menu."
   (stp-with-package-source-directory
     (plet* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p
                                           do-push do-commit-provided-p
@@ -580,7 +582,7 @@ installed."
                                           do-actions do-actions-provided-p
                                           do-audit do-audit-provided-p
                                           do-tag do-tag-provided-p))
-            (args (apply #'stp-command-kwd-args :actions actions :audit audit :tag tag kwd-args))
+            (args (apply #'stp-command-kwd-args :actions actions :audit audit :tag tag kwd-args :toggle-p toggle-p))
             (`(,pkg-name . ,pkg-alist)
              (or (and read-pkg-alist
                       (stp-read-package :pkg-name pkg-name
@@ -1211,14 +1213,16 @@ packages at the same time."
 (defun stp-repair-command (&optional arg)
   "Repair the stored package information.
 
-  With a prefix argument, repair all packages."
+With a universal prefix argument, allow command options to be
+toggled via an interactive menu. If the prefix argument is
+negative, repair all packages."
   (interactive "P")
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (if arg
+      (if (< (prefix-numeric-value current-prefix-arg) 0)
           (stp-repair-all-command)
-        (apply #'stp-repair (stp-command-args))))))
+        (apply #'stp-repair (stp-command-args :toggle-p (fn (listp current-prefix-arg))))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push do-lock (refresh t))
   "Repair the package named pkg-name.
