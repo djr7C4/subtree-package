@@ -371,7 +371,7 @@ was inserted."
         (when insert
           (insert-version t))))))
 
-(defvar stp-headers-ignored-requirements '("emacs"))
+(defvar stp-headers-ignored-requirements nil)
 
 (defun stp-headers-update-requirements-header (&optional insert)
   (interactive (list t))

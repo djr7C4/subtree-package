@@ -947,6 +947,13 @@ required."
           (push requirement stp-requirements))
         (condition-case err
             (cond
+             ;; Handle Emacs requirements.
+             ((string= pkg-name "emacs")
+              (when (version< (format "%d.%d" emacs-major-version emacs-minor-version) version)
+                (error "Version %s of Emacs is required but %d.%d is installed"
+                       version
+                       emacs-major-version
+                       emacs-minor-version)))
              ;; Do nothing when a requirement is ignored or a new enough
              ;; version is installed.
              ((or (member pkg-name stp-headers-ignored-requirements)
@@ -955,7 +962,7 @@ required."
                             (and version
                                  ;; Check the newest version found in the load
                                  ;; path.
-                                 (version-list-<= (version-to-list version) (version-to-list (cadr it)))
+                                 (version<= version (cadr it))
                                  ;; If the version installed in STP is older we
                                  ;; upgrade anyway. This can be the case if the
                                  ;; package was installed outside STP or the
