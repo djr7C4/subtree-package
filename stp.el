@@ -265,7 +265,7 @@ occurred."
             (setq stp-current-package pkg-name)
             (let-alist (stp-get-alist pkg-name)
               (unless quiet
-                (message (concat (if (> n 1)
+                (stp-msg (concat (if (> n 1)
                                      (format "(%d/%d) " i n)
                                    "")
                                  "Analyzing %s...")
@@ -278,7 +278,7 @@ occurred."
                       ;; `stp-package-info'. In other words, the user installed
                       ;; the package manually without using `stp-install'.
                       (when (stp-git-subtree-package-p pkg-name)
-                        (message "A manual installation was detected for %s" pkg-name)
+                        (stp-msg "A manual installation was detected for %s" pkg-name)
                         (setq .method 'git)
                         (stp-set-attribute pkg-name 'method 'git)))
                     (let* ((valid-other-remotes (-filter (-rpartial #'stp-valid-remote-p .method) .other-remotes)))
@@ -299,7 +299,7 @@ occurred."
                          (if .remote
                              (stp-set-attribute pkg-name 'remote .remote)
                            (unless quiet
-                             (message "Failed to determine the remote of %s" pkg-name)))
+                             (stp-msg "Failed to determine the remote of %s" pkg-name)))
                          ;; Use callback to determine the version if it could not
                          ;; be deduced above.
                          (setq version (or version (funcall callback 'unknown-git-version pkg-name)))
@@ -311,7 +311,7 @@ occurred."
                                           (stp-git-hash= version .version))
                                (stp-set-attribute pkg-name 'version version))
                            (unless quiet
-                             (message "Failed to determine the version of %s" pkg-name)))
+                             (stp-msg "Failed to determine the version of %s" pkg-name)))
                          ;; Use callback to determine update if it could not be
                          ;; deduced above.
                          (setq .update (or .update update (funcall callback 'unknown-git-update pkg-name)))
@@ -331,7 +331,7 @@ occurred."
                                      (progn
                                        (stp-set-attribute pkg-name 'branch .branch))
                                    (unless quiet
-                                     (message "Failed to determine the update mechanism for %s" pkg-name)))))))
+                                     (stp-msg "Failed to determine the update mechanism for %s" pkg-name)))))))
                         (elpa
                          (funcall callback 'partial-elpa-package pkg-name))
                         (archive
@@ -670,7 +670,7 @@ returned."
     (stp-with-memoization
       (stp-refresh-info)
       (stp-maybe-allow-skip (allow-skip
-                             (message "Skipped installing %s" (if pkg-name pkg-name "a dependency")))
+                             (stp-msg "Skipped installing %s" (if pkg-name pkg-name "a dependency")))
         (let* ((kwd-args (rem-maybe-kwd-args do-commit do-commit-provided-p do-push do-push-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p do-audit do-audit-provided-p))
                (args (apply #'stp-command-args
                             :pkg-name pkg-name
@@ -795,7 +795,7 @@ DO-AUDIT are as in `stp-install'."
     (stp-with-memoization
       (stp-refresh-info)
       (stp-maybe-allow-skip (allow-skip
-                             (message "Skipped upgrading %s" (if pkg-name pkg-name "a dependency")))
+                             (stp-msg "Skipped upgrading %s" (if pkg-name pkg-name "a dependency")))
         (let* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p do-push do-commit-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p do-audit do-audit-provided-p))
                (args (append (apply #'stp-command-args
                                     :pkg-name pkg-name
@@ -860,7 +860,7 @@ DO-AUDIT are as in `stp-install'."
               ;; Don't commit, push or perform push actions when there are
               ;; merge conflicts.
               (if (stp-git-merge-conflict-p)
-                  (message "%s occurred. Please resolve and commit manually."
+                  (stp-msg "%s occurred. Please resolve and commit manually."
                            (if (> (length (stp-git-conflicted-files)) 1)
                                "Merge conflicts"
                              "A merge conflict"))
@@ -901,7 +901,7 @@ DO-AUDIT are as in `stp-install'."
         stp-requirements (-uniq stp-requirements))
   (cond
    (stp-failed-requirements
-    (message "Failed to %s %d/%d dependencies: %s"
+    (stp-msg "Failed to %s %d/%d dependencies: %s"
              (if (memq type '(install upgrade))
                  "install or upgrade"
                "uninstall")
@@ -919,7 +919,7 @@ DO-AUDIT are as in `stp-install'."
                                        requirement))
                                    stp-failed-requirements))))
    ((> (length stp-requirements) 0)
-    (message "Successfully %s %d %s"
+    (stp-msg "Successfully %s %d %s"
              (if (memq type '(install upgrade))
                  "installed or upgraded"
                "uninstalled")
@@ -935,7 +935,7 @@ where each entry is either the name of a package or a list
 containing the name of the package and the minimum version
 required."
   (when search-load-path
-    (message "Analyzing the load path for installed packages...")
+    (stp-msg "Analyzing the load path for installed packages...")
     (stp-headers-update-features))
   (dolist (requirement requirements)
     ;; Also allow a list of package names.
@@ -1002,11 +1002,11 @@ required."
                 ;; because the package might have been installed manually
                 ;; originally.
                 (when (stp-git-merge-conflict-p)
-                  (message "One or more merge conflicts occurred while upgrading. Resolve the conflict and then press M-x `exit-recursive-edit'")
+                  (stp-msg "One or more merge conflicts occurred while upgrading. Resolve the conflict and then press M-x `exit-recursive-edit'")
                   (recursive-edit)))))
           (error
            (push requirement stp-failed-requirements)
-           (message "Failed to install or upgrade %s%s: %s"
+           (stp-msg "Failed to install or upgrade %s%s: %s"
                     pkg-name
                     (if version
                         (format " to version %s" version)
@@ -1040,7 +1040,7 @@ required."
                                              :test #'string=)))))
         (error
          (push pkg-name stp-failed-requirements)
-         (message "Failed to uninstall %s: %s" pkg-name err))))))
+         (stp-msg "Failed to uninstall %s: %s" pkg-name err))))))
 
 (cl-defun stp-package-group-command (fun table &key extra-removed-kwargs)
   (stp-refresh-info)
@@ -1304,7 +1304,7 @@ DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
             (stp-update-lock-file))
           (when refresh
             (stp-list-refresh :quiet t)))
-      (message "There are no remotes to edit%s"
+      (stp-msg "There are no remotes to edit%s"
                (if pkg-name
                    (format "for %s" pkg-name)
                  "")))))
@@ -1404,7 +1404,7 @@ package and updating the load path."
         (insert (format "%S\n" hash))
         (f-write (buffer-string) 'utf-8 stp-lock-file)
         (when interactive-p
-          (message "Updated the lock file at %s" stp-lock-file))))))
+          (stp-msg "Updated the lock file at %s" stp-lock-file))))))
 
 (defun stp-lock-file-watcher (event)
   (let ((action (cadr event)))
@@ -1449,7 +1449,7 @@ no errors."
     ;; Handle CMake separately. Since it generates makefiles, make may need
     ;; to be run afterwards.
     (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
-      (message "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
+      (stp-msg "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
       ;; Try to use the directory build by default. It is fine if
       ;; this directory already exists as long as it is not tracked
       ;; by git.
@@ -1467,7 +1467,7 @@ no errors."
           ;; ambiguity as to which CMakeLists.txt file should be
           ;; used.
           (unless (eql (rem-run-command cmd :buffer output-buffer) 0)
-            (message "Failed to run cmake on %s" build-dir)))))
+            (stp-msg "Failed to run cmake on %s" build-dir)))))
     (let ((success
            ;; Try different methods of building the package until one
            ;; succeeds.
@@ -1479,23 +1479,23 @@ no errors."
                  (when (-any (lambda (file)
                                (f-exists-p file))
                              stp-gnu-makefile-names)
-                   (message "A makefile was found in %s. Attempting to run make..." build-dir)
+                   (stp-msg "A makefile was found in %s. Attempting to run make..." build-dir)
                    (let ((cmd '("make")))
                      (stp-before-build-command cmd output-buffer)
                      ;; Make expects a makefile to be in the current directory
                      ;; so there is no ambiguity over which makefile will be
                      ;; used.
                      (or (eql (rem-run-command cmd :buffer output-buffer) 0)
-                         (and (message "Failed to run make on %s" pkg-path)
+                         (and (stp-msg "Failed to run make on %s" pkg-path)
                               nil)))))
                (and allow-naive-byte-compile
                     (let ((default-directory pkg-path))
-                      (message "Attempting to byte compile files in %s..." pkg-path)
+                      (stp-msg "Attempting to byte compile files in %s..." pkg-path)
                       (condition-case err
                           (progn
                             ;; Put the messages from `byte-recompile-directory' in
                             ;; output-buffer.
-                            (dflet ((message (&rest args)
+                            (dflet ((stp-msg (&rest args)
                                              (with-current-buffer output-buffer
                                                (insert (apply #'format args)))))
                               (stp-before-build-command "Byte compiling files" output-buffer)
@@ -1507,12 +1507,12 @@ no errors."
                               (stp-reload-once pkg-name))
                             t)
                         (error (ignore err)
-                               (message "Byte-compiling %s failed" pkg-path)
+                               (stp-msg "Byte-compiling %s failed" pkg-path)
                                nil)))))))
       ;; Return success or failure
       (if success
-          (message "Successfully built %s" pkg-name)
-        (message "Build failed for %s" pkg-name))
+          (stp-msg "Successfully built %s" pkg-name)
+        (stp-msg "Build failed for %s" pkg-name))
       success))))
 
 (defvar stp-build-blacklist nil
@@ -1540,13 +1540,13 @@ inverted with a prefix argument. Packages in
   "Build all packages."
   (let (failed)
     (dolist (pkg-name pkg-names)
-      (message "Building %s" pkg-name)
+      (stp-msg "Building %s" pkg-name)
       (unless (stp-build pkg-name allow-naive-byte-compile)
         (push pkg-name failed)))
     (setq failed (reverse failed))
     (if failed
-        (message "Failed to build: %s" (s-join " " failed))
-      (message "Successfully built all packages"))))
+        (stp-msg "Failed to build: %s" (s-join " " failed))
+      (stp-msg "Successfully built all packages"))))
 
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."
@@ -1569,14 +1569,14 @@ inverted with a prefix argument. Packages in
                 (when (member target (stp-make-targets makefile))
                   (let ((default-directory (f-dirname makefile)))
                     (setq attempted t)
-                    (message "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
+                    (stp-msg "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
                     (let ((cmd (list "make" target)))
                       (stp-before-build-command cmd output-buffer)
                       (if (eql (rem-run-command cmd :buffer output-buffer) 0)
                           (progn
-                            (message "Built the info manual for %s using make" pkg-name)
+                            (stp-msg "Built the info manual for %s using make" pkg-name)
                             (cl-return t))
-                        (message "'%s' failed in %s" cmd (f-dirname makefile)))))))
+                        (stp-msg "'%s' failed in %s" cmd (f-dirname makefile)))))))
 
               ;; Try to compile a texi file directly.
               (dolist (source (f-entries (stp-canonical-path pkg-name)
@@ -1585,23 +1585,23 @@ inverted with a prefix argument. Packages in
                                          t))
                 (let ((default-directory (f-dirname source)))
                   (setq attempted t)
-                  (message "texi source file found at %s. Attempting to compile it with makeinfo..." source)
+                  (stp-msg "texi source file found at %s. Attempting to compile it with makeinfo..." source)
                   (let ((cmd (list "makeinfo" "--no-split" texi-target)))
                     (cond
                      (;; Don't build texi files unless they have changed since the info
                       ;; manual was last built.
                       (f-newer-p (f-swap-ext source "info") source)
-                      (message "The info manual for %s is up to date" pkg-name)
+                      (stp-msg "The info manual for %s is up to date" pkg-name)
                       (cl-return t))
                      ((progn
                         (stp-before-build-command cmd output-buffer)
                         (eql (rem-run-command cmd :buffer output-buffer) 0))
-                      (message "Built the info manual for %s using makeinfo" pkg-name)
+                      (stp-msg "Built the info manual for %s using makeinfo" pkg-name)
                       (cl-return t))
                      (t
-                      (message "'%s' failed" cmd)))))))))
+                      (stp-msg "'%s' failed" cmd)))))))))
     (unless attempted
-      (message "No makefiles or texi source files found for the %s info manual" pkg-name))
+      (stp-msg "No makefiles or texi source files found for the %s info manual" pkg-name))
     success)))
 
 (defvar stp-build-info-blacklist nil
@@ -1615,13 +1615,13 @@ inverted with a prefix argument. Packages in
                                         :test #'equal)))
   (let (failed)
     (dolist (pkg-name pkg-names)
-      (message "Building the info manual for %s" pkg-name)
+      (stp-msg "Building the info manual for %s" pkg-name)
       (unless (stp-build-info pkg-name)
         (push pkg-name failed)))
     (setq failed (reverse failed))
     (if failed
-        (message "Failed to build info manuals for: %s" (s-join " " failed))
-      (message "Successfully built info manuals for all packages"))))
+        (stp-msg "Failed to build info manuals for: %s" (s-join " " failed))
+      (stp-msg "Successfully built info manuals for all packages"))))
 
 (cl-defun stp-reload (pkg-name &key quiet)
   "Reload the package."
@@ -1630,7 +1630,7 @@ inverted with a prefix argument. Packages in
   (stp-reload-once pkg-name)
   (stp-reload-once pkg-name)
   (unless quiet
-    (message "Reloaded %s" pkg-name)))
+    (stp-msg "Reloaded %s" pkg-name)))
 
 (cl-defun stp-list-update-load-path (&optional arg)
   "Reload the package."
@@ -1655,8 +1655,8 @@ inverted with a prefix argument. Packages in
                                   :test #'equal))
       (unless quiet
         (if new
-            (message "Added info files for %s" pkg-name)
-          (message "No info files found for %s" pkg-name))))))
+            (stp-msg "Added info files for %s" pkg-name)
+          (stp-msg "No info files found for %s" pkg-name))))))
 
 (defun stp-update-all-info-directories (&optional pkg-names quiet)
   "Make the info files for all packages available to info commands."
@@ -1665,7 +1665,7 @@ inverted with a prefix argument. Packages in
   (dolist (pkg-name pkg-names)
     (stp-update-info-directories pkg-name quiet))
   (unless quiet
-    (message "Added all info files")))
+    (stp-msg "Added all info files")))
 
 ;; Add info directories for packages that need it.
 (with-eval-after-load 'info
@@ -1972,10 +1972,10 @@ to TRIES times."
                   (error-message
                    (if (>= tries max-tries)
                        (unless quiet
-                         (message "Getting the latest version of %s failed %d times: skipping..." pkg-name tries))
+                         (stp-msg "Getting the latest version of %s failed %d times: skipping..." pkg-name tries))
                      (cl-incf tries)
                      (unless quiet
-                       (message "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries max-tries error-message))
+                       (stp-msg "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries max-tries error-message))
                      (queue-enqueue queue (list pkg-name tries)))))))
              (compute-next-latest-version))
            (compute-next-latest-version ()
@@ -2160,16 +2160,16 @@ not slow down Emacs while the fields are being updated."
                                                           ignored-string)
                                                          (t
                                                           (format " (%d ignored; %d failed)" num-ignored num-failed)))))
-                                                                        (message "Finished updating the latest versions for %d packages%s" (length updated-pkgs) ignored-failed-string)))
+                                                                        (stp-msg "Finished updating the latest versions for %d packages%s" (length updated-pkgs) ignored-failed-string)))
 (updated-pkgs
- (message "Updated the latest version for %s" (car pkg-names)))
+ (stp-msg "Updated the latest version for %s" (car pkg-names)))
 (t
- (message "Failed to update the latest version for %s" (car pkg-names)))))))
+ (stp-msg "Failed to update the latest version for %s" (car pkg-names)))))))
 (unless quiet-toplevel
   (let ((async-string (if async " asynchronously" "")))
     (if plural
-        (message "Updating the latest versions for %d packages%s%s" (length pkg-names) async-string ignored-string)
-      (message "Updating the latest version for %s%s" (car pkg-names) async-string))))
+        (stp-msg "Updating the latest versions for %d packages%s%s" (length pkg-names) async-string ignored-string)
+      (stp-msg "Updating the latest version for %s%s" (car pkg-names) async-string))))
 (if batch
     ;; Create a separate asynchronous process to create the other
     ;; processes. This is much faster than running
@@ -2203,7 +2203,7 @@ not slow down Emacs while the fields are being updated."
                        :quiet quiet-packages
                        :async async)))
 (unless quiet-toplevel
-  (message "No packages need their latest versions updated%s" ignored-string))))))
+  (stp-msg "No packages need their latest versions updated%s" ignored-string))))))
 
 (rem-set-keys stp-list-mode-map
               "a" #'stp-post-actions-command
@@ -2382,7 +2382,7 @@ refresh `package-archive-contents' asynchronously."
               (beginning-of-line)
               (forward-char column)))
           (unless quiet
-            (message "Refreshed packages")))))))
+            (stp-msg "Refreshed packages")))))))
 
 (cl-defun stp-list-focus-package (pkg-name &key (recenter t) (recenter-arg nil))
   (save-match-data
@@ -2473,7 +2473,7 @@ confirmation."
             (f-delete (stp-canonical-path dir) t)
             (cl-incf deleted-dirs))
           (cl-incf k))))
-    (message "Deleted %d orphaned entries in %s and %d orphaned directories in %s"
+    (stp-msg "Deleted %d orphaned entries in %s and %d orphaned directories in %s"
              deleted-entries
              stp-info-file
              deleted-dirs
@@ -2529,12 +2529,12 @@ development or for opening packages from `stp-list-mode'."
                 (when (and (not (with-current-buffer old-buf
                                   (derived-mode-p 'stp-list-mode)))
                            (not (rem-buffer-same-p old-buf)))
-                  (message "Files differ. Line and column may not be preserved"))
+                  (stp-msg "Files differ. Line and column may not be preserved"))
                 ;; Go to the corresponding line in the file if possible.
                 (when file-found
                   (rem-goto-line-column line column t)
                   (rem-move-current-window-line-to-pos window-line))))
-          (message "%s was not found in the local filesystem" pkg-name))))))
+          (stp-msg "%s was not found in the local filesystem" pkg-name))))))
 
 (cl-defun stp-bump-version (filename &key do-commit do-push do-tag)
   "Increase the version header for FILENAME. Interactively, this is
@@ -2573,7 +2573,7 @@ if no version header is found for the current file."
           (save-buffer)
           (stp-git-add default-directory :update t)
           (let ((msg (format "Bumped the version to %s" new-version)))
-            ;; Give the user a chance to use their own message if we aren't just
+            ;; Give the user a chance to use their own stp-msg if we aren't just
             ;; bumping the version in this commit.
             (unless clean
               (setq msg (rem-read-from-mini "Commit message: " :initial-contents msg)))
@@ -2581,7 +2581,7 @@ if no version header is found for the current file."
           (when (stp-maybe-call do-tag)
             (let ((tag (concat "v" new-version)))
               (stp-git-tag tag (stp-git-head default-directory))
-              (message "Added the git tag %s" tag)))
+              (stp-msg "Added the git tag %s" tag)))
           (stp-git-push :do-push do-push)
           (stp-git-push :do-push do-push :tags t))))))
 

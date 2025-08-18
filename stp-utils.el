@@ -35,6 +35,12 @@
 
 (defvar stp-package-info nil)
 
+(defvar stp-log-buffer-name "*STP Log*")
+
+(defun stp-msg (&rest args)
+  (with-current-buffer (get-buffer-create stp-log-buffer-name)
+    (insert (apply #'message args) "\n")))
+
 (defun stp-negate (value)
   "If VALUE is a function, return a function that returns the
 negation of that function. Otherwise, return the negation of

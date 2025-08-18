@@ -37,7 +37,7 @@
   (dolist (path (stp-compute-load-path pkg-path))
     (add-to-list 'load-path path))
   (when interactive-p
-    (message "Updated the load path for %s" (file-name-nondirectory (directory-file-name pkg-path)))))
+    (stp-msg "Updated the load path for %s" (file-name-nondirectory (directory-file-name pkg-path)))))
 
 (defun stp-compute-load-paths (&optional dir)
   (setq dir (or dir stp-source-directory))
@@ -64,7 +64,7 @@
   (dolist (path (stp-compute-load-paths dir))
     (add-to-list 'load-path path))
   (when interactive-p
-    (message "Load paths updated")))
+    (stp-msg "Load paths updated")))
 
 (provide 'stp-bootstrap)
 ;;; stp-bootstrap.el ends here

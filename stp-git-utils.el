@@ -167,7 +167,7 @@ repository. Return the path to the repository."
                  "merge conflicts"
                "a merge conflict")))
     (if (stp-git-clean-p)
-        (message "There are no changes to commit. Skipping...")
+        (stp-msg "There are no changes to commit. Skipping...")
       (rem-run-command (list "git" "commit" "--allow-empty-message" "-am" msg) :error t))))
 
 (defvar stp-subtree-fetch t
@@ -215,7 +215,7 @@ repository. Return the path to the repository."
                                  (rem-maybe-args "--all" all
                                                  "--tags" tags))
                          :error t)
-      (message "There is nothing to push. Skipping..."))))
+      (stp-msg "There is nothing to push. Skipping..."))))
 
 (cl-defun stp-git-commit-push (msg &key (do-commit t) (do-push t) all tags)
   (when (stp-maybe-call do-commit)
@@ -369,7 +369,7 @@ This is done for revision REV when it is non-nil."
     (s-split "\n" (rem-run-command cmd :error t) t)))
 
 (defun stp-git-subtree-commit-message (path &optional format)
-  "Return the message for the last local commit by git subtree.
+  "Return the stp-msg for the last local commit by git subtree.
 
 This is different from the remote commit that was merged when
 --squash is used."

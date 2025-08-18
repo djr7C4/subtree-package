@@ -79,7 +79,7 @@ refresh even if the last refresh was less than
         (setq stp-archive-async-refresh-running t
               stp-archive-last-refreshed (float-time))
         (unless quiet
-          (message "Refreshing package archives asynchronously"))
+          (stp-msg "Refreshing package archives asynchronously"))
         (async-start
          `(lambda ()
             (require 'package)
@@ -93,9 +93,9 @@ refresh even if the last refresh was less than
            (package-read-all-archive-contents)
            (setq stp-archive-async-refresh-running nil)
            (unless quiet
-             (message "Asynchronous refresh of the package archives finished")))))
+             (stp-msg "Asynchronous refresh of the package archives finished")))))
     (unless quiet
-      (message "The package archives were last refreshed on %s: no refresh is necessary"
+      (stp-msg "The package archives were last refreshed on %s: no refresh is necessary"
                (format-time-string "%c" stp-archive-last-refreshed)))))
 
 (defun stp-archive-ensure-loaded ()

@@ -194,7 +194,7 @@ will not be detected."
              (new-features (stp-headers-paths-features (append new-paths dev-paths))))
         (setq stp-headers-installed-features (stp-headers-merge-elisp-requirements (append stp-headers-installed-features new-features))
               stp-headers-versions new-versions))
-    (message "Installed features have not yet been computed. This will take a moment the first time")
+    (stp-msg "Installed features have not yet been computed. This will take a moment the first time")
     (setq stp-headers-installed-features (stp-headers-paths-features load-path)
           stp-headers-versions (stp-headers-compute-versions))))
 

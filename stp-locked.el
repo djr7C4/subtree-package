@@ -56,7 +56,7 @@
                   (warn "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code output)
                   (throw 'ret nil))
                 (unless quiet
-                  (message "Checked out the locked revision %s of %s" rev-string stp-source-directory))))
+                  (stp-msg "Checked out the locked revision %s of %s" rev-string stp-source-directory))))
           (warn "%s is missing: unable to restore the locked version of %s" stp-lock-file stp-source-directory))))))
 
 (provide 'stp-locked)

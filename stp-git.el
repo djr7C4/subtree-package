@@ -317,7 +317,7 @@ returned."
             (rem-run-command cmd :return 'both)
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
-           ;; the user. The message is displayed in higher-level code as
+           ;; the user. The stp-msg is displayed in higher-level code as
            ;; otherwise it won't show here.
            ((stp-git-merge-conflict-p))
            ;; If the command succeeded and there are no merge conflicts then we
@@ -331,7 +331,7 @@ returned."
                 (and (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
                      (or (stp-maybe-call stp-auto-commit)
                          (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
-              (message "git subtree %s failed. Attempting to uninstall and reinstall..." action)
+              (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
               nil)
             (stp-with-package-source-directory
               (stp-reinstall pkg-name fallback-version))))
