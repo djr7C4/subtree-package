@@ -103,3 +103,5 @@ for item in "${repos[@]}"; do
 done
 
 echo -e "))\n" >> "$pkg_info_file"
+
+echo "Finished installing STP"
