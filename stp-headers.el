@@ -233,8 +233,8 @@ should map each package symbol to the version that is installed."
                                         (-compose (-partial #'string= "el") #'f-ext)))))
     (stp-headers-elisp-file-requirements main-file)))
 
-(defun stp-update-requirements (pkg-name)
-  (if-let ((requirements (stp-package-requirements pkg-name)))
+(cl-defun stp-update-requirements (pkg-name &optional (requirements (stp-package-requirements pkg-name)))
+  (if requirements
       (stp-set-attribute pkg-name 'requirements requirements)
     (stp-delete-attribute pkg-name 'requirements)))
 
