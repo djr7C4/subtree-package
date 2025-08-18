@@ -251,6 +251,9 @@ git repository for your Emacs configuration.
   curl -s https://raw.githubusercontent.com/djr7C4/subtree-package/refs/heads/main/bootstrap | bash
 #+end_src
 
+The script supports installing the recommended stable (the versions tested
+during development), latest stable or unstable versions of the packages.
+
 STP also requires that you install =atool= if you wish to install archive, ELPA
 and compressed URL packages. Additionally, to support certain non-essential
 features, the =async= and =queue= packages are required.
