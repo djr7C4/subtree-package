@@ -1232,8 +1232,8 @@ negative, repair all packages."
     (stp-with-memoization
       (stp-refresh-info)
       (if (< (prefix-numeric-value current-prefix-arg) 0)
-          (stp-repair-all-command :toggle-p (fn (listp current-prefix-arg)))
-        (apply #'stp-repair (stp-command-args :toggle-p (fn (listp current-prefix-arg))))))))
+          (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
+        (apply #'stp-repair (stp-command-args :toggle-p (fn (consp current-prefix-arg))))))))
 
 (cl-defun stp-repair (pkg-name &key do-commit do-push do-lock (refresh t))
   "Repair the package named pkg-name.
