@@ -248,7 +248,7 @@ git repository for your Emacs configuration.
 
 #+begin_src bash
   cd <emacs-git-directory>
-  curl -s https://raw.githubusercontent.com/djr7C4/subtree-packages/refs/heads/main/bootstrap | bash
+  curl -s https://raw.githubusercontent.com/djr7C4/subtree-package/refs/heads/main/bootstrap | bash
 #+end_src
 
 STP also requires that you install =atool= if you wish to install archive, ELPA

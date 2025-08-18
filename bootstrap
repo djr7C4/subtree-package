@@ -19,30 +19,62 @@ if [[ ! -d ".git" ]]; then
     exit 1
 fi
 
-latest_stable() {
+stable_versions() {
     repo="$1"
-    git ls-remote "$repo" | awk '{ print $2 }' | sed -n 's:\^{}::; s:^refs/tags/::p' | sort -V | uniq | tail -n 1
+    git ls-remote "$repo" | awk '{ print $2 }' | sed -n 's:\^{}::; s:^refs/tags/::p' | sort -V | uniq
+}
+
+latest_stable() {
+    stable_versions "$1" | tail -n 1
+}
+
+stp_repo="https://github.com/djr7C4/subtree-package.git"
+bootstrap_requirements_file="$(mktemp)"
+
+stp_latest_stable="$(latest_stable "$stp_repo")"
+
+stable() {
+    name="$1"
+    repo="$2"
+    [[ "$stp_latest_stable" ]] || stp_latest_stable="$(latest_stable "$stp_repo")"
+    bootstrap_requirements_url="https://github.com/djr7C4/subtree-package/blob/${stp_latest_stable}/bootstrap-requirements"
+    [[ -s "$bootstrap_requirements_file" ]] || curl -s "$bootstrap_requirements_url" > "$bootstrap_requirements_file"
+    # Get the version from the "Package-Requires" header in stp.el.
+    emacs_package_version="$(cat "$bootstrap_requirements_file" | grep "$name")"
+    git_tag="$(stable_versions "$repo" | grep "$emacs_package_version")"
+    echo "$git_tag"
 }
 
 repos=("https://github.com/rolandwalker/anaphora.git master" "https://github.com/magnars/dash.el.git master" "https://github.com/rejeep/f.el.git master" "https://github.com/djr7C4/emacs-memoize.git master" "https://github.com/magnars/s.el.git master" "https://github.com/jwiegley/emacs-async master" "https://github.com/tarsius/llama main" "https://github.com/djr7C4/rem.git main" "https://github.com/djr7C4/subtree-package.git main")
 
 pkg_info_file="stp-pkg-info.eld"
 
-echo "Should stable or unstable (latest) versions be installed?"
-select update in "stable" "unstable"; do break; done
+echo "Which version should be installed?"
+select update in "latest stable" "recommended stable" "unstable"; do break; done
 
 echo "((packages" > "$pkg_info_file"
 
 for item in "${repos[@]}"; do
-    repo="$(echo "$item" | cut -d ' ' -f 1)"
-    branch="$(echo "$item" | cut -d ' ' -f 2)"
+    name="$(echo "$item" | cut -d ' ' -f 1)"
+    repo="$(echo "$item" | cut -d ' ' -f 2)"
+    branch="$(echo "$item" | cut -d ' ' -f 3)"
     pkg_name="${repo##*/}"
     pkg_name="${pkg_name%.git}"
     pkg_name="${pkg_name%.el}"
     pkg_name="${pkg_name#emacs-}"
 
-    if [[ "$update" = "stable" ]]; then
+    if [[ "$update" = "latest stable" ]]; then
         version="$(latest_stable "$repo")"
+        branch_cell=""
+    elif [[ "$update" = "recommended stable" ]]; then
+        # subtree-package isn't in the bootstrap requirements file so it needs
+        # to be handled specially.
+        if [[ "$name" = "subtree-package" ]]; then
+            version="$stp_latest_stable"
+        else
+            version="$(stable "$name" "$repo")"
+        fi
+
         branch_cell=""
     else
         version="$branch"

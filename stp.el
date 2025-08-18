@@ -2618,3 +2618,7 @@ if no version header is found for the current file."
 
 (provide 'stp)
 ;;; stp.el ends here
+
+;; Local Variables:
+;; eval: (add-hook 'stp-headers-update-hook #'stp-headers-write-bootstrap-requirements nil t)
+;; End:

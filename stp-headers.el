@@ -407,6 +407,17 @@ was inserted."
       (when insert
         (insert (format ";; Package-Requires: %s" requirements-string))))))
 
+(defvar stp-headers-bootstrap-requirements-file "bootstrap-requirements")
+
+(defun stp-headers-write-bootstrap-requirements ()
+  (let ((requirements (stp-headers-elisp-requirements)))
+    (with-temp-buffer
+      (dolist (requirement requirements)
+        (db (pkg-sym version)
+            requirement
+          (insert (format "%s %s\n" pkg-sym version))))
+      (write-file stp-headers-bootstrap-requirements-file))))
+
 (defvar stp-headers-update-hook nil
   "Hook to run after headers are updated.")
 
@@ -460,6 +471,7 @@ inserted."
           (setq inserted t)
           (insert ";; Package-Requires: ()")))
       (run-hooks 'stp-headers-update-hook)
+      (message "Update headers in %s" (or buffer-file-name (buffer-name)))
       inserted)))
 
 (defvar stp-main-package-name-transform (fn (s-chop-suffix ".el" (s-chop-prefix "emacs-" %)))
