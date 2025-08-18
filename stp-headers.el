@@ -111,8 +111,7 @@ is non-nil, then they will be merged into an empty hash table."
         (let ((curr-version (gethash pkg-sym versions)))
           (when (or (not curr-version)
                     (and version
-                         (version-list-< (version-to-list curr-version)
-                                         (version-to-list version))))
+                         (version< curr-version version)))
             (setf (gethash pkg-sym versions) version)))))
     (if hash-table
         versions
