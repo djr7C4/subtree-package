@@ -86,3 +86,4 @@ for item in "${repos[@]}"; do
 done
 
 echo -e "))\n" >> "$pkg_info_file"
+rm "$bootstrap_requirements_file"
