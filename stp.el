@@ -270,7 +270,7 @@ occurred."
   (let* ((i 1)
          (n (length pkg-names)))
     (unwind-protect
-        (dolist (pkg-name pkg-names)
+        (cl-dolist (pkg-name pkg-names)
           (let ((pkg-name (stp-name pkg-name)))
             (setq stp-current-package pkg-name)
             (let-alist (stp-get-alist pkg-name)
@@ -951,7 +951,7 @@ required."
   (when search-load-path
     (stp-msg "Analyzing the load path for installed packages...")
     (stp-headers-update-features))
-  (dolist (requirement requirements)
+  (cl-dolist (requirement requirements)
     ;; Also allow a list of package names.
     (db (pkg-sym &optional version)
         (ensure-list requirement)
@@ -1557,7 +1557,7 @@ inverted with a prefix argument. Packages in
 (defun stp-build-all (&optional pkg-names allow-naive-byte-compile)
   "Build all packages."
   (let (failed)
-    (dolist (pkg-name pkg-names)
+    (cl-dolist (pkg-name pkg-names)
       (stp-msg "Building %s" pkg-name)
       (unless (stp-build pkg-name allow-naive-byte-compile)
         (push pkg-name failed)))
@@ -1583,7 +1583,7 @@ inverted with a prefix argument. Packages in
           ;; Try to build the info manual in different ways until one succeeds.
           (or nil
               ;; Try to find a makefile that has an appropriate target.
-              (dolist (makefile makefiles)
+              (cl-dolist (makefile makefiles)
                 (when (member target (stp-make-targets makefile))
                   (let ((default-directory (f-dirname makefile)))
                     (setq attempted t)
@@ -1597,7 +1597,7 @@ inverted with a prefix argument. Packages in
                         (stp-msg "'%s' failed in %s" cmd (f-dirname makefile)))))))
 
               ;; Try to compile a texi file directly.
-              (dolist (source (f-entries (stp-canonical-path pkg-name)
+              (cl-dolist (source (f-entries (stp-canonical-path pkg-name)
                                          (lambda (path)
                                            (string= (f-filename path) texi-target))
                                          t))
@@ -1632,7 +1632,7 @@ inverted with a prefix argument. Packages in
                                         stp-build-info-blacklist
                                         :test #'equal)))
   (let (failed)
-    (dolist (pkg-name pkg-names)
+    (cl-dolist (pkg-name pkg-names)
       (stp-msg "Building the info manual for %s" pkg-name)
       (unless (stp-build-info pkg-name)
         (push pkg-name failed)))
@@ -1680,7 +1680,7 @@ inverted with a prefix argument. Packages in
   "Make the info files for all packages available to info commands."
   (interactive)
   (setq pkg-names (or pkg-names (stp-filesystem-names)))
-  (dolist (pkg-name pkg-names)
+  (cl-dolist (pkg-name pkg-names)
     (stp-update-info-directories pkg-name quiet))
   (unless quiet
     (stp-msg "Added all info files")))
@@ -1971,7 +1971,7 @@ to TRIES times."
     (let (latest-versions
           (queue (make-queue))
           (running 0))
-      (dolist (pkg-name pkg-names)
+      (cl-dolist (pkg-name pkg-names)
         (queue-enqueue queue (list pkg-name 0)))
       (cl-labels
           ((process-latest-version (data)
@@ -2363,7 +2363,7 @@ refresh `package-archive-contents' asynchronously."
                           (if stp-latest-versions-cache
                               (format " Latest%sstable Latest%sunstable" stp-no-break-space stp-no-break-space)
                             "")))
-          (dolist (pkg-name (stp-info-names))
+          (cl-dolist (pkg-name (stp-info-names))
             (let ((pkg-alist (stp-get-alist pkg-name))
                   (version-alist (map-elt stp-latest-versions-cache pkg-name)))
               ;; Nesting `let-alist' doesn't work nicely so we merge the alists
@@ -2469,7 +2469,7 @@ confirmation."
       (let ((k 0)
             (orphaned-info-names (cl-set-difference info-pkgs filesystem-pkgs :test #'equal)))
         (unwind-protect
-            (dolist (target-name orphaned-info-names)
+            (cl-dolist (target-name orphaned-info-names)
               (stp-set-info-packages
                (cl-delete-if (lambda (pkg)
                                (let ((name (car pkg)))
@@ -2485,7 +2485,7 @@ confirmation."
     (when (memq orphan-type '(filesystem both))
       (let ((k 1)
             (orphaned-dir-names (cl-set-difference filesystem-pkgs info-pkgs :test #'equal)))
-        (dolist (dir orphaned-dir-names)
+        (cl-dolist (dir orphaned-dir-names)
           (when (or (not confirm)
                     (yes-or-no-p (format "(%d/%d) The directory %s in %s has no entry in %s. Delete the directory?" k (length orphaned-dir-names) dir stp-source-directory stp-info-file)))
             (f-delete (stp-canonical-path dir) t)
@@ -2606,7 +2606,7 @@ if no version header is found for the current file."
 (defun stp-savehist-setup ()
   (with-eval-after-load "savehist"
     (defvar savehist-additional-variables)
-    (dolist (var '(stp-latest-versions-cache
+    (cl-dolist (var '(stp-latest-versions-cache
                    stp-archive-last-refreshed
                    stp-headers-elisp-file-requirements-cache
                    stp-headers-elisp-file-feature-cache

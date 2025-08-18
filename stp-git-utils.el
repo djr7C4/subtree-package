@@ -762,7 +762,7 @@ and REV2 do not share a common ancestor."
       (setq remotes (cdr remotes)))
     ;; Fetch and update all branches from all remotes.
     (let ((default-directory path))
-      (dolist (remote remotes)
+      (cl-dolist (remote remotes)
         ;; :force t is required in case a branch is deleted upstream. We don't
         ;; want :no-new-tags t because the tags should be kept in refs/tags for
         ;; cached repos since they correspond to a single package.

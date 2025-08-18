@@ -104,7 +104,7 @@ is non-nil, then they will be merged into an empty hash table."
   (let ((versions (if (hash-table-p hash-table)
                       hash-table
                     (make-hash-table :test #'eq))))
-    (dolist (requirement requirements)
+    (cl-dolist (requirement requirements)
       (db (pkg-sym version)
           requirement
         ;; Keep the newest version of each package.
@@ -126,7 +126,7 @@ There are determined according to the Package-Requires field of
 its elisp files."
   (let* (reqs
          (files (rem-elisp-files-to-load dir :compressed t :recursive recursive)))
-    (dolist (file files)
+    (cl-dolist (file files)
       (setq reqs (append reqs (funcall fun file))))
     (stp-headers-merge-elisp-requirements reqs)))
 
@@ -413,7 +413,7 @@ was inserted."
 (defun stp-headers-write-bootstrap-requirements ()
   (let ((requirements (stp-headers-elisp-requirements)))
     (with-temp-buffer
-      (dolist (requirement requirements)
+      (cl-dolist (requirement requirements)
         (db (pkg-sym version)
             requirement
           (insert (format "%s %s\n" pkg-sym version))))

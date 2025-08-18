@@ -24,7 +24,7 @@
     (user-error "%s is not an absolute path" pkg-path))
   ;; Include package directories and some sub-directories.
   (push pkg-path paths)
-  (dolist (subdir stp-package-source-directories)
+  (cl-dolist (subdir stp-package-source-directories)
     (let ((path (expand-file-name subdir pkg-path)))
       (when (file-directory-p path)
         (push path paths)
@@ -34,7 +34,7 @@
 (defun stp-update-load-path (pkg-path &optional interactive-p)
   "Add all appropriate directories in PKG-PATH to the `load-path'."
   (interactive "DDirectory: \nd")
-  (dolist (path (stp-compute-load-path pkg-path))
+  (cl-dolist (path (stp-compute-load-path pkg-path))
     (add-to-list 'load-path path))
   (when interactive-p
     (stp-msg "Updated the load path for %s" (file-name-nondirectory (directory-file-name pkg-path)))))
@@ -44,7 +44,7 @@
   (let (paths)
     ;; We do not use `directory-files-recursively' because it includes too much.
     ;; Not all elisp files are meant to be in the `load-path'.
-    (dolist (pkg-path (directory-files dir t))
+    (cl-dolist (pkg-path (directory-files dir t))
       (when (and (file-directory-p pkg-path)
                  ;; Do not consider ".", ".." or any path that ends with "/." or
                  ;; "/..". The intent here is to prevent the current directory
@@ -61,7 +61,7 @@
 (defun stp-update-load-paths (&optional dir interactive-p)
   "Add all appropriate package directories to the `load-path'."
   (interactive (list nil t))
-  (dolist (path (stp-compute-load-paths dir))
+  (cl-dolist (path (stp-compute-load-paths dir))
     (add-to-list 'load-path path))
   (when interactive-p
     (stp-msg "Load paths updated")))

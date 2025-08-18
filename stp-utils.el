@@ -470,7 +470,7 @@ expression is active.")
 
 (defun stp-transform-remote (remote)
   "Transform REMOTE by applying `stp-remote-transformers'."
-  (or (dolist (cell stp-remote-transformers)
+  (or (cl-dolist (cell stp-remote-transformers)
         (db (regexp . transformer)
             cell
           (when (string-match regexp remote)
@@ -761,7 +761,7 @@ an argument.")
 
 (defun stp-version-extract (version)
   (save-match-data
-    (dolist (cell stp-version-extractor-alist)
+    (cl-dolist (cell stp-version-extractor-alist)
       (db (regexp . extractor)
           cell
         (let (version-suffix-alist
@@ -820,7 +820,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
               ;; compressed elisp file (e.g. file.el.lz) because
               ;; `rem-extract-archive' already handles them by creating a
               ;; subdirectory even if the archive doesn't contain one.
-              (dolist (file (f-entries extract-path))
+              (cl-dolist (file (f-entries extract-path))
                 (f-move file dir))))
         (f-delete temp-dir t)))))
 
@@ -862,7 +862,7 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
          ;; Reload those features that were already loaded and correspond to
          ;; files in the package.
          (files (mapcar #'f-no-ext (rem-elisp-files-to-load pkg-path :recursive t))))
-    (dolist (f files)
+    (cl-dolist (f files)
       (load f))))
 
 (provide 'stp-utils)
