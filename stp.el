@@ -217,7 +217,7 @@ remote or archive. Archives are represented as symbols."
                       (url (setq .version (stp-url-read-version prompt))))
                     (stp-set-attribute pkg-name 'version .version)))
                 (unless .requirements
-                  (stp-set-attribute pkg-name 'requirements (stp-update-requirements pkg-name))))
+                  (stp-update-requirements pkg-name)))
               (handle-partial-archive (pkg-name)
                 (stp-archive-ensure-loaded)
                 (unless .remote
@@ -225,16 +225,16 @@ remote or archive. Archives are represented as symbols."
                     (setq .remote (stp-comp-read-remote prompt (stp-archives pkg-name)))
                     (stp-set-attribute pkg-name 'remote .remote)))
                 (unless .requirements
-                  (stp-set-attribute pkg-name 'requirements (stp-update-requirements pkg-name)))))
+                  (stp-update-requirements pkg-name))))
       (cl-case type
         (requirements (stp-package-requirements pkg-name))
         (ghost-package (yes-or-no-p (format "%s was found in %s but not in the filesystem in %s. Remove it?" pkg-name stp-info-file stp-source-directory)))
         (invalid-git-remote (stp-git-read-remote (format "The remote %s for %s is invalid or temporarily unavailable; enter remote: " .remote pkg-name)))
-        (unknown-git-version (stp-git-read-version (format "Unable to determine verion for %s; enter version: " pkg-name)
+        (unknown-git-version (stp-git-read-version (format "Unable to determine the version for %s; enter version: " pkg-name)
                                                    .remote
                                                    :extra-versions (list .branch)))
-        (unknown-git-update (stp-git-read-update (format "Unable to determine update for %s; enter update: " pkg-name)))
-        (unknown-git-branch (stp-git-read-branch (format "Unable to determine branch for %s; enter branch: " pkg-name) .remote))
+        (unknown-git-update (stp-git-read-update (format "Unable to determine the update for %s; enter update: " pkg-name)))
+        (unknown-git-branch (stp-git-read-branch (format "Unable to determine the branch for %s; enter branch: " pkg-name) .remote))
         (partial-elpa-package (handle-partial-elpa-url pkg-name))
         (partial-archive-package (handle-partial-archive pkg-name))
         (partial-url-package (handle-partial-elpa-url pkg-name))
@@ -296,7 +296,7 @@ occurred."
                         (stp-set-attribute pkg-name 'other-remotes valid-other-remotes)))
                     (unless .requirements
                       (setq .requirements (funcall callback 'requirements pkg-name))
-                      (stp-set-attribute pkg-name 'requirements .requirements))
+                      (stp-update-requirements pkg-name .requirements))
                     (db (version update)
                         (stp-git-subtree-version pkg-name)
                       (cl-case .method
@@ -359,6 +359,8 @@ occurred."
                         (stp-reinstall pkg-name version))))
                 (when (funcall callback 'ghost-package pkg-name)
                   (stp-delete-alist pkg-name)))
+              (unless quiet
+                (stp-msg "Finished repairing %s" pkg-name))
               (cl-incf i))))
       ;; Ensure that the package info file is updated even on a keyboard quit or
       ;; other signal.
