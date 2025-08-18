@@ -55,7 +55,16 @@ repos=("anaphora https://github.com/rolandwalker/anaphora.git master" "dash http
 pkg_info_file="stp-pkg-info.eld"
 
 echo "Which version should be installed?"
-select update in "recommended stable" "latest stable" "unstable"; do break; done
+select version_type in "recommended stable" "latest stable" "unstable"; do break; done
+
+case "$version_type" in
+    "recommended stable"|"latest stable")
+        update="stable"
+        ;;
+    "unstable")
+        update="unstable"
+        ;;
+esac
 
 echo "((packages" > "$pkg_info_file"
 
@@ -64,10 +73,10 @@ for item in "${repos[@]}"; do
     repo="$(echo "$item" | cut -d ' ' -f 2)"
     branch="$(echo "$item" | cut -d ' ' -f 3)"
 
-    if [[ "$update" = "latest stable" ]]; then
+    if [[ "$version_type" = "latest stable" ]]; then
         version="$(latest_stable "$repo")" || exit 1
         branch_cell=""
-    elif [[ "$update" = "recommended stable" ]]; then
+    elif [[ "$version_type" = "recommended stable" ]]; then
         # subtree-package isn't in the bootstrap requirements file so it needs
         # to be handled specially.
         [[ "$stp_latest_stable" ]] || stp_latest_stable="$(latest_stable "$stp_repo")"
