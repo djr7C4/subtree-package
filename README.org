@@ -280,11 +280,10 @@ code.
   (require 'stp)
 
   (keymap-global-set "C-c P" #'stp-list)
-#+end_src
 
-Finally, it is recommended to add
-
-#+begin_src emacs-lisp
+  ;; Improve performance by adding various variables to
+  ;; `savehist-additional-variables' in order to avoid repeating expensive
+  ;; computations.
   (require 'savehist)
 
   ;; The order of these calls is important.
@@ -292,11 +291,9 @@ Finally, it is recommended to add
   (stp-setup)
 #+end_src
 
-to improve performance. =stp-setup= adds various variables to
-=savehist-additional-variables= in order to avoid repeating expensive
-computations.
-
-Start Emacs and run =M-x stp-repair-all= to initialize the package information
+The first time Emacs is started with STP enabled, it will search the load path
+to initialize its internal cache. This will take a few moments. Once it has
+finished, run =M-x stp-repair-all= to initialize the package information
 database from the git repository. This will cause the packages installed by the
 bootstrap script to be recognized as STP packages.
 
