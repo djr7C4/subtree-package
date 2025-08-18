@@ -371,11 +371,13 @@ was inserted."
           (insert-version t))))))
 
 (defun stp-headers-package-requirements-multiline (requirements)
-  (let ((prefix ";;   "))
-    (--> requirements
-         (mapcar (fn (format "%s%S" prefix %)) it)
-         (s-join "\n" it)
-         (concat "(\n" it ")"))))
+  (if (<= (length requirements) 1)
+      (prin1-to-string requirements)
+    (let ((prefix ";;   "))
+      (--> requirements
+           (mapcar (fn (format "%s%S" prefix %)) it)
+           (s-join "\n" it)
+           (concat "(\n" it ")")))))
 
 (defvar stp-headers-ignored-requirements nil)
 
