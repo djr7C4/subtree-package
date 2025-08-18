@@ -35,12 +35,13 @@
 
 These are determined according to the Package-Requires field."
   (let ((text (apply #'concat (lm-header-multiline "Package-Requires"))))
-    (db (reqs . index)
-        (read-from-string text)
-      (when (>= index (length text))
-        (mapcar (lambda (entry)
-                  (list (car entry) (stp-headers-normalize-version (cadr entry))))
-                reqs)))))
+    (unless (string= (s-trim text) "")
+      (db (reqs . index)
+          (read-from-string text)
+        (when (>= index (length text))
+          (mapcar (lambda (entry)
+                    (list (car entry) (stp-headers-normalize-version (cadr entry))))
+                  reqs))))))
 
 (cl-defmacro stp-headers-with-file-cache ((file cache) &rest body)
   "Return the result of evaluating BODY unless a valid entry in
