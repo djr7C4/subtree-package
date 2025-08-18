@@ -51,7 +51,7 @@ stable() {
     echo "$git_tag"
 }
 
-repos=("https://github.com/rolandwalker/anaphora.git master" "https://github.com/magnars/dash.el.git master" "https://github.com/rejeep/f.el.git master" "https://github.com/djr7C4/emacs-memoize.git master" "https://github.com/magnars/s.el.git master" "https://github.com/jwiegley/emacs-async master" "https://github.com/tarsius/llama main" "https://github.com/djr7C4/rem.git main" "https://github.com/djr7C4/subtree-package.git main")
+repos=("anaphora https://github.com/rolandwalker/anaphora.git master" "dash https://github.com/magnars/dash.el.git master" "f https://github.com/rejeep/f.el.git master" "memoize https://github.com/djr7C4/emacs-memoize.git master" "s https://github.com/magnars/s.el.git master" "async https://github.com/jwiegley/emacs-async master" "llama https://github.com/tarsius/llama main" "rem https://github.com/djr7C4/rem.git main" "subtree-package https://github.com/djr7C4/subtree-package.git main")
 
 pkg_info_file="stp-pkg-info.eld"
 
@@ -64,10 +64,6 @@ for item in "${repos[@]}"; do
     name="$(echo "$item" | cut -d ' ' -f 1)"
     repo="$(echo "$item" | cut -d ' ' -f 2)"
     branch="$(echo "$item" | cut -d ' ' -f 3)"
-    pkg_name="${repo##*/}"
-    pkg_name="${pkg_name%.git}"
-    pkg_name="${pkg_name%.el}"
-    pkg_name="${pkg_name#emacs-}"
 
     if [[ "$update" = "latest stable" ]]; then
         version="$(latest_stable "$repo")"
@@ -87,8 +83,8 @@ for item in "${repos[@]}"; do
         branch_cell=" (branch . \"${branch}\")"
     fi
 
-    git subtree add --prefix "package-source/${pkg_name}" --squash "$repo" "$version"
-    echo "(\"${pkg_name}\" (method . git) (remote . \"${repo}\") (update . ${update})${branch_cell})" >> "$pkg_info_file"
+    git subtree add --prefix "package-source/${name}" --squash "$repo" "$version"
+    echo "(\"${name}\" (method . git) (remote . \"${repo}\") (update . ${update})${branch_cell})" >> "$pkg_info_file"
 done
 
 echo -e "))\n" >> "$pkg_info_file"
