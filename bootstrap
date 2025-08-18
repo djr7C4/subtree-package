@@ -27,27 +27,26 @@ fi
 
 stable_versions() {
     repo="$1"
-    git ls-remote "$repo" | awk '{ print $2 }' | sed -n 's:\^{}::; s:^refs/tags/::p' | sort -V | uniq
+    git ls-remote "$repo" | awk '{ print $2 }' | sed -n 's:\^{}::; s:^refs/tags/::p' | sort -V | uniq || return 1
 }
 
 latest_stable() {
-    stable_versions "$1" | tail -n 1
+    stable_versions "$1" | tail -n 1 || return 1
 }
 
 stp_repo="https://github.com/djr7C4/subtree-package.git"
 bootstrap_requirements_file="$(mktemp)"
 
-stp_latest_stable="$(latest_stable "$stp_repo")"
-
 stable() {
     name="$1"
     repo="$2"
     [[ "$stp_latest_stable" ]] || stp_latest_stable="$(latest_stable "$stp_repo")"
-    bootstrap_requirements_url="https://github.com/djr7C4/subtree-package/blob/${stp_latest_stable}/bootstrap-requirements"
-    [[ -s "$bootstrap_requirements_file" ]] || curl -s "$bootstrap_requirements_url" > "$bootstrap_requirements_file"
+    #bootstrap_requirements_url="https://github.com/djr7C4/subtree-package/blob/${stp_latest_stable}/bootstrap-requirements"
+    bootstrap_requirements_url="file:///data/home/david/Storage/Code/elisp/subtree-package/bootstrap-requirements"
+    [[ -s "$bootstrap_requirements_file" ]] || curl -s "$bootstrap_requirements_url" > "$bootstrap_requirements_file" || return 1
     # Get the version from the "Package-Requires" header in stp.el.
-    emacs_package_version="$(cat "$bootstrap_requirements_file" | grep "$name")"
-    git_tag="$(stable_versions "$repo" | grep "$emacs_package_version")"
+    emacs_package_version="$(cat "$bootstrap_requirements_file" | grep "$name" | cut -d ' ' -f 2)" || return 1
+    git_tag="$(stable_versions "$repo" | grep "$emacs_package_version")" || return 1
     echo "$git_tag"
 }
 
@@ -66,15 +65,17 @@ for item in "${repos[@]}"; do
     branch="$(echo "$item" | cut -d ' ' -f 3)"
 
     if [[ "$update" = "latest stable" ]]; then
-        version="$(latest_stable "$repo")"
+        version="$(latest_stable "$repo")" || exit 1
         branch_cell=""
     elif [[ "$update" = "recommended stable" ]]; then
         # subtree-package isn't in the bootstrap requirements file so it needs
         # to be handled specially.
+        [[ "$stp_latest_stable" ]] || stp_latest_stable="$(latest_stable "$stp_repo")"
+
         if [[ "$name" = "subtree-package" ]]; then
             version="$stp_latest_stable"
         else
-            version="$(stable "$name" "$repo")"
+            version="$(stable "$name" "$repo")" || exit 1
         fi
 
         branch_cell=""
@@ -83,8 +84,13 @@ for item in "${repos[@]}"; do
         branch_cell=" (branch . \"${branch}\")"
     fi
 
+    if [[ ! "$version" ]]; then
+        echo "Unable to detect the version of $name to install" >&2 && exit 1
+    fi
+
+    echo "Cloning $version of $repo"
     git subtree add --prefix "package-source/${name}" --squash "$repo" "$version"
-    echo "(\"${name}\" (method . git) (remote . \"${repo}\") (update . ${update})${branch_cell})" >> "$pkg_info_file"
+    echo "(\"${name}\" (method . git) (remote . \"${repo}\") (update . ${update})${branch_cell})" >> "$pkg_info_file" || exit 1
 done
 
 echo -e "))\n" >> "$pkg_info_file"
