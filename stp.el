@@ -2135,7 +2135,7 @@ not slow down Emacs while the fields are being updated."
            (ignored-string (if (> num-ignored 0) (format " (%d ignored)" num-ignored) ""))
            (pkg-names kept-pkg-names)
            (plural (not (= (length kept-pkg-names) 1))))
-      (when (and async pkg-names)
+      (when (and async (cdr pkg-names))
         (if stp-list-update-latest-versions-running
             (user-error "`stp-list-update-latest-versions' is already running")
           (setq stp-list-update-latest-versions-running t)))
@@ -2163,7 +2163,7 @@ not slow down Emacs while the fields are being updated."
                         (when focus
                           (stp-list-focus-package (or skipped-refresh batch) :recenter-arg -1))
                         (stp-list-refresh :quiet t))
-                      (when (and async pkg-names)
+                      (when (and async (cdr pkg-names))
                         (setq stp-list-update-latest-versions-running nil))
                       (unless quiet-toplevel
                         (cond
