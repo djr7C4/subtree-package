@@ -1239,13 +1239,13 @@ packages at the same time."
   (when (stp-maybe-call do-lock)
     (stp-update-lock-file)))
 
-(defun stp-repair-command (&optional arg)
+(defun stp-repair-command ()
   "Repair the stored package information.
 
 With a universal prefix argument, allow command options to be
 toggled via an interactive menu. If the prefix argument is
 negative, repair all packages."
-  (interactive "P")
+  (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
@@ -2081,7 +2081,7 @@ package."
 
 (defvar stp-list-update-latest-versions-batch-polling-interval 0.001)
 
-(cl-defun stp-list-update-latest-versions (&key (pkg-names (stp-stale-packages)) quiet (async stp-latest-version-async) focus parallel (batch t))
+(cl-defun stp-list-update-latest-versions (&key (pkg-names (stp-stale-packages)) quiet (async stp-latest-version-async) focus (batch t))
   "Compute the latest fields in `stp-list-mode'.
 
 This allows the user to see which packages can be upgraded. This
