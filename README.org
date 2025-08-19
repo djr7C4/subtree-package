@@ -12,6 +12,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+* Demos
+** Installation with the bootstrap script
+#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/stp-bootstrap.gif" />
 * Motivation
 Anyone with a sufficiently complex Emacs configuration knows that upgrading
 installed packages can break one's configuration. Therefore, it is important to
