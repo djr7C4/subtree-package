@@ -171,7 +171,7 @@ managers.")
   "When non-nil, always recompute features for packages in
 `stp-development-directory'.")
 
-(defun stp-headers-update-features ()
+(defun stp-headers-update-features (&optional suppress-first)
   "Update `stp-headers-installed-features'. Add the new features from
 packages that were installed or upgraded since this function was
 last invoked. This is much faster than recomputing all features
@@ -199,7 +199,8 @@ will not be detected."
                                                  stp-headers-merge-elisp-requirements)
               stp-headers-uninstalled-features nil
               stp-headers-versions new-versions))
-    (stp-msg "Installed features have not yet been computed. This will take a moment the first time")
+    (unless suppress-first
+      (stp-msg "Installed features have not yet been computed. This will take a moment the first time"))
     (setq stp-headers-installed-features (stp-headers-paths-features load-path)
           stp-headers-versions (stp-headers-compute-versions))))
 
@@ -210,7 +211,7 @@ a package is installed outside of STP."
   (stp-refresh-info)
   (setq stp-headers-installed-features nil
         stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
-  (stp-headers-update-features))
+  (stp-headers-update-features t))
 
 (defun stp-headers-compute-versions ()
   (cons `(emacs ,emacs-version)
