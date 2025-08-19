@@ -2229,7 +2229,7 @@ not slow down Emacs while the fields are being updated."
               "B" #'stp-build-all-command
               "m" #'stp-build-info
               "M" #'stp-build-all-info
-              "d" #'stp-uninstall
+              "d" #'stp-uninstall-command
               "D" #'stp-uninstall-package-group-command
               "e" #'stp-edit-remotes-command
               "E" #'stp-add-or-edit-package-group-command
