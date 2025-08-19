@@ -3,7 +3,7 @@
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/stp-bootstrap.gif" width="80%" />
 ** Installing packages
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/install-vertico-orderless.gif" width="80%" />
-** Checking the latest versions of packges
+** Checking the latest versions of packages
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/latest-versions.gif" width="80%" />
 ** Upgrading packages
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/upgrade-vertico.gif" width="80%" />
