@@ -13,8 +13,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 * Demos
-** Installation with the bootstrap script
+** Installing STP with the bootstrap script
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/stp-bootstrap.gif" />
+** Installing packages
+#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/install-vertico-orderless.gif" />
+** Checking the latest versions of packges
+#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/latest-versions.gif" />
+** Upgrading packages
+#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/upgrade-vertico.gif" />
 * Motivation
 Anyone with a sufficiently complex Emacs configuration knows that upgrading
 installed packages can break one's configuration. Therefore, it is important to
