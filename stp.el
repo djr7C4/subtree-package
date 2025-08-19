@@ -2300,8 +2300,17 @@ not slow down Emacs while the fields are being updated."
     ;; reliable since they have no version information available.
     (url)))
 
+(defvar stp-list-prefer-latest-stable t
+  "When non-nil, if the current version is equivalent to the latest
+stable show that instead of the version. This can be useful when
+the hash of the latest stable version is stored in the package
+database since the latest stable version is always stored as a
+tag.")
+
 (defun stp-list-version-field (pkg-name pkg-alist version-alist)
   (let-alist (map-merge 'alist pkg-alist version-alist)
+    (when (and stp-list-prefer-latest-stable (equal .count-to-stable 0))
+      (setq .version .latest-stable))
     (if .version
         (let ((version-string (stp-list-abbreviate-version .method .version)))
           (setq version-string (if (stp-version-upgradable-p pkg-name .method .remote .count-to-stable .count-to-unstable .update)
