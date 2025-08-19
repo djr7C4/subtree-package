@@ -898,49 +898,49 @@ DO-AUDIT are as in `stp-install'."
                 (stp-list-refresh :quiet t)))))))))
 
 (defvar stp-failed-requirements nil)
-(defvar stp-skipped-requirements nil)
+(defvar stp-successful-requirements nil)
 (defvar stp-requirements nil)
 
 (defun stp-requirements-initialize-toplevel ()
   (when stp-requirements-toplevel
     (setq stp-failed-requirements nil
-          stp-skipped-requirements nil
+          stp-successful-requirements nil
           stp-requirements nil)))
 
-(defun stp-report-requirements (type &optional packages)
+(defun stp-report-requirements (type)
   (unless (memq type '(install upgrade uninstall))
     (error "type must be 'INSTALL, 'UPGRADE or 'UNINSTALL"))
   (setq stp-failed-requirements (-uniq stp-failed-requirements)
-        stp-skipped-requirements (-uniq stp-skipped-requirements)
+        stp-successful-requirements (-uniq stp-successful-requirements)
         stp-requirements (-uniq stp-requirements))
-  (cond
-   (stp-failed-requirements
-    (stp-msg "Failed to %s %d/%d dependencies: %s"
-             (if (memq type '(install upgrade))
-                 "install or upgrade"
-               "uninstall")
-             (length stp-failed-requirements)
-             (length stp-requirements)
-             (rem-join-and (mapcar (lambda (requirement)
-                                     ;; When type is 'uninstall,
-                                     ;; `stp-failed-requirements' can be just
-                                     ;; the package names instead of proper
-                                     ;; requirements.
-                                     (if (listp requirement)
-                                         (db (pkg-sym &optional version)
-                                             (ensure-list requirement)
-                                           (format "%s (%s)" (stp-symbol-package-name pkg-sym) version))
-                                       requirement))
-                                   stp-failed-requirements))))
-   ((> (length stp-requirements) 0)
-    (stp-msg "Successfully %s %d %s"
-             (if (memq type '(install upgrade))
-                 "installed or upgraded"
-               "uninstalled")
-             (length stp-requirements)
-             (if packages
-                 "packages"
-               "dependencies")))))
+  (let ((total-requirements (+ (length stp-failed-requirements)
+                               (length stp-successful-requirements))))
+    (cond
+     (stp-failed-requirements
+      (stp-msg "Failed to %s %d/%d packages (see %s):\n%s"
+               (if (memq type '(install upgrade))
+                   "install or upgrade"
+                 "uninstall")
+               (length stp-failed-requirements)
+               total-requirements
+               stp-log-buffer-name
+               (rem-join-and (mapcar (lambda (requirement)
+                                       ;; When type is 'uninstall,
+                                       ;; `stp-failed-requirements' can be just
+                                       ;; the package names instead of proper
+                                       ;; requirements.
+                                       (if (listp requirement)
+                                           (db (pkg-sym &optional version)
+                                               (ensure-list requirement)
+                                             (format "%s (%s)" (stp-symbol-package-name pkg-sym) version))
+                                         requirement))
+                                     stp-failed-requirements))))
+     ((> total-requirements 0)
+      (stp-msg "Successfully %s %d packages"
+               (if (memq type '(install upgrade))
+                   "installed or upgraded"
+                 "uninstalled")
+               total-requirements)))))
 
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (search-load-path t))
   "Install or upgrade each requirement to ensure that at least the
@@ -991,28 +991,28 @@ required."
               ;; and so installing the dependencies naively will result in
               ;; multiple copies. :allow-skip t is passed so that the user can
               ;; skip these if desired.
-              (if (eq (stp-install-command :pkg-name pkg-name
-                                           :prompt-prefix prefix
-                                           :min-version version
-                                           :do-commit do-commit
-                                           :do-push nil
-                                           :do-lock nil
-                                           :do-actions do-actions
-                                           :allow-skip t)
-                      'skip)
-                  (push requirement stp-skipped-requirements)
+              (unless (eq (stp-install-command :pkg-name pkg-name
+                                               :prompt-prefix prefix
+                                               :min-version version
+                                               :do-commit do-commit
+                                               :do-push nil
+                                               :do-lock nil
+                                               :do-actions do-actions
+                                               :allow-skip t)
+                          'skip)
+                (push requirement stp-successful-requirements)
                 (stp-set-attribute pkg-name 'dependency t)))
              (t
-              (if (eq (stp-upgrade-command :pkg-name pkg-name
-                                           :prompt-prefix prefix
-                                           :min-version version
-                                           :do-commit do-commit
-                                           :do-push nil
-                                           :do-lock nil
-                                           :do-actions do-actions
-                                           :allow-skip t)
-                      'skip)
-                  (push requirement stp-skipped-requirements)
+              (unless (eq (stp-upgrade-command :pkg-name pkg-name
+                                               :prompt-prefix prefix
+                                               :min-version version
+                                               :do-commit do-commit
+                                               :do-push nil
+                                               :do-lock nil
+                                               :do-actions do-actions
+                                               :allow-skip t)
+                          'skip)
+                (push requirement stp-successful-requirements)
                 ;; The dependency attribute is left as is when upgrading
                 ;; because the package might have been installed manually
                 ;; originally.
@@ -1048,7 +1048,7 @@ required."
                        (stp-get-attribute pkg-name 'dependency)
                        (stp-required-by pkg-name))
               (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
-                (cl-incf stp-requirements)
+                (push pkg-name stp-requirements)
                 (stp-uninstall pkg-name :do-commit do-commit :uninstall-requirements nil)
                 (setq to-uninstall (cl-union to-uninstall
                                              (stp-requirements-to-names recursive-requirements)
@@ -1086,7 +1086,7 @@ required."
                                             pkg-names
                                             args))
                                    table)
-        (stp-report-requirements 'install t)))))
+        (stp-report-requirements 'install)))))
 
 (defun stp-uninstall-package-group-command ()
   "Uninstall the package groups or packages."
@@ -1101,7 +1101,7 @@ required."
                                             pkg-names
                                             args))
                                    table)
-        (stp-report-requirements 'uninstall t)))))
+        (stp-report-requirements 'uninstall)))))
 
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist

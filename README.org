@@ -90,6 +90,10 @@ track of which packages were installed as dependencies. When a package is
 uninstalled, its dependencies are also removed if they are no longer needed and
 were not installed manually by the user.
 
+By default, the user is told what the minimum required version of a dependency
+is but is allowed to installed older versions. Set =stp-enforce-min-version= to
+=t= to only allow versions that satisfy the requirement.
+
 Sometimes, the same git repository contains multiple packages that would be
 installed via =package.el= or using the archive method. An example is the =helm=
 repository which contains both the =helm= and =helm-core= packages. When
