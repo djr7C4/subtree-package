@@ -775,29 +775,30 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
 that are not needed anymore should also be removed."
   (when pkg-name
     (setq stp-current-package pkg-name)
-    (let-alist (stp-get-alist pkg-name)
-      (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
-          (progn
-            (f-delete pkg-name t)
-            (stp-delete-alist pkg-name)
-            (stp-write-info)
-            (cl-dolist (feature (stp-headers-directory-features (stp-full-path pkg-name)))
-              (push feature stp-headers-uninstalled-features))
-            (stp-delete-load-path pkg-name)
-            (stp-git-commit-push (format "Uninstalled version %s of %s"
-                                         (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                         pkg-name)
-                                 :do-commit do-commit
-                                 :do-push (and (not uninstall-requirements) do-push))
-            (when uninstall-requirements
-              (stp-maybe-uninstall-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit)
-              (stp-git-push :do-push do-push))
-            (when (stp-maybe-call do-lock)
-              (stp-update-lock-file))
-            (when refresh
-              (stp-list-refresh :quiet t))
-            (stp-prune-cached-latest-versions pkg-name))
-        (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))
+    (let ((features (stp-headers-directory-features (stp-full-path pkg-name))))
+      (let-alist (stp-get-alist pkg-name)
+        (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
+            (progn
+              (f-delete pkg-name t)
+              (stp-delete-alist pkg-name)
+              (stp-write-info)
+              (cl-dolist (feature features)
+                (push feature stp-headers-uninstalled-features))
+              (stp-delete-load-path pkg-name)
+              (stp-git-commit-push (format "Uninstalled version %s of %s"
+                                           (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                           pkg-name)
+                                   :do-commit do-commit
+                                   :do-push (and (not uninstall-requirements) do-push))
+              (when uninstall-requirements
+                (stp-maybe-uninstall-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit)
+                (stp-git-push :do-push do-push))
+              (when (stp-maybe-call do-lock)
+                (stp-update-lock-file))
+              (when refresh
+                (stp-list-refresh :quiet t))
+              (stp-prune-cached-latest-versions pkg-name))
+          (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
