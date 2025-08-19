@@ -1056,7 +1056,7 @@ required."
             ;; are no longer required by any package.
             (when (and (member pkg-name (stp-info-names))
                        (stp-get-attribute pkg-name 'dependency)
-                       (stp-required-by pkg-name))
+                       (not (stp-required-by pkg-name)))
               (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
                 (push pkg-name stp-requirements)
                 (stp-uninstall pkg-name :do-commit do-commit :uninstall-requirements nil)
