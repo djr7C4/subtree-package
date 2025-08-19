@@ -923,16 +923,22 @@ DO-AUDIT are as in `stp-install'."
   (setq stp-failed-requirements (-uniq stp-failed-requirements)
         stp-successful-requirements (-uniq stp-successful-requirements)
         stp-requirements (-uniq stp-requirements))
-  (let ((total-requirements (+ (length stp-failed-requirements)
-                               (length stp-successful-requirements))))
+  (let* ((total-requirements (+ (length stp-failed-requirements)
+                                (length stp-successful-requirements)))
+         (noun (cond
+                ((and packages (> total-requirements 1)) "packages")
+                (packages "package")
+                ((> total-requirements 1) "dependencies")
+                (t "dependency"))))
     (cond
      (stp-failed-requirements
-      (stp-msg "Failed to %s %d/%d packages (see %s):\n%s"
+      (stp-msg "Failed to %s %d/%d %s (see %s):\n%s"
                (if (memq type '(install upgrade))
                    "install or upgrade"
                  "uninstall")
                (length stp-failed-requirements)
                total-requirements
+               noun
                stp-log-buffer-name
                (rem-join-and (mapcar (lambda (requirement)
                                        ;; When type is 'uninstall,
@@ -951,9 +957,7 @@ DO-AUDIT are as in `stp-install'."
                    "installed or upgraded"
                  "uninstalled")
                total-requirements
-               (if packages
-                   "packages"
-                 "dependencies"))))))
+               noun)))))
 
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (search-load-path t))
   "Install or upgrade each requirement to ensure that at least the
