@@ -299,5 +299,3 @@ to initialize its internal cache. This will take a few moments. Once it has
 finished, run =M-x stp-repair-all= to initialize the package information
 database from the git repository. This will cause the packages installed by the
 bootstrap script to be recognized as STP packages.
-#+begin_src emacs-lisp
-#+end_src
