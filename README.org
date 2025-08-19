@@ -260,7 +260,9 @@ STP also requires that you install =atool= if you wish to install archive, ELPA
 and compressed URL packages. Additionally, to support certain non-essential
 features, the =async= and =queue= packages are required.
 
-The bootstraping code should be placed in =~/.emacs.d/early-init.el=.
+The bootstraping code should be placed in =~/.emacs.d/early-init.el=. It is
+recommended to create a directory named =package-source= at the top-level of the
+git repository for your configuration.
 
 #+begin_src emacs-lisp
   (setq stp-source-directory "<path/to/package-source>"
