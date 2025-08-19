@@ -7,6 +7,8 @@
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/latest-versions.gif" width="80%" />
 ** Upgrading packages
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/upgrade-vertico.gif" width="80%" />
+
+Go to [[https://github.com/djr7C4/subtree-package?tab=readme-ov-file#installation][installation]] if you're ready to install STP!
 * Motivation
 Anyone with a sufficiently complex Emacs configuration knows that upgrading
 installed packages can break one's configuration. Therefore, it is important to
@@ -242,7 +244,7 @@ behavior.
 * Installation
 Subtree package can manage itself as a package but first it needs to be
 installed along with its dependencies using other means. The simplest way is to
-run the bootstrap script from this repository in the top-level directory of this
+run the bootstrap script from this repository in the top-level directory of the
 git repository for your Emacs configuration.
 
 #+begin_src bash
