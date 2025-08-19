@@ -781,6 +781,7 @@ that are not needed anymore should also be removed."
             (f-delete pkg-name t)
             (stp-delete-alist pkg-name)
             (stp-write-info)
+            (push pkg-name stp-headers-uninstalled-features)
             (stp-delete-load-path pkg-name)
             (stp-git-commit-push (format "Uninstalled version %s of %s"
                                          (stp-abbreviate-remote-version pkg-name .method .remote .version)

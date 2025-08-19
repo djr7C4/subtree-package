@@ -158,6 +158,7 @@ REQUIREMENTS to its version."
   (stp-headers-merge-elisp-requirements requirements t))
 
 (defvar stp-headers-installed-features nil)
+(defvar stp-headers-uninstalled-features nil)
 (defvar stp-headers-versions nil)
 
 (defvar stp-headers-always-recompute-features nil
@@ -192,7 +193,11 @@ will not be detected."
              (dev-paths (and stp-headers-update-recompute-development-directory
                              (stp-compute-load-paths stp-development-directory)))
              (new-features (stp-headers-paths-features (append new-paths dev-paths))))
-        (setq stp-headers-installed-features (stp-headers-merge-elisp-requirements (append stp-headers-installed-features new-features))
+        (setq stp-headers-installed-features (-> stp-headers-installed-features
+                                                 (cl-set-difference stp-headers-uninstalled-features :test #'equal)
+                                                 (append new-features)
+                                                 stp-headers-merge-elisp-requirements)
+              stp-headers-uninstalled-features nil
               stp-headers-versions new-versions))
     (stp-msg "Installed features have not yet been computed. This will take a moment the first time")
     (setq stp-headers-installed-features (stp-headers-paths-features load-path)
