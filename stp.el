@@ -4,7 +4,7 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: git tools
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.9.3
+;; Version: 0.9.4
 ;; Package-Requires: (
 ;;   (anaphora "1.0.4")
 ;;   (async "1.9.9")
@@ -1962,100 +1962,92 @@ version alists. he latest versions are computed asynchronously
 using NUM-PROCESSES simultaneously. In case an error occurs while
 computing the latest version for a package, it will be retried up
 to TRIES times."
-  (cond
-   ((not (featurep 'queue))
-    (display-warning 'STP "Updating the latest versions requires the ELPA queue package"))
-   ((and async (not (featurep 'async)))
-    (display-warning 'STP "Updating the latest versions asynchronously requires the ELPA async package"))
-   (t
-    (let (latest-versions
-          (queue (make-queue))
-          (running 0))
-      (cl-dolist (pkg-name pkg-names)
-        (queue-enqueue queue (list pkg-name 0)))
-      (cl-labels
-          ((process-latest-version (data)
-             (cl-decf running)
-             ;; Process the result of the last call to `stp-latest-version' and
-             ;; put the package information back into the queue if there was an
-             ;; error.
-             (when data
-               (db (pkg-name tries latest-version-data error-message)
-                   data
-                 (cond
-                  (latest-version-data
-                   (push latest-version-data latest-versions)
-                   (when package-callback
-                     (funcall package-callback latest-version-data)))
-                  (error-message
-                   (if (>= tries max-tries)
-                       (unless quiet
-                         (stp-msg "Getting the latest version of %s failed %d times: skipping..." pkg-name tries))
-                     (cl-incf tries)
+  (let (latest-versions
+        (queue (make-queue))
+        (running 0))
+    (cl-dolist (pkg-name pkg-names)
+      (queue-enqueue queue (list pkg-name 0)))
+    (cl-labels
+        ((process-latest-version (data)
+           (cl-decf running)
+           ;; Process the result of the last call to `stp-latest-version' and
+           ;; put the package information back into the queue if there was an
+           ;; error.
+           (when data
+             (db (pkg-name tries latest-version-data error-message)
+                 data
+               (cond
+                (latest-version-data
+                 (push latest-version-data latest-versions)
+                 (when package-callback
+                   (funcall package-callback latest-version-data)))
+                (error-message
+                 (if (>= tries max-tries)
                      (unless quiet
-                       (stp-msg "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries max-tries error-message))
-                     (queue-enqueue queue (list pkg-name tries)))))))
-             (compute-next-latest-version))
-           (compute-next-latest-version ()
-             ;; If there are more packages to process in the queue, start fetching
-             ;; the latest version for pkg-name. This is done asynchronously if
-             ;; async is non-nil.
-             (if (queue-empty queue)
-                 (when (and final-callback (= running 0))
-                   (funcall final-callback latest-versions))
-               (db (pkg-name tries)
-                   (queue-dequeue queue)
-                 (cl-incf running)
-                 (if async
-                     ;; Binding `async-prompt-for-password' to nil avoids a bug
-                     ;; on certain packages (in particular password-store).
-                     (let ((async-prompt-for-password nil))
-                       (async-start `(lambda ()
-                                       ;; Inject the STP variables and the
-                                       ;; caller's load path into the
-                                       ;; asynchronous process. Some large
-                                       ;; variables are excluded since that
-                                       ;; slows down the parent process quite a
-                                       ;; bit.
-                                       ,(async-inject-variables "^stp-" nil (concat stp-async-inject-variables-exclude-regexp stp-async-inject-large-variables-exclude-regexp))
-                                       (setq load-path ',load-path)
-                                       (require 'stp)
-                                       ;; pkg-alist is read from disk every time
-                                       ;; rather than stored in case some other
-                                       ;; STP command (such as an upgrade has
-                                       ;; modified the package information while
-                                       ;; the latest versions were being
-                                       ;; updated).
-                                       (stp-with-memoization
-                                         (stp-refresh-info)
-                                         (let (latest-version-data
-                                               (pkg-alist (stp-get-alist ,pkg-name)))
-                                           (condition-case err
-                                               (setq latest-version-data (stp-latest-version ,pkg-name pkg-alist))
-                                             (error
-                                              (list ,pkg-name ,tries nil (error-message-string err)))
-                                             (:success
-                                              (list ,pkg-name ,tries latest-version-data nil))))))
-                                    #'process-latest-version))
-                   (let (latest-version-data
-                         (pkg-alist (stp-get-alist pkg-name)))
-                     (process-latest-version
-                      (condition-case err
-                          (stp-with-memoization
-                            (setq latest-version-data (stp-latest-version pkg-name pkg-alist)))
-                        (error
-                         (list pkg-name tries nil (error-message-string err)))
-                        (:success
-                         (list pkg-name tries latest-version-data nil))))))))))
-        (dotimes (_ (if async (min num-processes (length pkg-names)) 1))
-          (unless (queue-empty queue)
-            (compute-next-latest-version))))))))
+                       (stp-msg "Getting the latest version of %s failed %d times: skipping..." pkg-name tries))
+                   (cl-incf tries)
+                   (unless quiet
+                     (stp-msg "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries max-tries error-message))
+                   (queue-enqueue queue (list pkg-name tries)))))))
+           (compute-next-latest-version))
+         (compute-next-latest-version ()
+           ;; If there are more packages to process in the queue, start fetching
+           ;; the latest version for pkg-name. This is done asynchronously if
+           ;; async is non-nil.
+           (if (queue-empty queue)
+               (when (and final-callback (= running 0))
+                 (funcall final-callback latest-versions))
+             (db (pkg-name tries)
+                 (queue-dequeue queue)
+               (cl-incf running)
+               (if async
+                   ;; Binding `async-prompt-for-password' to nil avoids a bug on
+                   ;; certain packages (in particular password-store).
+                   (let ((async-prompt-for-password nil))
+                     (async-start `(lambda ()
+                                     ;; Inject the STP variables and the
+                                     ;; caller's load path into the asynchronous
+                                     ;; process. Some large variables are
+                                     ;; excluded since that slows down the
+                                     ;; parent process quite a bit.
+                                     ,(async-inject-variables "^stp-" nil (concat stp-async-inject-variables-exclude-regexp stp-async-inject-large-variables-exclude-regexp))
+                                     (setq load-path ',load-path)
+                                     (require 'stp)
+                                     ;; pkg-alist is read from disk every time
+                                     ;; rather than stored in case some other
+                                     ;; STP command (such as an upgrade has
+                                     ;; modified the package information while
+                                     ;; the latest versions were being updated).
+                                     (stp-with-memoization
+                                       (stp-refresh-info)
+                                       (let (latest-version-data
+                                             (pkg-alist (stp-get-alist ,pkg-name)))
+                                         (condition-case err
+                                             (setq latest-version-data (stp-latest-version ,pkg-name pkg-alist))
+                                           (error
+                                            (list ,pkg-name ,tries nil (error-message-string err)))
+                                           (:success
+                                            (list ,pkg-name ,tries latest-version-data nil))))))
+                                  #'process-latest-version))
+                 (let (latest-version-data
+                       (pkg-alist (stp-get-alist pkg-name)))
+                   (process-latest-version
+                    (condition-case err
+                        (stp-with-memoization
+                          (setq latest-version-data (stp-latest-version pkg-name pkg-alist)))
+                      (error
+                       (list pkg-name tries nil (error-message-string err)))
+                      (:success
+                       (list pkg-name tries latest-version-data nil))))))))))
+      (dotimes (_ (if async (min num-processes (length pkg-names)) 1))
+        (unless (queue-empty queue)
+          (compute-next-latest-version))))))
 
 (cl-defun stp-list-update-latest-version (pkg-name &key quiet async focus)
   "Update the latest version for PKG-NAME.
 
-  This is like `stp-list-update-latest-versions' for a single
-  package."
+This is like `stp-list-update-latest-versions' for a single
+package."
   (interactive (let ((async (xor current-prefix-arg stp-latest-version-async)))
                  (list (stp-list-package-on-line)
                        :quiet 'packages
@@ -2066,8 +2058,8 @@ to TRIES times."
 
 (defvar stp-list-latest-versions-min-refresh-interval 3
   "This is the minimum number of seconds after which
-  `stp-list-refresh' will be called by
-  `stp-list-update-latest-versions'.")
+`stp-list-refresh' will be called by
+`stp-list-update-latest-versions'.")
 
 (defvar stp-list-update-latest-versions-running nil)
 
@@ -2106,6 +2098,10 @@ not slow down Emacs while the fields are being updated."
                        :async async
                        :focus (not async)
                        :batch t)))
+  (unless (featurep 'queue)
+    (user-error "Updating the latest versions requires the ELPA queue package"))
+  (when (and async (not (featurep 'async)))
+    (user-error "Updating the latest versions asynchronously requires the ELPA async package"))
   ;; Synchronous batch updates do not make sense.
   (when (and (not async) batch)
     (error "Synchronous batch updates are not allowed"))
