@@ -498,8 +498,6 @@ command should proceed.")
     ;; Perform sanity checks.
     (when (and (not (plist-get args :do-commit)) (plist-get args :do-push))
       (user-error "Pushing without committing is not allowed"))
-    (when (and (not (plist-get args :do-commit)) (plist-get args :do-tag))
-      (user-error "Tagging without committing is not allowed"))
     (when (and ensure-clean (plist-get args :do-commit))
       (stp-maybe-ensure-clean))
     args))
