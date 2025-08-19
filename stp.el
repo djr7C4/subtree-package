@@ -775,7 +775,8 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
 that are not needed anymore should also be removed."
   (when pkg-name
     (setq stp-current-package pkg-name)
-    (let ((features (stp-headers-directory-features (stp-full-path pkg-name))))
+    (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
+          (requirements (stp-get-attribute pkg-name 'requirements)))
       (let-alist (stp-get-alist pkg-name)
         (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
             (progn
@@ -791,7 +792,7 @@ that are not needed anymore should also be removed."
                                    :do-commit do-commit
                                    :do-push (and (not uninstall-requirements) do-push))
               (when uninstall-requirements
-                (stp-maybe-uninstall-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit)
+                (stp-maybe-uninstall-requirements requirements :do-commit do-commit)
                 (stp-git-push :do-push do-push))
               (when (stp-maybe-call do-lock)
                 (stp-update-lock-file))
