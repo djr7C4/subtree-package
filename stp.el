@@ -2062,7 +2062,7 @@ to TRIES times."
                        :async async
                        :focus (not async))))
   (when pkg-name
-    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus focus :parallel t :batch nil)))
+    (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus focus :batch nil)))
 
 (defvar stp-list-latest-versions-min-refresh-interval 3
   "This is the minimum number of seconds after which
@@ -2135,7 +2135,7 @@ not slow down Emacs while the fields are being updated."
            (ignored-string (if (> num-ignored 0) (format " (%d ignored)" num-ignored) ""))
            (pkg-names kept-pkg-names)
            (plural (not (= (length kept-pkg-names) 1))))
-      (when (and (not parallel) pkg-names)
+      (when (and async pkg-names)
         (if stp-list-update-latest-versions-running
             (user-error "`stp-list-update-latest-versions' is already running")
           (setq stp-list-update-latest-versions-running t)))
@@ -2163,7 +2163,7 @@ not slow down Emacs while the fields are being updated."
                         (when focus
                           (stp-list-focus-package (or skipped-refresh batch) :recenter-arg -1))
                         (stp-list-refresh :quiet t))
-                      (unless parallel
+                      (when (and async pkg-names)
                         (setq stp-list-update-latest-versions-running nil))
                       (unless quiet-toplevel
                         (cond
@@ -2178,50 +2178,50 @@ not slow down Emacs while the fields are being updated."
                                                           ignored-string)
                                                          (t
                                                           (format " (%d ignored; %d failed)" num-ignored num-failed)))))
-                                                                        (stp-msg "Finished updating the latest versions for %d packages%s" (length updated-pkgs) ignored-failed-string)))
-(updated-pkgs
- (stp-msg "Updated the latest version for %s" (car pkg-names)))
-(t
- (stp-msg "Failed to update the latest version for %s" (car pkg-names)))))))
-(unless quiet-toplevel
-  (let ((async-string (if async " asynchronously" "")))
-    (if plural
-        (stp-msg "Updating the latest versions for %d packages%s%s" (length pkg-names) async-string ignored-string)
-      (stp-msg "Updating the latest version for %s%s" (car pkg-names) async-string))))
-(if batch
-    ;; Create a separate asynchronous process to create the other
-    ;; processes. This is much faster than running
-    ;; `stp-latest-versions' inside the main Emacs process as the
-    ;; calls to `async-start' create a lot of overhead.
-    (async-start `(lambda ()
-                    ,(async-inject-variables "^stp-" nil (concat stp-async-inject-variables-exclude-regexp stp-async-inject-large-variables-exclude-regexp))
-                    (setq load-path ',load-path)
-                    (require 'stp)
-                    (let (latest-versions
-                          (async ',async)
-                          (pkg-names ',pkg-names)
-                          (quiet-packages ',quiet-packages))
-                      (stp-latest-versions nil
-                                           (lambda (latest-versions2)
-                                             (setq latest-versions (or latest-versions2 t)))
-                                           pkg-names
-                                           :quiet quiet-packages
-                                           :async async)
-                      (while (not latest-versions)
-                        (sleep-for stp-list-update-latest-versions-batch-polling-interval))
-                      (when (eq latest-versions t)
-                        (setq latest-versions nil))
-                      latest-versions))
-                 (lambda (latest-versions)
-                   (setq updated-pkgs (mapcar #'car latest-versions))
-                   (process-final latest-versions)))
-  (stp-latest-versions #'process-package
-                       #'process-final
-                       pkg-names
-                       :quiet quiet-packages
-                       :async async)))
-(unless quiet-toplevel
-  (stp-msg "No packages need their latest versions updated%s" ignored-string))))))
+                            (stp-msg "Finished updating the latest versions for %d packages%s" (length updated-pkgs) ignored-failed-string)))
+                         (updated-pkgs
+                          (stp-msg "Updated the latest version for %s" (car pkg-names)))
+                         (t
+                          (stp-msg "Failed to update the latest version for %s" (car pkg-names)))))))
+            (unless quiet-toplevel
+              (let ((async-string (if async " asynchronously" "")))
+                (if plural
+                    (stp-msg "Updating the latest versions for %d packages%s%s" (length pkg-names) async-string ignored-string)
+                  (stp-msg "Updating the latest version for %s%s" (car pkg-names) async-string))))
+            (if batch
+                ;; Create a separate asynchronous process to create the other
+                ;; processes. This is much faster than running
+                ;; `stp-latest-versions' inside the main Emacs process as the
+                ;; calls to `async-start' create a lot of overhead.
+                (async-start `(lambda ()
+                                ,(async-inject-variables "^stp-" nil (concat stp-async-inject-variables-exclude-regexp stp-async-inject-large-variables-exclude-regexp))
+                                (setq load-path ',load-path)
+                                (require 'stp)
+                                (let (latest-versions
+                                      (async ',async)
+                                      (pkg-names ',pkg-names)
+                                      (quiet-packages ',quiet-packages))
+                                  (stp-latest-versions nil
+                                                       (lambda (latest-versions2)
+                                                         (setq latest-versions (or latest-versions2 t)))
+                                                       pkg-names
+                                                       :quiet quiet-packages
+                                                       :async async)
+                                  (while (not latest-versions)
+                                    (sleep-for stp-list-update-latest-versions-batch-polling-interval))
+                                  (when (eq latest-versions t)
+                                    (setq latest-versions nil))
+                                  latest-versions))
+                             (lambda (latest-versions)
+                               (setq updated-pkgs (mapcar #'car latest-versions))
+                               (process-final latest-versions)))
+              (stp-latest-versions #'process-package
+                                   #'process-final
+                                   pkg-names
+                                   :quiet quiet-packages
+                                   :async async)))
+        (unless quiet-toplevel
+          (stp-msg "No packages need their latest versions updated%s" ignored-string))))))
 
 (rem-set-keys stp-list-mode-map
               "a" #'stp-post-actions-command
