@@ -94,7 +94,8 @@ for item in "${repos[@]}"; do
     fi
 
     if [[ ! "$version" ]]; then
-        echo "Unable to detect the version of $name to install" >&2 && exit 1
+        echo "Unable to detect the version of $name to install" >&2
+        read -p "Enter the version: " version
     fi
 
     echo "Cloning $version of $repo"
