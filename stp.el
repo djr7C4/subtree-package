@@ -665,7 +665,7 @@ prior state after an audit fails.")
 
 (defvar stp-requirements-toplevel t)
 
-(cl-defun stp-install-command (&key pkg-name (prompt-prefix "") min-version allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p))
+(cl-defun stp-install-command (&key pkg-name (prompt-prefix "") min-version allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) dependency)
   "If `stp-auto-commit', `stp-auto-push', `stp-auto-lock',
 `stp-auto-post-actions' and `stp-audit-changes' are non-nil,
 commit, push update the lock file, perform post actions (see
@@ -686,20 +686,21 @@ returned."
       (stp-maybe-allow-skip (allow-skip
                              (stp-msg "Skipped installing %s" (if pkg-name pkg-name "a dependency")))
         (let* ((kwd-args (rem-maybe-kwd-args do-commit do-commit-provided-p do-push do-push-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p do-audit do-audit-provided-p))
-               (args (apply #'stp-command-args
-                            :pkg-name pkg-name
-                            :prompt-prefix prompt-prefix
-                            :actions t
-                            :audit t
-                            :read-pkg-alist t
-                            :existing-pkg nil
-                            :line-pkg nil
-                            :min-version min-version
-                            :enforce-min-version stp-enforce-min-version
-                            kwd-args)))
+               (args (append (apply #'stp-command-args
+                                    :pkg-name pkg-name
+                                    :prompt-prefix prompt-prefix
+                                    :actions t
+                                    :audit t
+                                    :read-pkg-alist t
+                                    :existing-pkg nil
+                                    :line-pkg nil
+                                    :min-version min-version
+                                    :enforce-min-version stp-enforce-min-version
+                                    kwd-args)
+                             (list :dependency dependency))))
           (apply #'stp-install args))))))
 
-(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions do-audit (refresh t) (ensure-requirements t))
+(cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions do-audit dependency (refresh t) (ensure-requirements t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
 
 If DO-COMMIT is non-nil, automatically commit to the git
@@ -712,10 +713,11 @@ DO-COMMIT, DO-PUSH, DO-LOCK, DO-ACTIONS and DO-AUDIT can also be
 functions that are called to determine if the associated
 operation should be performed.
 
-When MIN-VERSION is non-nil, it indicates the minimum version
-that is required for this package due to installation as a
-dependency. When ENSURE-REQUIREMENTS is non-nil, dependencies of
-packages are installed or upgraded as needed."
+When DEPENDENCY is non-nil, the package will be marked as a
+dependency. When MIN-VERSION is non-nil, it indicates the minimum
+version that is required for this package due to installation as
+a dependency. When ENSURE-REQUIREMENTS is non-nil, dependencies
+of packages are installed or upgraded as needed."
   ;; pkg-name may be nil in interactive calls depending on the value of
   ;; `stp-allow-unclean'. See `stp-maybe-ensure-clean'.
   (when pkg-name
@@ -736,6 +738,8 @@ packages are installed or upgraded as needed."
           (stp-maybe-audit-changes pkg-name 'install last-hash do-audit)
           (stp-update-remotes pkg-name .remote .remote .other-remotes)
           (stp-update-requirements pkg-name)
+          (when dependency
+            (stp-set-attribute pkg-name 'dependency t))
           (stp-write-info)
           ;; For archives, the version is determined automatically instead of
           ;; being read and so .version will be nil here.
@@ -1005,11 +1009,13 @@ required."
                                                :do-push nil
                                                :do-lock nil
                                                :do-actions do-actions
+                                               :dependency t
                                                :allow-skip t)
                           'skip)
-                (push requirement stp-successful-requirements)
-                (stp-set-attribute pkg-name 'dependency t)))
+                (push requirement stp-successful-requirements)))
              (t
+              ;; The dependency attribute is left as is when upgrading because
+              ;; the package might have been installed manually originally.
               (unless (eq (stp-upgrade-command :pkg-name pkg-name
                                                :prompt-prefix prefix
                                                :min-version version
@@ -1020,9 +1026,6 @@ required."
                                                :allow-skip t)
                           'skip)
                 (push requirement stp-successful-requirements)
-                ;; The dependency attribute is left as is when upgrading
-                ;; because the package might have been installed manually
-                ;; originally.
                 (when (stp-git-merge-conflict-p)
                   (stp-msg "One or more merge conflicts occurred while upgrading. Resolve the conflict and then press M-x `exit-recursive-edit'")
                   (recursive-edit)))))
