@@ -14,13 +14,13 @@
 
 * Demos
 ** Installing STP with the bootstrap script
-#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/stp-bootstrap.gif" />
+#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/stp-bootstrap.gif" width="80%" />
 ** Installing packages
-#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/install-vertico-orderless.gif" />
+#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/install-vertico-orderless.gif" width="80%" />
 ** Checking the latest versions of packges
-#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/latest-versions.gif" />
+#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/latest-versions.gif" width="80%" />
 ** Upgrading packages
-#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/upgrade-vertico.gif" />
+#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/upgrade-vertico.gif" width="80%" />
 * Motivation
 Anyone with a sufficiently complex Emacs configuration knows that upgrading
 installed packages can break one's configuration. Therefore, it is important to
