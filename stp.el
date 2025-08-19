@@ -800,6 +800,8 @@ that are not needed anymore should also be removed."
                 (stp-git-push :do-push do-push))
               (when (stp-maybe-call do-lock)
                 (stp-update-lock-file))
+              (when (and uninstall-requirements stp-requirements-toplevel)
+                (stp-report-requirements 'uninstall))
               (when refresh
                 (stp-list-refresh :quiet t))
               (stp-prune-cached-latest-versions pkg-name))
