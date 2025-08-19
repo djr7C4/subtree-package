@@ -52,7 +52,7 @@
   ;; manually. In this case, we replace it with the full hash from the installed
   ;; subtree.
   (if (stp-git-valid-remote-ref-p remote version)
-      version
+      (stp-git-remote-rev-to-tag remote version)
     (stp-git-subtree-package-commit pkg-name)))
 
 (defun stp-git-subtree-version (pkg-name)
