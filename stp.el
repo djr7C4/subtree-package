@@ -905,7 +905,7 @@ DO-AUDIT are as in `stp-install'."
           stp-successful-requirements nil
           stp-requirements nil)))
 
-(defun stp-report-requirements (type)
+(defun stp-report-requirements (type &optional packages)
   (unless (memq type '(install upgrade uninstall))
     (error "type must be 'INSTALL, 'UPGRADE or 'UNINSTALL"))
   (setq stp-failed-requirements (-uniq stp-failed-requirements)
@@ -934,11 +934,14 @@ DO-AUDIT are as in `stp-install'."
                                          requirement))
                                      stp-failed-requirements))))
      ((> total-requirements 0)
-      (stp-msg "Successfully %s %d packages"
+      (stp-msg "Successfully %s %d %s"
                (if (memq type '(install upgrade))
                    "installed or upgraded"
                  "uninstalled")
-               total-requirements)))))
+               total-requirements
+               (if packages
+                   "packages"
+                 "dependencies"))))))
 
 (cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (search-load-path t))
   "Install or upgrade each requirement to ensure that at least the
@@ -1084,7 +1087,7 @@ required."
                                             pkg-names
                                             args))
                                    table)
-        (stp-report-requirements 'install)))))
+        (stp-report-requirements 'install t)))))
 
 (defun stp-uninstall-package-group-command ()
   "Uninstall the package groups or packages."
@@ -1099,7 +1102,7 @@ required."
                                             pkg-names
                                             args))
                                    table)
-        (stp-report-requirements 'uninstall)))))
+        (stp-report-requirements 'uninstall t)))))
 
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist
