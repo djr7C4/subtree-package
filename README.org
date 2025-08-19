@@ -248,7 +248,8 @@ git repository for your Emacs configuration.
 
 #+begin_src bash
   cd <emacs-git-directory>
-  curl -s https://raw.githubusercontent.com/djr7C4/subtree-package/refs/heads/main/bootstrap | bash
+  curl -s https://raw.githubusercontent.com/djr7C4/subtree-package/refs/heads/main/bootstrap > bootstrap
+  ./bootstrap
 #+end_src
 
 The script supports installing the recommended stable (the versions tested
