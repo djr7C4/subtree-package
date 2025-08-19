@@ -227,7 +227,7 @@ file and automatically add a git tag with the same name. Use =M-x
 stp-headers-update-elisp-headers= to try to infer updated values of a number of
 elisp headers and automatically update them. In particular, this updates the
 requirements to the versions that are currently installed.
-** Auditing changes to packages
+** Audit changes to packages
 STP supports auditing changes to packages as diffs before the code is loaded.
 This can improve security if you feel there is a risk of malicious code finding
 its way into packages. Add
