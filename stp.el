@@ -4,7 +4,7 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: git tools
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.9.2
+;; Version: 0.9.3
 ;; Package-Requires: (
 ;;   (anaphora "1.0.4")
 ;;   (async "1.9.9")
@@ -14,7 +14,7 @@
 ;;   (llama "1.0.0")
 ;;   (memoize "1.2.0")
 ;;   (queue "0.2")
-;;   (rem "0.7.8")
+;;   (rem "0.7.9")
 ;;   (s "1.12.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
