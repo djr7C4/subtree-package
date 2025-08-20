@@ -8,7 +8,8 @@
 ** Upgrading packages
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/upgrade-vertico.gif" width="80%" />
 
-Go to [[https://github.com/djr7C4/subtree-package?tab=readme-ov-file#installation][installation]] if you're ready to install STP!
+Go to [[https://github.com/djr7C4/subtree-package?tab=readme-ov-file#installation][installation]] if you're ready to install STP or check out the [[https://github.com/djr7C4/subtree-package?tab=readme-ov-file#comparison-with-other-package-managers][comparison]]
+with other package managers!
 * Motivation
 Anyone with a sufficiently complex Emacs configuration knows that upgrading
 installed packages can break one's configuration. Therefore, it is important to
@@ -304,3 +305,62 @@ to initialize its internal cache. This will take a few moments. Once it has
 finished, run =M-x stp-repair-all= to initialize the package information
 database from the git repository. This will cause the packages installed by the
 bootstrap script to be recognized as STP packages.
+* Comparison with other package managers
+The main strengths of STP are
+- It is highly interactive and works hard to avoid forcing you to leave Emacs
+  during the installation process (for example to find repositories and releases
+  on github).
+- Your configuration is completely reproducible without depending on any
+  external git repositories. Even if all external repositories were deleted, you
+  would still be able to immediately reproduce your configuration simply by
+  cloning it.
+** Straight.el
+Straight is a functional package manager and relies on code in your init files
+to determine which package should be installed. This consists of expressions
+such as
+
+#+begin_src emacs-lisp
+;; Copied from the Straight.el README
+(el-patch :type git :host github :repo "radian-software/el-patch")
+#+end_src emacs-lisp
+
+One downside of this is that you have to populate the :repo field yourself. This
+requires browsing github to search for packages to install. By constrast in STP
+you would simply enter el-patch in the UI and STP will find the URL of the git
+repository for you. It does this by checking the information available from
+package archives like ELPA and MELPA. Once the repository has been selected, you
+can select any version to install using incremental completion. This enables
+installing stable versions of packages using release tags for better stability
+instead of the development versions.
+
+** Elpaca
+Elpaca is similar to STP in some ways in that both are highly interactive and
+both are able to install packages from their git repositories and can determine
+the repository URL automatically from ELPA/MELPA.
+
+Some differences include
+- Elpaca seems to lack a method for interactively installing stable versions of
+  packages as it does not support interactively choosing a git tag corresponding
+  to a stable release.
+- Elpaca creates copies of git repositories instead of adding them to the
+  repository as git subtrees. In STP, the subtree approach is used in order to
+  make the configuration completely reproducible without having to clone remote
+  repositories (for example on a new machine).
+
+** package-vc
+package-vc is a builtin library that can install packages from git repositories.
+Like STP, it allows you to select a package by name and automatically install it
+from the repository.
+
+Some differences include
+- package-vc does not automatically check packages into git
+- When you run `package-vc-install`, the package you specify is installed from
+  the git repository but its dependencies are installed from package archives
+  like ELPA and MELPA instead.
+- There are some cases where STP can find the git repository and package-vc
+  cannot. This is because Emacs package archives do not have a field for the git
+  repository. Most authors specify the repository in the `:url` field but this
+  is only a convention. STP has heuristics that allow it to infer the git
+  repository in some cases even when it is not directly specified.
+- There is no mechanism for interactively choosing a stable version tag to
+  install.
