@@ -249,6 +249,7 @@ git repository for your Emacs configuration.
 
 #+begin_src bash
   cd <emacs-git-directory>
+  # Initialize the git repository and add at least one commit.
   curl -s https://raw.githubusercontent.com/djr7C4/subtree-package/refs/heads/main/bootstrap > bootstrap
   bash bootstrap
 #+end_src
