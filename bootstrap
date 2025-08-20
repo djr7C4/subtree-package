@@ -41,8 +41,7 @@ stable() {
     name="$1"
     repo="$2"
     [[ "$stp_latest_stable" ]] || stp_latest_stable="$(latest_stable "$stp_repo")"
-    #bootstrap_requirements_url="https://github.com/djr7C4/subtree-package/blob/${stp_latest_stable}/bootstrap-requirements"
-    bootstrap_requirements_url="file:///data/home/david/Storage/Code/elisp/subtree-package/bootstrap-requirements"
+    bootstrap_requirements_url="https://raw.githubusercontent.com/djr7C4/subtree-package/refs/heads/main/bootstrap"
     [[ -s "$bootstrap_requirements_file" ]] || curl -s "$bootstrap_requirements_url" > "$bootstrap_requirements_file" || return 1
     # Get the version from the "Package-Requires" header in stp.el.
     emacs_package_version="$(cat "$bootstrap_requirements_file" | grep "$name" | cut -d ' ' -f 2)" || return 1
