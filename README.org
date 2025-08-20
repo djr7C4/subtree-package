@@ -354,12 +354,12 @@ from the repository.
 
 Some differences include
 - package-vc does not automatically check packages into git
-- When you run `package-vc-install`, the package you specify is installed from
+- When you run =package-vc-install=, the package you specify is installed from
   the git repository but its dependencies are installed from package archives
   like ELPA and MELPA instead.
 - There are some cases where STP can find the git repository and package-vc
   cannot. This is because Emacs package archives do not have a field for the git
-  repository. Most authors specify the repository in the `:url` field but this
+  repository. Most authors specify the repository in the =:url= field but this
   is only a convention. STP has heuristics that allow it to infer the git
   repository in some cases even when it is not directly specified.
 - There is no mechanism for interactively choosing a stable version tag to
