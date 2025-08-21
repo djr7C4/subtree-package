@@ -33,8 +33,20 @@
                       ((string= host "elpa.nongnu.org")
                        (string= dir "/nongnu")))))))))
 
-(defun stp-elpa-package-url (pkg-name)
-  (format "https://elpa.gnu.org/packages/%s.html" pkg-name))
+(defvar stp-elpa-url-format-alist '(("gnu" . "https://elpa.gnu.org/packages/%s.html")
+                                    ("nongnu" . "https://elpa.nongnu.org/nongnu/%s.html")))
+
+(cl-defun stp-elpa-package-urls (pkg-name archives &key annotate)
+  (-filter #'identity
+           (mapcar (lambda (cell)
+                     (db (archive . url-format)
+                         cell
+                       (when (member archive archives)
+                         (concat (format url-format pkg-name)
+                                 (if annotate
+                                     " (elpa)"
+                                   "")))))
+                   stp-elpa-url-format-alist)))
 
 (defvar stp-elpa-remote-history nil)
 
