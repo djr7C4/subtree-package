@@ -314,25 +314,6 @@ The main strengths of STP are
   external git repositories. Even if all external repositories were deleted, you
   would still be able to immediately reproduce your configuration simply by
   cloning it.
-** Straight.el
-Straight is a functional package manager and relies on code in your
-initialization files to determine which package should be installed. This
-consists of expressions such as
-
-#+begin_src emacs-lisp
-;; Copied from the Straight.el README
-(el-patch :type git :host github :repo "radian-software/el-patch")
-#+end_src emacs-lisp
-
-One downside of this is that you have to populate the =:repo= field yourself.
-This requires browsing github to search for packages to install. By contrast in
-STP you would simply enter el-patch in the UI and STP will find the URL of the
-git repository for you. It does this by checking the information available from
-package archives like ELPA and MELPA. Once the repository has been selected, you
-can select any version to install using incremental completion. This enables
-installing stable versions of packages using release tags for better stability
-instead of the development versions.
-
 ** Elpaca
 Elpaca is similar to STP in some ways in that both are highly interactive and
 both are able to install packages from their git repositories and can determine
@@ -347,6 +328,19 @@ Some differences include
   make the configuration completely reproducible without having to clone remote
   repositories (for example on a new machine).
 
+** Straight.el
+Straight is a primarily functional package manager and relies on code in your
+initialization files to determine which packages should be installed. This
+consists of expressions such as
+
+#+begin_src emacs-lisp
+;; Copied from the Straight.el README
+(el-patch :type git :host github :repo "radian-software/el-patch")
+#+end_src emacs-lisp
+
+It also supports interactive package installation. Like Elpaca, it lacks a
+method for installing stable versions of packages and clones git repositories
+rather than adding them as git subtrees.
 ** package-vc
 package-vc is a builtin library that can install packages from git repositories.
 Like STP, it allows you to select a package by name and automatically install it
