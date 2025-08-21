@@ -119,8 +119,9 @@ within that package."
 (defun stp-git-init (path)
   "Run \"git init\" on PATH."
   (let ((default-directory path))
-    (unless (eql (car (rem-call-process-shell-command "git init")) 0)
-      (error "git init failed"))))
+    (unless (stp-git-root)
+      (unless (eql (car (rem-call-process-shell-command "git init")) 0)
+        (error "git init failed")))))
 
 (cl-defun stp-git-add (path &key update)
   "Run \"git add\" on path. When UPDATE is non-nil, only add changes
