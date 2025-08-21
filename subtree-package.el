@@ -2,7 +2,7 @@
 ;; Copyright (C) 2025 David J. Rosenbaum
 
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
-;; Keywords: git tools
+;; Keywords: convenience elisp git tools vc
 ;; URL: https://github.com/djr7C4/subtree-package
 ;; Version: 0.9.5
 ;; Package-Requires: (
