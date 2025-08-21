@@ -320,9 +320,9 @@ both are able to install packages from their git repositories and can determine
 the repository URL automatically from ELPA/MELPA.
 
 Some differences include
-- Elpaca seems to lack a method for interactively installing stable versions of
-  packages as it does not support interactively choosing a git tag corresponding
-  to a stable release.
+- Elpaca lacks a method for interactively installing stable versions of packages
+  as it does not support interactively choosing a git tag corresponding to a
+  stable release.
 - Elpaca creates copies of git repositories instead of adding them to the
   repository as git subtrees. In STP, the subtree approach is used in order to
   make the configuration completely reproducible without having to clone remote
