@@ -1,4 +1,4 @@
-;;; stp.el --- Manage packages as git subtrees -*- lexical-binding: t; -*-
+;;; subtree-package.el --- Manage packages as git subtrees -*- lexical-binding: t; -*-
 ;; Copyright (C) 2025 David J. Rosenbaum
 
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
@@ -2641,7 +2641,7 @@ if no version header is found for the current file."
   (stp-savehist-setup))
 
 (provide 'stp)
-;;; stp.el ends here
+;;; subtree-package.el ends here
 
 ;; Local Variables:
 ;; eval: (add-hook 'stp-headers-update-hook #'stp-headers-write-bootstrap-requirements nil t)
