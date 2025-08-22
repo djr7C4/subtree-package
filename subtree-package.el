@@ -1135,6 +1135,7 @@ required."
         (apply #'stp-fork pkg-name remote dir (stp-command-kwd-args :lock nil))))))
 
 (cl-defun stp-fork (pkg-name remote dir &key do-commit do-push)
+  (setq stp-current-package pkg-name)
   (let-alist (stp-get-alist pkg-name)
     (unless (eq .method 'git)
       (error "Only packages that use the git method can be forked"))
