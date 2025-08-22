@@ -1119,6 +1119,40 @@ required."
                                    table)
         (stp-report-requirements 'uninstall t)))))
 
+(defvar stp-fork-directory nil
+  "The directory to use for forks. When this is nil,
+`stp-source-directory' is used.")
+
+(defun stp-fork-command ()
+  (interactive)
+  (stp-refresh-info)
+  (let ((pkg-name (stp-list-read-name "Package name: ")))
+    (let-alist (stp-get-alist pkg-name)
+      (unless (eq .method 'git)
+        (user-error "Only packages that use the git method can be forked"))
+      (let* ((dir (or stp-fork-directory stp-source-directory))
+             (remote (stp-choose-remote "Remote: " .remote .other-remotes)))
+        (apply #'stp-fork pkg-name remote dir (stp-command-kwd-args :lock nil))))))
+
+(cl-defun stp-fork (pkg-name remote dir &key do-commit do-push)
+  (let-alist (stp-get-alist pkg-name)
+    (unless (eq .method 'git)
+      (error "Only packages that use the git method can be forked"))
+    (unless (executable-find "gh")
+      (error "gh is required for forking"))
+    (let ((default-directory dir))
+      (rem-run-command (-uniq (list "gh" "repo" "fork" "--clone" "--fork-name" pkg-name remote)))
+      (let* ((default-directory (f-join dir pkg-name))
+             (remotes (-uniq (cl-list* (map-elt (stp-git-remotes) "origin")
+                                       remote
+                                       .remote
+                                       .other-remotes))))
+        (stp-set-attribute pkg-name 'remote (car remotes))
+        (stp-set-attribute pkg-name 'other-remotes (cdr remotes))
+        (stp-with-package-source-directory
+          (stp-write-info)
+          (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push))))))
+
 (defun stp-download-url (pkg-name pkg-alist)
   (let-alist pkg-alist
     ;; Note that for the 'git method there is no download URL.
@@ -2245,6 +2279,7 @@ not slow down Emacs while the fields are being updated."
               "D" #'stp-uninstall-package-group-command
               "e" #'stp-edit-remotes-command
               "E" #'stp-add-or-edit-package-group-command
+              "f" #'stp-fork-command
               "g" #'stp-list-refresh
               "G" #'stp-reload
               "i" #'stp-install-command

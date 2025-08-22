@@ -91,9 +91,11 @@ within that package."
       (eql (car (rem-call-process-shell-command (format "git ls-files --error-unmatch \"%s\"" file))) 0))))
 
 (defun stp-git-remotes ()
-  (s-split rem-positive-whitespace-regexp
-           (rem-run-command '("git" "remote"))
-           t))
+  (--> (rem-run-command '("git" "remote" "-v") :error t)
+       (s-split rem-newline-char-regexp it t)
+       (mapcar (fn (-take 2 (s-split rem-positive-whitespace-regexp % t))) it)
+       (mapcar (-partial #'apply #'cons) it)
+       -uniq))
 
 (defun stp-git-valid-remote-p (remote)
   "Determine if remote is a valid git repository."
@@ -707,6 +709,9 @@ and REV2 do not share a common ancestor."
          ;; nil.
          (t
           nil))))))
+
+(defun stp-git-clone (remote path)
+  (rem-run-command (list "git" "clone" remote path) :error t))
 
 (defvar stp-git-cache-directory (f-join user-emacs-directory "stp/cache/git-repos/"))
 
