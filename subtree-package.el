@@ -2640,7 +2640,7 @@ if no version header is found for the current file."
     (stp-headers-update-features))
   (stp-savehist-setup))
 
-(provide 'stp)
+(provide 'subtree-package)
 ;;; subtree-package.el ends here
 
 ;; Local Variables:
