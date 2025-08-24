@@ -4,7 +4,7 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: convenience elisp git tools vc
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.9.6
+;; Version: 0.9.7
 ;; Package-Requires: (
 ;;   (anaphora "1.0.4")
 ;;   (async "1.9.9")
@@ -978,31 +978,14 @@ required."
           (push requirement stp-requirements))
         (condition-case err
             (cond
-             ;; Handle Emacs requirements. This should be done before we check
-             ;; if a requirement is ignored.
-             ((string= pkg-name "emacs")
-              (when (version< (format "%d.%d" emacs-major-version emacs-minor-version) version)
-                (error "Version %s of Emacs is required but %d.%d is installed"
-                       version
-                       emacs-major-version
-                       emacs-minor-version)))
+             ((stp-emacs-requirement-satisfied-p pkg-name version)
+              (error "Version %s of Emacs is required but %d.%d is installed"
+                     version
+                     emacs-major-version
+                     emacs-minor-version))
              ;; Do nothing when a requirement is ignored or a new enough
              ;; version is installed.
-             ((or (member pkg-name stp-headers-ignored-requirements)
-                  (if search-load-path
-                      (aand (cl-find-if (fn (eq pkg-sym (car %))) stp-headers-installed-features)
-                            (and version
-                                 ;; Check the newest version found in the load
-                                 ;; path.
-                                 (version<= version (cadr it))
-                                 ;; If the version installed in STP is older we
-                                 ;; upgrade anyway. This can be the case if the
-                                 ;; package was installed outside STP or the
-                                 ;; source code is included in the load path.
-                                 (not (aand (stp-get-attribute pkg-name 'version)
-                                            (stp-version< it version)))))
-                    (aand (stp-get-attribute pkg-name 'version)
-                          (stp-version<= version it)))))
+             ((stp-package-requirement-satisfied-p pkg-name version t))
              ((not (member pkg-name (stp-info-names)))
               ;; Sometimes, a single repository can contain multiple packages
               ;; and so installing the dependencies naively will result in
@@ -1072,6 +1055,42 @@ required."
         (error
          (push pkg-name stp-failed-requirements)
          (stp-msg "Failed to uninstall %s: %s" pkg-name err))))))
+
+(defun stp-check-requirements ()
+  "Check the requirements of all STP packages and report any that
+are not satisfied to the user."
+  (interactive)
+  (stp-headers-update-features)
+  (let* ((requirements (->> (stp-get-info-packages)
+                            (mapcan (fn (copy-list (map-elt (cdr %) 'requirements))))
+                            stp-headers-merge-elisp-requirements))
+         (unsatisfied-requirements (-filter (lambda (requirement)
+                                              (db (pkg-sym &optional version)
+                                                  requirement
+                                                (let ((pkg-name (symbol-name pkg-sym)))
+                                                  (not (stp-requirement-satisfied-p pkg-name version t)))))
+                                            requirements))
+         (msgs (mapcar (lambda (requirement)
+                         (db (pkg-sym &optional version)
+                             requirement
+                           (let ((pkg-name (symbol-name pkg-sym)))
+                             (format "%s%s: required by %s"
+                                     pkg-name
+                                     (if version
+                                         (format " %s (%s found)"
+                                                 version
+                                                 (aif (car (map-elt stp-headers-installed-features pkg-sym))
+                                                     it
+                                                   "not"))
+                                       "")
+                                     (rem-join-and (stp-required-by pkg-name))))))
+                       unsatisfied-requirements)))
+    (pop-to-buffer "*STP requirements*")
+    (with-current-buffer "*STP requirements*"
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (format "Unsatisfied requirements:\n%s" (s-join "\n" msgs))))
+      (read-only-mode 1))))
 
 (cl-defun stp-package-group-command (fun table &key extra-removed-kwargs)
   (stp-refresh-info)
@@ -2274,6 +2293,7 @@ not slow down Emacs while the fields are being updated."
               "a" #'stp-post-actions-command
               "b" #'stp-build-command
               "B" #'stp-build-all-command
+              "c" #'stp-check-requirements
               "m" #'stp-build-info
               "M" #'stp-build-all-info
               "d" #'stp-uninstall-command

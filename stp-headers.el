@@ -1,12 +1,6 @@
 ;;; stp-headers.el --- -*- lexical-binding: t; -*-
-
+;;
 ;; Copyright (C) 2025 David J. Rosenbaum <djr7c4@gmail.com>
-
-;; Author: David J. Rosenbaum <djr7c4@gmail.com>
-;; Keywords: TODO
-;; URL: https://github.com/djr7C4/subtree-package
-;; Version: : 0.9.0
-
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
@@ -95,12 +89,13 @@ of FILE is different from the last time BODY was evaluated."
       (insert-file-contents file)
       (stp-headers-elisp-feature (rem-no-ext (f-filename file))))))
 
-(defun stp-headers-merge-elisp-requirements (requirements &optional hash-table)
+(cl-defun stp-headers-merge-elisp-requirements (requirements &optional (hash-table nil hash-table-provided-p))
   "Merge duplicate requirements in REQUIREMENTS. Only the most
 recent version will be kept. If HASH-TABLE is a hash table then
 requirements will be merged into it and the result will be
 returned instead of a requirements list. Otherwise, if HASH-TABLE
-is non-nil, then they will be merged into an empty hash table."
+is non-nil, then they will be merged into an empty hash table.
+The result is an alist unless hash-table is provided."
   (let ((versions (if (hash-table-p hash-table)
                       hash-table
                     (make-hash-table :test #'eq))))
@@ -113,7 +108,7 @@ is non-nil, then they will be merged into an empty hash table."
                     (and version
                          (version< curr-version version)))
             (setf (gethash pkg-sym versions) version)))))
-    (if hash-table
+    (if hash-table-provided-p
         versions
       (cl-loop
        for pkg-sym being the hash-keys of versions using (hash-values version)
@@ -217,16 +212,6 @@ a package is installed outside of STP."
   (cons `(emacs ,emacs-version)
         (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
                 (stp-get-info-packages))))
-
-(defun stp-headers-requirement-satisfied-p (requirement requirements-map)
-  "Determine if REQUIREMENT is satisfied by REQUIREMENTS-MAP which
-should map each package symbol to the version that is installed."
-  (db (pkg-sym version)
-      requirement
-    (when (stringp version)
-      (setq version (version-to-list version)))
-    (awhen (map-elt requirements-map pkg-sym)
-      (or (equal version it) (version-list-< version it)))))
 
 (defun stp-package-requirements (pkg-name)
   (let* ((pkg-path (stp-full-path pkg-name))
@@ -413,6 +398,39 @@ was inserted."
             nil))
       (when insert
         (insert (format ";; Package-Requires: %s" requirements-string))))))
+
+(defun stp-emacs-requirement-satisfied-p (pkg-name &optional version)
+  (and (string= pkg-name "emacs")
+       (version< version (format "%d.%d" emacs-major-version emacs-minor-version))))
+
+(defun stp-installed-version (pkg-name)
+  (cadr (cl-find-if (fn (eq (car %) (intern pkg-name)))
+                    (stp-headers-directory-features (stp-full-path pkg-name) :recursive t))))
+
+(defun stp-package-requirement-satisfied-p (pkg-name &optional version search-load-path)
+  (let ((pkg-sym (intern pkg-name)))
+    (or (member pkg-name stp-headers-ignored-requirements)
+        (if search-load-path
+            (aand (cl-find-if (fn (eq pkg-sym (car %))) stp-headers-installed-features)
+                  (and version
+                       ;; Check the newest version found in the load path.
+                       (version<= version (cadr it))
+                       ;; If the version installed in STP is older we upgrade
+                       ;; anyway. This can be the case if the package was
+                       ;; installed outside STP or the source code is included
+                       ;; in the load path. `stp-installed-version' is used
+                       ;; instead of `stp-get-attribute' because the latter
+                       ;; might return a hash and those can't be compared by
+                       ;; `stp-version<'.
+                       (not (aand (member pkg-name (stp-info-names))
+                                  (stp-installed-version pkg-name)
+                                  (stp-version< it version)))))
+          (aand (stp-installed-version pkg-name)
+                (stp-version<= version it))))))
+
+(defun stp-requirement-satisfied-p (pkg-name &optional version search-load-path)
+  (or (stp-emacs-requirement-satisfied-p pkg-name version)
+      (stp-package-requirement-satisfied-p pkg-name version search-load-path)))
 
 (defvar stp-headers-bootstrap-requirements-file "bootstrap-requirements")
 
