@@ -2285,10 +2285,9 @@ not slow down Emacs while the fields are being updated."
               "G" #'stp-reload
               "i" #'stp-install-command
               "I" #'stp-update-all-info-directories
-              "k" #'stp-uninstall-command
               "l" #'stp-list-update-load-path
               "L" #'stp-update-lock-file
-              "o" #'stp-delete-orphans
+              "o" #'stp-unnecessary-dependencies-command
               "O" #'stp-list-open-current-remote
               "n" #'stp-list-next-upgradable
               "p" #'stp-list-previous-upgradable
@@ -2612,15 +2611,31 @@ development or for opening packages from `stp-list-mode'."
                   (rem-move-current-window-line-to-pos window-line))))
           (stp-msg "%s was not found in the local filesystem" pkg-name))))))
 
-(defun stp-delete-orphans (&key do-commit do-push)
+(defun stp-unnecessary-dependencies-command (&optional arg)
+  "By default, inform the user about dependencies that are no longer
+required. With a prefix argument, delete them instead."
+  (interactive "P")
+  (if arg
+      (call-interactively #'stp-delete-unnecessary-dependencies)
+    (call-interactively #'stp-show-unnecessary-dependencies)))
+
+(defun stp-show-unnecessary-dependencies ()
+  "Print the list of packages that were installed as dependencies
+but are no longer required by any other package."
+  (interactive)
+  (stp-refresh-info)
+  (let ((pkgs (stp-find-unnecessary-dependencies)))
+    (if pkgs
+        (stp-msg " are no longer required and can be uninstalled" (apply #'rem-join-and pkgs))
+      (stp-msg "No unnecessary dependencies were found"))))
+
+(defun stp-delete-unnecessary-dependencies (&key do-commit do-push)
   "Uninstall packages that were installed as dependencies but are no
 longer required by any other package."
   (interactive (stp-command-kwd-args :lock nil))
   (stp-refresh-info)
-  (let ((orphans (mapcar #'car
-                         (-filter (fn (map-elt (cdr %) 'dependency))
-                                  (stp-get-info-packages)))))
-    (stp-maybe-uninstall-requirements :do-commit do-commit)
+  (let ((pkgs (stp-find-unnecessary-dependencies)))
+    (stp-maybe-uninstall-requirements pkgs :do-commit do-commit)
     (stp-git-push :do-push do-push)))
 
 (cl-defun stp-bump-version (filename &key do-commit do-push do-tag)

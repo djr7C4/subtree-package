@@ -715,6 +715,13 @@ PKG-NAME."
     (setq packages (map-delete packages pkg-name))
     (stp-set-info-packages packages)))
 
+(defun stp-find-unnecessary-dependencies ()
+  "Return a list of the names of all packages that are no longer
+required by another package but were installed as dependencies."
+  (mapcar #'car
+          (-filter (fn (map-elt (cdr %) 'dependency))
+                   (stp-get-info-packages))))
+
 (defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?\\)*\\)[-_./]?$")
 
 (defun stp-default-extractor (main-version)
