@@ -341,6 +341,9 @@ consists of expressions such as
 It also supports interactive package installation. Like Elpaca, it lacks a
 method for installing stable versions of packages and clones git repositories
 rather than adding them as git subtrees.
+
+Straight does not check that the requirements of installed packages have recent
+enough versions.
 ** package-vc
 package-vc is a builtin library that can install packages from git repositories.
 Like STP, it allows you to select a package by name and automatically install it

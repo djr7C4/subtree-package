@@ -2288,6 +2288,7 @@ not slow down Emacs while the fields are being updated."
               "k" #'stp-uninstall-command
               "l" #'stp-list-update-load-path
               "L" #'stp-update-lock-file
+              "o" #'stp-delete-orphans
               "O" #'stp-list-open-current-remote
               "n" #'stp-list-next-upgradable
               "p" #'stp-list-previous-upgradable
@@ -2501,11 +2502,11 @@ the package archives asynchronously."
         (stp-archive-async-refresh :quiet t))
       (stp-list-refresh :quiet t))))
 
-(cl-defun stp-delete-orphans (&optional (orphan-type 'both) (confirm t))
+(cl-defun stp-delete-ghosts (&optional (ghost-type 'both) (confirm t))
   "Remove packages that do not exist on the filesystem.
 
 These are packages that exist only in `stp-info-file'. When
-ORPHAN-TYPE is \\='info, remove entries in `stp-info-file' that
+GHOST-TYPE is \\='info, remove entries in `stp-info-file' that
 do not have a corresponding package directory in
 `stp-source-directory'. When it is \\='filesystem, delete
 directories in `stp-source-directory' that do not correspond to
@@ -2522,7 +2523,7 @@ confirmation."
         (deleted-entries 0)
         (filesystem-pkgs (stp-filesystem-names))
         (info-pkgs (stp-info-names)))
-    (when (memq orphan-type '(info both))
+    (when (memq ghost-type '(info both))
       (let ((k 0)
             (orphaned-info-names (cl-set-difference info-pkgs filesystem-pkgs :test #'equal)))
         (unwind-protect
@@ -2539,7 +2540,7 @@ confirmation."
           ;; Make sure that changes are written to disk each time so that
           ;; progress isn't lost of the user aborts.
           (stp-write-info))))
-    (when (memq orphan-type '(filesystem both))
+    (when (memq ghost-type '(filesystem both))
       (let ((k 1)
             (orphaned-dir-names (cl-set-difference filesystem-pkgs info-pkgs :test #'equal)))
         (cl-dolist (dir orphaned-dir-names)
@@ -2610,6 +2611,17 @@ development or for opening packages from `stp-list-mode'."
                   (rem-goto-line-column line column t)
                   (rem-move-current-window-line-to-pos window-line))))
           (stp-msg "%s was not found in the local filesystem" pkg-name))))))
+
+(defun stp-delete-orphans (&key do-commit do-push)
+  "Uninstall packages that were installed as dependencies but are no
+longer required by any other package."
+  (interactive (stp-command-kwd-args :lock nil))
+  (stp-refresh-info)
+  (let ((orphans (mapcar #'car
+                         (-filter (fn (map-elt (cdr %) 'dependency))
+                                  (stp-get-info-packages)))))
+    (stp-maybe-uninstall-requirements :do-commit do-commit)
+    (stp-git-push :do-push do-push)))
 
 (cl-defun stp-bump-version (filename &key do-commit do-push do-tag)
   "Increase the version header for FILENAME. Interactively, this is
