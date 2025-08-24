@@ -25,7 +25,8 @@
 (require 'seq)
 (require 'stp-locked)
 
-;; This is required for Emacs 30+.
+;; This is required for Emacs 30+. The fix is merged upstream in the development
+;; version and should be remove here once there is a tagged release.
 (defvar stp-async-inject-variables-exclude-regexp "-abbrev-table\\'")
 
 (defvar stp-async-inject-large-variables-exclude-regexp "\\|-history$\\|^stp-package-info$\\|^stp-latest-versions-cache$")
