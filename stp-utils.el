@@ -37,11 +37,31 @@
 
 (defvar stp-package-info nil)
 
-(defvar stp-log-buffer-name "*STP Log*")
+(defvar stp-log-buffer-name "*STP Log*"
+  "All messages from STP are logged in this buffer.")
+
+(defvar stp-log-max message-log-max
+  "The maximum number of lines of STP log messages to keep in
+`stp-log-buffer-name'. When it is nil, logging is disabled. When
+it is t, the buffer is never truncated.")
 
 (defun stp-msg (&rest args)
   (with-current-buffer (get-buffer-create stp-log-buffer-name)
-    (insert (apply #'message args) "\n")))
+    (let ((msg (apply #'message args)))
+      (when stp-log-max
+        (insert msg "\n"))))
+  (stp-truncate-log))
+
+;; Based on `comint-truncate-buffer'.
+(defun stp-truncate-log ()
+  (awhen (and (integerp stp-log-max) (get-buffer stp-log-buffer-name))
+    (with-current-buffer it
+      (save-excursion
+        (goto-char (point-max))
+        (forward-line (- stp-log-max))
+        (beginning-of-line)
+        (let ((inhibit-read-only t))
+          (delete-region (point-min) (point)))))))
 
 (defun stp-negate (value)
   "If VALUE is a function, return a function that returns the
