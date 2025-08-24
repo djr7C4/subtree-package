@@ -238,7 +238,7 @@ returned."
 
 (cl-defun stp-git-install (pkg-name remote version update &key branch (squash t) (set-pkg-info t))
   "Install the specified version of PKG-NAME from REMOTE."
-  (let* ((git-root (stp-git-root stp-source-directory))
+  (let* ((git-root (stp-git-root :path stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
          (prefix (f-relative pkg-path git-root)))
     (when (f-exists-p pkg-path)
@@ -273,7 +273,7 @@ returned."
 (cl-defun stp-git-upgrade (pkg-name remote version &key (squash t) (set-pkg-info t) fallback-version)
   "Upgrade PKG-NAME to the specified VERSION from REMOTE."
   (setq fallback-version (or fallback-version version))
-  (let* ((git-root (stp-git-root stp-source-directory))
+  (let* ((git-root (stp-git-root :path stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
          (prefix (f-relative pkg-path git-root)))
     (unless (f-exists-p pkg-path)

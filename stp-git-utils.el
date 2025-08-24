@@ -21,9 +21,9 @@
 (require 'stp-utils)
 (require 'timer)
 
-(defun stp-git-root (&optional path)
+(cl-defun stp-git-root (&key path (transform #'f-canonical))
   "Return the absolute path to the git repository containing PATH."
-  (setq path (or (and path (f-canonical path)) default-directory))
+  (setq path (or (and path (funcall transform path)) default-directory))
   (let* ((default-directory path)
          (root (or (rem-run-command '("git" "rev-parse" "--show-toplevel"))
                    ;; Fallback for git repositories without working trees (e.g.
@@ -40,7 +40,7 @@
 (defmacro stp-with-git-root (&rest body)
   "Execute BODY in the git root for `stp-source-directory'."
   (declare (indent 0))
-  `(let ((default-directory (stp-git-root stp-source-directory)))
+  `(let ((default-directory (stp-git-root :path stp-source-directory)))
      ,@body))
 
 (def-edebug-spec stp-with-git-root t)
@@ -53,7 +53,7 @@ non-nil, make the path relative to the root of the git repository
 instead."
   (rem-slash (if top-level
                  (let ((path (f-join stp-source-directory pkg-name)))
-                   (s-chop-prefix (rem-slash (f-full (stp-git-root path)))
+                   (s-chop-prefix (rem-slash (f-full (stp-git-root :path path)))
                                   (f-full path)))
                pkg-name)))
 
@@ -82,7 +82,7 @@ within that package."
   (setq path (f-full path))
   (let* ((dir (f-dirname path))
          (file (f-relative path dir)))
-    (unless (stp-git-root dir)
+    (unless (stp-git-root :path dir)
       (error "Not in a git repository"))
     (let ((default-directory dir))
       ;; `rem-call-process-shell-command' is more efficient than
@@ -302,7 +302,7 @@ the new name."
 (defun stp-git-tree-modified-p (path)
   "Determine if any files have been modified since the last commit."
   (setq path (f-canonical path))
-  (let ((default-directory (stp-git-root path)))
+  (let ((default-directory (stp-git-root :path path)))
     (cl-some (lambda (file)
                (setq file (f-canonical file))
                (or (f-same-p path file)
@@ -349,7 +349,7 @@ If there is no git tree at PATH then nil will be returned."
     (error "The directory %s does not exist" path))
   (setq path (f-canonical path)
         rev (or rev "HEAD"))
-  (let* ((default-directory (stp-git-root path))
+  (let* ((default-directory (stp-git-root :path path))
          ;; Git will show the children of the directory even when -d is
          ;; specified when the directory ends with a slash.
          (rel-path (rem-no-slash (stp-git-relative-path path))))
@@ -366,7 +366,7 @@ This is done for revision REV when it is non-nil."
     (error "The directory %s does not exist" path))
   (setq path (f-canonical path)
         rev (or rev "HEAD"))
-  (let* ((default-directory (stp-git-root path))
+  (let* ((default-directory (stp-git-root :path path))
          (rel-path (stp-git-relative-path path))
          (cmd (list "git" "ls-tree" "-r" rev "--name-only" rel-path)))
     (s-split "\n" (rem-run-command cmd :error t) t)))
@@ -442,7 +442,7 @@ installed as a git subtree."
   (and (stp-git-subtree-commit path) t))
 
 (defun stp-git-head (&optional path)
-  (stp-git-remote-head (stp-git-root (or path stp-source-directory))))
+  (stp-git-remote-head (stp-git-root :path (or path stp-source-directory))))
 
 (defun stp-git-diff (&optional hashes)
   (rem-run-command (cl-list* "git" "diff" hashes) :error t))
