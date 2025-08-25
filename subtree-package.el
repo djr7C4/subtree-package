@@ -978,11 +978,12 @@ required."
           (push requirement stp-requirements))
         (condition-case err
             (cond
-             ((stp-emacs-requirement-satisfied-p pkg-name version)
-              (error "Version %s of Emacs is required but %d.%d is installed"
-                     version
-                     emacs-major-version
-                     emacs-minor-version))
+             ((string= pkg-name "emacs")
+              (unless (stp-emacs-requirement-satisfied-p pkg-name version)
+                (error "Version %s of Emacs is required but %d.%d is installed"
+                       version
+                       emacs-major-version
+                       emacs-minor-version)))
              ;; Do nothing when a requirement is ignored or a new enough
              ;; version is installed.
              ((stp-package-requirement-satisfied-p pkg-name version t))
