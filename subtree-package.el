@@ -1063,7 +1063,7 @@ are not satisfied to the user."
   (interactive)
   (stp-headers-update-features)
   (let* ((requirements (->> (stp-get-info-packages)
-                            (mapcan (fn (copy-list (map-elt (cdr %) 'requirements))))
+                            (mapcan (fn (cl-copy-list (map-elt (cdr %) 'requirements))))
                             stp-headers-merge-elisp-requirements))
          (unsatisfied-requirements (-filter (lambda (requirement)
                                               (db (pkg-sym &optional version)
