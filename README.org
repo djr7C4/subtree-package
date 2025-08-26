@@ -268,7 +268,7 @@ git repository for your configuration.
 
 #+begin_src emacs-lisp
   (setq stp-source-directory "<path/to/package-source>"
-        stp-info-file (expand-file-name "../pkg-info.eld" stp-source-directory))
+        stp-info-file (expand-file-name "../stp-pkg-info.eld" stp-source-directory))
 
   (require 'stp-locked (expand-file-name "subtree-package/stp-locked.el" stp-source-directory))
   (require 'stp-bootstrap (expand-file-name "subtree-package/stp-bootstrap.el" stp-source-directory))
