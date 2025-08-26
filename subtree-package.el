@@ -439,11 +439,6 @@ value when it is needed.")
 are changed. When this variable is a function it will be called
 to determine the value when it is needed.")
 
-(defvar stp-never-auto-lock t
-  "Never automatically update `stp-lock-file'. This is different
-from `stp-auto-lock' because that is just a default argument for
-interactive commands.")
-
 (defun stp-ensure-no-merge-conflicts ()
   (when (stp-git-merge-conflict-p)
     (user-error "Merge conflicts must be resolved before running this command")))
@@ -485,7 +480,7 @@ command should proceed.")
                       :do-push (if do-push-provided-p do-push stp-auto-push))
                 (rem-maybe-args
                  (list :do-lock
-                       (if do-lock-provided-p do-lock (and (not stp-never-auto-lock) stp-auto-lock)))
+                       (if do-lock-provided-p do-lock stp-auto-lock))
                  lock
                  (list :do-actions (if do-actions-provided-p do-actions stp-auto-post-actions))
                  actions
