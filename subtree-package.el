@@ -2606,8 +2606,9 @@ development or for opening packages from `stp-list-mode'."
                                   (not (f-ancestor-of-p (f-canonical dir) path))))
                            (append (and .remote (list .remote))
                                    .other-remotes
-                                   (list (f-slash (f-join stp-development-directory pkg-name))
-                                         (stp-full-path pkg-name))))))
+                                   (and stp-development-directory
+                                        (list (f-slash (f-join stp-development-directory pkg-name))
+                                              (stp-full-path pkg-name)))))))
         (setq dirs (cl-remove-duplicates dirs :test #'f-same-p))
         (if dirs
             (let ((dir (f-full (if (cdr dirs)
