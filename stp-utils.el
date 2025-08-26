@@ -24,6 +24,7 @@
 (require 's)
 (require 'seq)
 (require 'stp-locked)
+(require 'stp-package)
 
 ;; This is required for Emacs 30+. The fix is merged upstream in the development
 ;; version and should be remove here once there is a tagged release.
@@ -86,7 +87,7 @@ non-nil."
     (cl-every #'identity values)))
 
 (defun stp-maybe-call (value &rest args)
-  "If VALUE is a function with ARGS, call it and return the result.
+  "If VALUE is a function, call it with ARGS and return the result.
 Otherwise, return VALUE."
   (if (functionp value)
       (apply value args)

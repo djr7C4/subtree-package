@@ -9,7 +9,8 @@
   (groups :initarg groups)
   (packages :initarg packages))
 
-;; TODO: use these class from other code instead of the current alist structure.
+;; TODO: use these classes from other code instead of the current alist
+;; structure.
 
 (provide 'stp-package-db)
 ;;; stp-package-db.el ends here
