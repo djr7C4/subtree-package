@@ -259,29 +259,32 @@ never ends with a slash (nor does it contain any slashes)."
 
 (defvar stp-candidate-separator "  ")
 
-(defun stp-toggle-plist (prompt plist)
-  (cl-labels ((make-cand (group width)
+(defun stp-toggle-object (prompt object)
+  (cl-labels ((make-cand (slot value width)
                 (format "%s%s%S"
-                        (string-pad (car group) width)
+                        (string-pad (symbol-name slot) width)
                         stp-candidate-separator
-                        (cadr group)))
+                        value))
               (read-toggle ()
-                (let* ((groups (mapcar (lambda (group)
-                                         (list (s-chop-prefix ":do-" (symbol-name (car group))) (cadr group)))
-                                       (-partition 2 plist)))
-                       (width (apply #'max (mapcar (-compose #'length #'car) groups)))
+                (let* ((slots (->> (type-of object)
+                                   eieio-class-slots
+                                   (mapcar #'eieio-slot-descriptor-name)))
+                       (width (apply #'max (mapcar (-compose #'length #'symbol-name) slots)))
                        (candidates (append (list "done")
-                                           (mapcar (-rpartial #'make-cand width) groups))))
+                                           (mapcar (lambda (slot)
+                                                     (make-cand slot
+                                                                (slot-value object slot)
+                                                                width))
+                                                   slots))))
                   (rem-comp-read prompt
                                  candidates
                                  :require-match t
                                  :sort-fun #'identity))))
     (let (choice)
-      (setq plist (cl-copy-list plist))
       (while (not (string= (setq choice (read-toggle)) "done"))
-        (let ((kwd (intern (format ":do-%s" (car (s-split " " choice))))))
-          (setf (plist-get plist kwd) (not (plist-get plist kwd)))))
-      plist)))
+        (let ((slot (intern (car (s-split stp-candidate-separator choice)))))
+          (setf (slot-value object slot) (not (slot-value object slot)))))
+      object)))
 
 (defun stp-skip-package ()
   "Skip installing or upgrading this package."

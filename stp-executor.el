@@ -38,6 +38,15 @@
    (do-build-info :initarg :do-build-info :initform (symbol-value 'stp-auto-build-info))
    (do-update-info-directories :initarg :do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
 
+(defun stp-toggle-options (options)
+  (stp-toggle-object "Toggle options: " options))
+
+(cl-defun stp-command-options (&key toggle-p (fn current-prefix-arg))
+  (let ((options (make-instance 'stp-task-options)))
+    (if (stp-maybe-call toggle-p)
+        (stp-toggle-options options)
+      options)))
+
 ;; TODO: use in code
 ;; TODO: Combine features of `stp-ensure-requirements',
 ;; `stp-maybe-uninstall-requirements' and `stp-report-requirements'.
