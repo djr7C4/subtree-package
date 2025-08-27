@@ -8,7 +8,7 @@
 
 (defclass stp-package-operation (stp-operation) ())
 
-(defclass stp-uninstall (stp-package-operation) ())
+(defclass stp-uninstall-operation (stp-package-operation) ())
 
 (defvar stp-enforce-min-version nil
   "Determines if the user is allowed to select a version older than
@@ -18,8 +18,8 @@ the minimum required by another package.")
   ((min-version :initarg :min-version)
    (enforce-min-version :initarg :enforce-min-version :initform (symbol-value 'stp-enforce-min-version))))
 
-(defclass stp-install (stp-additive-operation) ())
-(defclass stp-upgrade (stp-additive-operation) ())
+(defclass stp-install-operation (stp-additive-operation) ())
+(defclass stp-upgrade-operation (stp-additive-operation) ())
 ;; TODO: fill in other types of operations
 
 ;; TODO: fill in
