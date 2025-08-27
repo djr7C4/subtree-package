@@ -1344,43 +1344,51 @@ negative, repair all packages."
       (stp-refresh-info)
       (if (< (prefix-numeric-value current-prefix-arg) 0)
           (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
-        (apply #'stp-repair (stp-command-args :toggle-p (fn (consp current-prefix-arg))))))))
+        (apply #'stp-repair
+               (append (stp-command-args-new)
+                       (list (stp-command-options 'stp-package-task-options
+                                                  :toggle-p (fn (consp current-prefix-arg))))))))))
 
-(cl-defun stp-repair (pkg-name &key do-commit do-push do-lock (refresh t))
+(cl-defun stp-repair (pkg-name options &key (refresh t))
   "Repair the package named pkg-name.
 
 The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
 `stp-install'."
   (when pkg-name
-    (stp-repair-info :quiet nil :pkg-names (list pkg-name))
-    (stp-write-info)
-    (stp-git-commit-push (format "Repaired the source package %s" pkg-name)
-                         :do-commit do-commit
-                         :do-push do-push)
-    (when (stp-maybe-call do-lock)
-      (stp-update-lock-file))
-    (when refresh
-      (stp-list-refresh :quiet t))))
+    (with-slots (do-commit do-push do-lock)
+        options
+      (stp-repair-info :quiet nil :pkg-names (list pkg-name))
+      (stp-write-info)
+      (stp-git-commit-push (format "Repaired the source package %s" pkg-name)
+                           :do-commit do-commit
+                           :do-push do-push)
+      (when (stp-maybe-call do-lock)
+        (stp-update-lock-file))
+      (when refresh
+        (stp-list-refresh :quiet t)))))
 
 (cl-defun stp-repair-all-command (&key (toggle-p nil toggle-p-provided-p))
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-repair-all (apply #'stp-command-kwd-args
-                                     (rem-maybe-kwd-args toggle-p toggle-p-provided-p))))))
+      (stp-repair-all (apply #'stp-command-options
+                             'stp-package-task-options
+                             (rem-maybe-kwd-args toggle-p toggle-p-provided-p))))))
 
-(cl-defun stp-repair-all (&key do-commit do-push do-lock (refresh t))
+(cl-defun stp-repair-all (options &key (refresh t))
   "Repair the stored package information for all packages."
-  (stp-repair-info :quiet nil)
-  (stp-write-info)
-  (stp-git-commit-push (format "Repaired source packages")
-                       :do-commit do-commit
-                       :do-push do-push)
-  (when (stp-maybe-call do-lock)
-    (stp-update-lock-file))
-  (when refresh
-    (stp-list-refresh :quiet t)))
+  (with-slots (do-commit do-push do-lock)
+      options
+    (stp-repair-info :quiet nil)
+    (stp-write-info)
+    (stp-git-commit-push (format "Repaired source packages")
+                         :do-commit do-commit
+                         :do-push do-push)
+    (when (stp-maybe-call do-lock)
+      (stp-update-lock-file))
+    (when refresh
+      (stp-list-refresh :quiet t))))
 
 (defun stp-edit-remotes-command ()
   "Edit the stored remotes of a package."
