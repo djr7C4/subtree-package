@@ -2710,9 +2710,10 @@ longer required by any other package."
   (interactive (list (stp-command-options :class 'stp-basic-task-options)))
   (stp-refresh-info)
   (with-slots (do-commit do-push)
-      (let ((pkgs (stp-find-unnecessary-dependencies)))
-        (stp-maybe-uninstall-requirements pkgs :do-commit do-commit)
-        (stp-git-push :do-push do-push))))
+      options
+    (let ((pkgs (stp-find-unnecessary-dependencies)))
+      (stp-maybe-uninstall-requirements pkgs :do-commit do-commit)
+      (stp-git-push :do-push do-push))))
 
 (cl-defun stp-bump-version (filename options)
   "Increase the version header for FILENAME. Interactively, this is
@@ -2734,9 +2735,10 @@ if no version header is found for the current file."
                                                 (stp-main-package-file it)))
                                       (fn (user-error "No Version header was found")))))
                      (stp-command-options :class 'stp-bump-task-options)))
-  (with-slots (do-commit do-push do-lock)
-      (when (stp-maybe-call do-commit)
-        (stp-maybe-ensure-clean))
+  (with-slots (do-commit do-push do-tag)
+      options
+    (when (stp-maybe-call do-commit)
+      (stp-maybe-ensure-clean))
     (let ((clean (stp-git-clean-p)))
       (save-excursion
         (find-file filename)
