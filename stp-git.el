@@ -327,12 +327,13 @@ returned."
            ;; prefix has been changed since the subtree was created. In this
            ;; case, we attempt to uninstall the package and install the new
            ;; version instead.
-           ((if stp-subtree-pull-fallback
-                (and (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
-                     (or (stp-maybe-call stp-auto-commit)
-                         (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
-              (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
-              nil)
+           ((and stp-subtree-pull-fallback
+                 (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
+                 ;; TODO: use options or just pass a :do-commit argument
+                 (or (stp-maybe-call stp-auto-commit)
+                     (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
+            (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
+            nil
             (stp-with-package-source-directory
               (stp-reinstall pkg-name fallback-version))))
           ;; If we get this far it means that either the merge succeeded or
