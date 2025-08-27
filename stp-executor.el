@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 
+(require 'rem)
+(require 'rem-abbrev)
 (require 'stp-utils)
 
 ;; TODO: use in code
@@ -11,9 +13,13 @@
 
 (defclass stp-uninstall (stp-package-operation) ())
 
+(defvar stp-enforce-min-version nil
+  "Determines if the user is allowed to select a version older than
+the minimum required by another package.")
+
 (defclass stp-additive-operation (stp-package-operation)
   ((min-version :initarg :min-version)
-   (enforce-min-version :initarg :enforce-min-version)))
+   (enforce-min-version :initarg :enforce-min-version :initform (symbol-value 'stp-enforce-min-version))))
 
 (defclass stp-install (stp-additive-operation) ())
 (defclass stp-upgrade (stp-additive-operation) ())
@@ -25,27 +31,31 @@
 ;; policy like preferring the latest stable or unstable.
 (defclass stp-controller () ())
 
-(defclass stp-task-options ()
-  ((do-commit :initarg :do-commit :initform (symbol-value 'stp-auto-commit))
-   (do-push :initarg :do-push :initform (symbol-value 'stp-auto-push))
-   (do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))
-   (do-actions :initarg :do-actions :initform (symbol-value 'stp-auto-post-actions))
-   (do-audit :initarg :do-audit :initform (symbol-value 'stp-audit-changes))
-   (do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))
-   (do-update-load-path :initarg :do-update-load-path :initform (symbol-value 'stp-auto-update-load-path))
-   (do-load :initarg :do-load :initform (symbol-value 'stp-auto-load))
-   (do-build :initarg :do-build :initform (symbol-value 'stp-auto-build))
-   (do-build-info :initarg :do-build-info :initform (symbol-value 'stp-auto-build-info))
-   (do-update-info-directories :initarg :do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
+(defclass stp-task-options () ())
 
-(defun stp-toggle-options (options)
-  (stp-toggle-object "Toggle options: " options))
+(defclass stp-basic-task-options (stp-task-options)
+  ((do-commit :initform (symbol-value 'stp-auto-commit))
+   (do-push :initform (symbol-value 'stp-auto-push))))
 
-(cl-defun stp-command-options (&key toggle-p (fn current-prefix-arg))
-  (let ((options (make-instance 'stp-task-options)))
-    (if (stp-maybe-call toggle-p)
-        (stp-toggle-options options)
-      options)))
+(defclass stp-package-task-options (stp-basic-task-options)
+  ((do-lock :initform (symbol-value 'stp-auto-lock))))
+
+(defclass stp-uninstall-task-options (stp-package-task-options) ())
+
+(defclass stp-additive-task-options (stp-package-task-options)
+  ((do-actions :initform (symbol-value 'stp-auto-post-actions))
+   (do-audit :initform (symbol-value 'stp-audit-changes))
+   (do-update-load-path :initform (symbol-value 'stp-auto-update-load-path))
+   (do-load :initform (symbol-value 'stp-auto-load))
+   (do-build :initform (symbol-value 'stp-auto-build))
+   (do-build-info :initform (symbol-value 'stp-auto-build-info))
+   (do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
+
+(defclass stp-install-task-options (stp-additive-task-options) ())
+(defclass stp-upgrade-task-options (stp-additive-task-options) ())
+
+(defclass stp-tag-task-options (stp-basic-task-options)
+  ((do-tag :initform (symbol-value 'stp-auto-tag))))
 
 ;; TODO: use in code
 ;; TODO: Combine features of `stp-ensure-requirements',
