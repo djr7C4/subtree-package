@@ -14,7 +14,7 @@
 ;;   (llama "1.0.0")
 ;;   (memoize "1.2.0")
 ;;   (queue "0.2")
-;;   (rem "0.7.9")
+;;   (rem "0.7.10")
 ;;   (s "1.12.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -565,7 +565,7 @@ is one. Otherwise, prompt the user for a package."
 (defun stp-toggle-options (options)
   (stp-toggle-object "Toggle options: " options))
 
-(cl-defun stp-command-options (class &key (toggle-p (fn current-prefix-arg)))
+(cl-defun stp-command-options (&key (class 'stp-package-task-options) (toggle-p (fn current-prefix-arg)))
   (let ((options (make-instance class)))
     (if (stp-maybe-call toggle-p)
         (stp-toggle-options options)
@@ -1345,9 +1345,9 @@ negative, repair all packages."
       (if (< (prefix-numeric-value current-prefix-arg) 0)
           (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
         (apply #'stp-repair
-               (append (stp-command-args-new)
-                       (list (stp-command-options 'stp-package-task-options
-                                                  :toggle-p (fn (consp current-prefix-arg))))))))))
+               (rem-at-end (stp-command-args-new)
+                           (stp-command-options 'stp-package-task-options
+                                                :toggle-p (fn (consp current-prefix-arg)))))))))
 
 (cl-defun stp-repair (pkg-name options &key (refresh t))
   "Repair the package named pkg-name.
@@ -1396,89 +1396,94 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (apply #'stp-edit-remotes (stp-command-args))))
+    (apply #'stp-edit-remotes (rem-at-end (stp-command-args-new)
+                                          (stp-command-options)))))
 
 (defvar stp-edit-remotes-long-commit-msg nil)
 
-(cl-defun stp-edit-remotes (pkg-name &key do-commit do-push do-lock (refresh t))
+(cl-defun stp-edit-remotes (pkg-name options &key (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME.
 
 This uses `completing-read-multiple'. The first chosen will be
 remotes and the rest will be other-remotes. The arguments
 DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
-  (let-alist (stp-get-alist pkg-name)
-    (if (and pkg-name .remote (not (eq .method 'archive)))
-        (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
-               (new-remote (car new-remotes))
-               (new-other-remotes (cdr new-remotes))
-               (invalid-remotes (-filter (lambda (remote)
-                                           (not (stp-valid-remote-p remote .method)))
-                                         new-remotes)))
-          (unless new-remotes
-            (user-error "At least one remote must be specified"))
-          (when invalid-remotes
-            (user-error "%s %s not valid for method %s"
-                        (rem-join-and invalid-remotes)
-                        (if (= (length invalid-remotes) 1) "is" "are")
-                        .method))
-          (setq stp-current-package pkg-name)
-          (stp-set-attribute pkg-name 'remote new-remote)
-          (if new-other-remotes
-              (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
-            (stp-delete-attribute pkg-name 'other-remotes))
-          (stp-write-info)
-          (stp-git-commit-push (if stp-edit-remotes-long-commit-msg
-                                   (format "Set remote to %s and other remotes to %S for %s"
-                                           new-remote
-                                           new-other-remotes
-                                           pkg-name)
-                                 (format "Edited the remotes for %s" pkg-name))
-                               :do-commit do-commit
-                               :do-push do-push)
-          (when (stp-maybe-call do-lock)
-            (stp-update-lock-file))
-          (when refresh
-            (stp-list-refresh :quiet t)))
-      (stp-msg "There are no remotes to edit%s"
-               (if pkg-name
-                   (format "for %s" pkg-name)
-                 "")))))
-
-(defun stp-toggle-update-command ()
-  "Toggle the update attribute of a package interactively."
-  (interactive)
-  (stp-with-memoization
-    (stp-refresh-info)
-    (apply #'stp-toggle-update (stp-command-args))))
-
-(cl-defun stp-toggle-update (pkg-name &key do-commit do-push do-lock (refresh t))
-  "Toggle the update attribute for the package named PKG-NAME.
-
-The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
-`stp-install'."
-  (when pkg-name
-    (setq stp-current-package pkg-name)
+  (with-slots (do-commit do-push do-lock)
+      options
     (let-alist (stp-get-alist pkg-name)
-      (if (eq .method 'git)
-          (progn
-            (stp-set-attribute pkg-name 'update (stp-invert-update .update))
-            (if (eq .update 'stable)
-                (progn
-                  (setq .branch (or .branch
-                                    (stp-git-read-branch "Branch: " .remote)))
-                  (stp-set-attribute pkg-name 'branch .branch))
-              (stp-delete-attribute pkg-name 'branch))
+      (if (and pkg-name .remote (not (eq .method 'archive)))
+          (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
+                 (new-remote (car new-remotes))
+                 (new-other-remotes (cdr new-remotes))
+                 (invalid-remotes (-filter (lambda (remote)
+                                             (not (stp-valid-remote-p remote .method)))
+                                           new-remotes)))
+            (unless new-remotes
+              (user-error "At least one remote must be specified"))
+            (when invalid-remotes
+              (user-error "%s %s not valid for method %s"
+                          (rem-join-and invalid-remotes)
+                          (if (= (length invalid-remotes) 1) "is" "are")
+                          .method))
+            (setq stp-current-package pkg-name)
+            (stp-set-attribute pkg-name 'remote new-remote)
+            (if new-other-remotes
+                (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
+              (stp-delete-attribute pkg-name 'other-remotes))
             (stp-write-info)
-            (stp-git-commit-push (format "Changed update to %s for %s"
-                                         (stp-invert-update .update)
-                                         pkg-name)
+            (stp-git-commit-push (if stp-edit-remotes-long-commit-msg
+                                     (format "Set remote to %s and other remotes to %S for %s"
+                                             new-remote
+                                             new-other-remotes
+                                             pkg-name)
+                                   (format "Edited the remotes for %s" pkg-name))
                                  :do-commit do-commit
                                  :do-push do-push)
             (when (stp-maybe-call do-lock)
               (stp-update-lock-file))
             (when refresh
               (stp-list-refresh :quiet t)))
-        (user-error "The update attribute can only be toggled for git packages.")))))
+        (stp-msg "There are no remotes to edit%s"
+                 (if pkg-name
+                     (format "for %s" pkg-name)
+                   ""))))))
+
+(defun stp-toggle-update-command ()
+  "Toggle the update attribute of a package interactively."
+  (interactive)
+  (stp-with-memoization
+    (stp-refresh-info)
+    (apply #'stp-toggle-update (rem-at-end (stp-command-args-new) (stp-command-options)))))
+
+(cl-defun stp-toggle-update (pkg-name options &key (refresh t))
+  "Toggle the update attribute for the package named PKG-NAME.
+
+The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
+`stp-install'."
+  (when pkg-name
+    (setq stp-current-package pkg-name)
+    (with-slots (do-commit do-push do-lock)
+        options
+      (let-alist (stp-get-alist pkg-name)
+        (if (eq .method 'git)
+            (progn
+              (stp-set-attribute pkg-name 'update (stp-invert-update .update))
+              (if (eq .update 'stable)
+                  (progn
+                    (setq .branch (or .branch
+                                      (stp-git-read-branch "Branch: " .remote)))
+                    (stp-set-attribute pkg-name 'branch .branch))
+                (stp-delete-attribute pkg-name 'branch))
+              (stp-write-info)
+              (stp-git-commit-push (format "Changed update to %s for %s"
+                                           (stp-invert-update .update)
+                                           pkg-name)
+                                   :do-commit do-commit
+                                   :do-push do-push)
+              (when (stp-maybe-call do-lock)
+                (stp-update-lock-file))
+              (when refresh
+                (stp-list-refresh :quiet t)))
+          (user-error "The update attribute can only be toggled for git packages."))))))
 
 (defun stp-toggle-dependency-command ()
   "Toggle the dependency attribute of a package interactively.
@@ -1487,23 +1492,25 @@ The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
 This indicates that the packages was installed because another
 package requires it rather than explicitly by the user."
   (interactive)
-  (apply #'stp-toggle-dependency (stp-command-args)))
+  (apply #'stp-toggle-dependency (rem-at-end (stp-command-args-new) (stp-command-options))))
 
-(cl-defun stp-toggle-dependency (pkg-name &key do-commit do-push do-lock)
+(cl-defun stp-toggle-dependency (pkg-name options)
   (when pkg-name
     (setq stp-current-package pkg-name)
-    (let ((dependency (stp-get-attribute pkg-name 'dependency)))
-      (if dependency
-          (stp-delete-attribute pkg-name 'dependency)
-        (stp-set-attribute pkg-name 'dependency t))
-      (stp-write-info)
-      (stp-git-commit-push (format "Changed dependency to %s for %s"
-                                   (not dependency)
-                                   pkg-name)
-                           :do-commit do-commit
-                           :do-push do-push)
-      (when (stp-maybe-call do-lock)
-        (stp-update-lock-file)))))
+    (with-slots (do-commit do-push do-lock)
+        options
+      (let ((dependency (stp-get-attribute pkg-name 'dependency)))
+        (if dependency
+            (stp-delete-attribute pkg-name 'dependency)
+          (stp-set-attribute pkg-name 'dependency t))
+        (stp-write-info)
+        (stp-git-commit-push (format "Changed dependency to %s for %s"
+                                     (not dependency)
+                                     pkg-name)
+                             :do-commit do-commit
+                             :do-push do-push)
+        (when (stp-maybe-call do-lock)
+          (stp-update-lock-file))))))
 
 (defun stp-post-actions-command ()
   "Perform actions for newly installed or upgraded packages.
@@ -2697,16 +2704,17 @@ but are no longer required by any other package."
         (stp-msg " are no longer required and can be uninstalled" (apply #'rem-join-and pkgs))
       (stp-msg "No unnecessary dependencies were found"))))
 
-(defun stp-delete-unnecessary-dependencies (&key do-commit do-push)
+(defun stp-delete-unnecessary-dependencies (options)
   "Uninstall packages that were installed as dependencies but are no
 longer required by any other package."
-  (interactive (stp-command-kwd-args :lock nil))
+  (interactive (list (stp-command-options :class 'stp-basic-task-options)))
   (stp-refresh-info)
-  (let ((pkgs (stp-find-unnecessary-dependencies)))
-    (stp-maybe-uninstall-requirements pkgs :do-commit do-commit)
-    (stp-git-push :do-push do-push)))
+  (with-slots (do-commit do-push)
+      (let ((pkgs (stp-find-unnecessary-dependencies)))
+        (stp-maybe-uninstall-requirements pkgs :do-commit do-commit)
+        (stp-git-push :do-push do-push))))
 
-(cl-defun stp-bump-version (filename &key do-commit do-push do-tag)
+(cl-defun stp-bump-version (filename options)
   "Increase the version header for FILENAME. Interactively, this is
 the file for the current buffer or the main file for the package
 if no version header is found for the current file."
@@ -2724,36 +2732,37 @@ if no version header is found for the current file."
                                       (fn (aand (stp-git-root)
                                                 (stp-main-package-file it)))
                                       (fn (user-error "No Version header was found")))))
-                     (stp-command-kwd-args :lock nil :tag t :ensure-clean nil)))
-  (when (stp-maybe-call do-commit)
-    (stp-maybe-ensure-clean))
-  (let ((clean (stp-git-clean-p)))
-    (save-excursion
-      (find-file filename)
-      (let* ((version (stp-headers-version))
-             (new-version (rem-read-from-mini (format "New version (> %s): " version) :initial-contents version)))
-        (unless version
-          (error "No Version header was found in this buffer"))
-        (unless (and (ignore-errors (version-to-list new-version))
-                     (version< version new-version))
-          (user-error "%s must a valid version newer than %s" new-version version))
-        (delete-region (point) (line-end-position))
-        (insert new-version)
-        (when (stp-maybe-call do-commit)
-          (save-buffer)
-          (stp-git-add default-directory :update t)
-          (let ((msg (format "Bumped the version to %s" new-version)))
-            ;; Give the user a chance to use their own stp-msg if we aren't just
-            ;; bumping the version in this commit.
-            (unless clean
-              (setq msg (rem-read-from-mini "Commit message: " :initial-contents msg)))
-            (stp-git-commit msg :do-commit t))
-          (when (stp-maybe-call do-tag)
-            (let ((tag (concat "v" new-version)))
-              (stp-git-tag tag (stp-git-head default-directory))
-              (stp-msg "Added the git tag %s for %s" tag (stp-git-root :transform #'f-full))))
-          (stp-git-push :do-push do-push)
-          (stp-git-push :do-push do-push :tags t))))))
+                     (stp-command-options :class 'stp-bump-task-options)))
+  (with-slots (do-commit do-push do-lock)
+      (when (stp-maybe-call do-commit)
+        (stp-maybe-ensure-clean))
+    (let ((clean (stp-git-clean-p)))
+      (save-excursion
+        (find-file filename)
+        (let* ((version (stp-headers-version))
+               (new-version (rem-read-from-mini (format "New version (> %s): " version) :initial-contents version)))
+          (unless version
+            (error "No Version header was found in this buffer"))
+          (unless (and (ignore-errors (version-to-list new-version))
+                       (version< version new-version))
+            (user-error "%s must a valid version newer than %s" new-version version))
+          (delete-region (point) (line-end-position))
+          (insert new-version)
+          (when (stp-maybe-call do-commit)
+            (save-buffer)
+            (stp-git-add default-directory :update t)
+            (let ((msg (format "Bumped the version to %s" new-version)))
+              ;; Give the user a chance to use their own stp-msg if we aren't just
+              ;; bumping the version in this commit.
+              (unless clean
+                (setq msg (rem-read-from-mini "Commit message: " :initial-contents msg)))
+              (stp-git-commit msg :do-commit t))
+            (when (stp-maybe-call do-tag)
+              (let ((tag (concat "v" new-version)))
+                (stp-git-tag tag (stp-git-head default-directory))
+                (stp-msg "Added the git tag %s for %s" tag (stp-git-root :transform #'f-full))))
+            (stp-git-push :do-push do-push)
+            (stp-git-push :do-push do-push :tags t)))))))
 
 (defun stp-savehist-setup ()
   (with-eval-after-load "savehist"

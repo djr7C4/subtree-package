@@ -37,8 +37,6 @@ the minimum required by another package.")
 (defclass stp-package-task-options (stp-basic-task-options)
   ((do-lock :initform (symbol-value 'stp-auto-lock))))
 
-(defclass stp-uninstall-task-options (stp-package-task-options) ())
-
 (defclass stp-additive-task-options (stp-package-task-options)
   ((do-actions :initform (symbol-value 'stp-auto-post-actions))
    (do-audit :initform (symbol-value 'stp-audit-changes))
@@ -48,10 +46,7 @@ the minimum required by another package.")
    (do-build-info :initform (symbol-value 'stp-auto-build-info))
    (do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
 
-(defclass stp-install-task-options (stp-additive-task-options) ())
-(defclass stp-upgrade-task-options (stp-additive-task-options) ())
-
-(defclass stp-tag-task-options (stp-basic-task-options)
+(defclass stp-bump-task-options (stp-basic-task-options)
   ((do-tag :initform (symbol-value 'stp-auto-tag))))
 
 ;; TODO: use in code
