@@ -37,14 +37,16 @@ the minimum required by another package.")
 (defclass stp-package-task-options (stp-basic-task-options)
   ((do-lock :initform (symbol-value 'stp-auto-lock))))
 
-(defclass stp-additive-task-options (stp-package-task-options)
+(defclass stp-action-task-options (stp-task-options)
   ((do-actions :initform (symbol-value 'stp-auto-post-actions))
-   (do-audit :initform (symbol-value 'stp-audit-changes))
    (do-update-load-path :initform (symbol-value 'stp-auto-update-load-path))
    (do-load :initform (symbol-value 'stp-auto-load))
    (do-build :initform (symbol-value 'stp-auto-build))
    (do-build-info :initform (symbol-value 'stp-auto-build-info))
    (do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
+
+(defclass stp-additive-task-options (stp-package-task-options stp-action-task-options)
+  ((do-audit :initform (symbol-value 'stp-audit-changes))))
 
 (defclass stp-bump-task-options (stp-basic-task-options)
   ((do-tag :initform (symbol-value 'stp-auto-tag))))
@@ -52,7 +54,7 @@ the minimum required by another package.")
 ;; TODO: use in code
 ;; TODO: Combine features of `stp-ensure-requirements',
 ;; `stp-maybe-uninstall-requirements' and `stp-report-requirements'.
-(defun stp-execute-tasks (tasks))
+(defun stp-execute (tasks))
 
 (provide 'stp-executor)
 ;;; stp-executor.el ends here

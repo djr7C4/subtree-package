@@ -786,7 +786,7 @@ of packages are installed or upgraded as needed."
           (when (stp-maybe-call do-lock)
             (stp-update-lock-file))
           (when (stp-maybe-call do-actions)
-            (stp-post-actions pkg-name))
+            (stp-post-actions pkg-name (stp-post-actions-options stp-auto-update-load-path stp-auto-load stp-auto-build stp-auto-build-info stp-auto-update-info-directories)))
           (when (and ensure-requirements stp-requirements-toplevel)
             (stp-report-requirements 'install))
           (when refresh
@@ -928,7 +928,7 @@ DO-AUDIT are as in `stp-install'."
                 (when (stp-maybe-call do-lock)
                   (stp-update-lock-file))
                 (when (stp-maybe-call do-actions)
-                  (stp-post-actions pkg-name)))
+                  (stp-post-actions pkg-name (stp-post-actions-options stp-auto-update-load-path stp-auto-load stp-auto-build stp-auto-build-info stp-auto-update-info-directories))))
               (when (and ensure-requirements stp-requirements-toplevel)
                 (stp-report-requirements 'upgrade))
               (when refresh
@@ -1511,22 +1511,48 @@ package and updating the load path."
   (interactive)
   (stp-with-memoization
     (stp-refresh-info)
-    (stp-post-actions (stp-list-read-name "Package name: "))))
+    (stp-post-actions (stp-list-read-name "Package name: ")
+                      (stp-command-options :class 'stp-action-task-options))))
 
-(defun stp-post-actions (pkg-name)
+;; TODO: remote this compatibility kludge (it is only for migration purposes)
+(defun stp-post-actions-options (do-update-load-path
+                                 do-load
+                                 do-build
+                                 do-build-info
+                                 do-update-info-directories)
+  (let ((options (make-instance 'stp-action-task-options)))
+    (with-slots ((do-update-load-path-option do-update-load-path)
+                 (do-load-option do-load)
+                 (do-build-option do-build)
+                 (do-build-info-option do-build-info)
+                 (do-update-info-directories-option do-update-info-directories))
+        options
+      (setf do-update-load-path-option do-update-load-path
+            do-load-option do-load
+            do-build-option do-build
+            do-build-info-option do-build-info
+            do-update-info-directories-option do-update-info-directories))))
+
+(defun stp-post-actions (pkg-name options)
   (setq stp-current-package pkg-name)
-  (when (stp-maybe-call stp-auto-update-load-path)
-    (stp-update-load-path (stp-full-path pkg-name)))
-  (when (stp-maybe-call stp-auto-build)
-    (stp-build pkg-name))
-  (when (stp-maybe-call stp-auto-load)
-    (condition-case err
-        (stp-reload pkg-name)
-      (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
-  (when (stp-maybe-call stp-auto-build-info)
-    (stp-build-info pkg-name))
-  (when (stp-maybe-call stp-auto-update-info-directories)
-    (stp-update-info-directories pkg-name)))
+  (with-slots (do-update-load-path
+               do-load
+               do-build
+               do-build-info
+               do-update-info-directories)
+      options
+    (when (stp-maybe-call do-update-load-path)
+      (stp-update-load-path (stp-full-path pkg-name)))
+    (when (stp-maybe-call do-build)
+      (stp-build pkg-name))
+    (when (stp-maybe-call do-load)
+      (condition-case err
+          (stp-reload pkg-name)
+        (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
+    (when (stp-maybe-call do-build-info)
+      (stp-build-info pkg-name))
+    (when (stp-maybe-call do-update-info-directories)
+      (stp-update-info-directories pkg-name))))
 
 (defun stp-update-lock-file (&optional interactive-p)
   "Write the hash of the git repository to the lock file."
