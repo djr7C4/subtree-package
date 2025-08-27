@@ -646,7 +646,7 @@ returned."
         ;; TODO: Should create an install task and call stp-executor
         (apply #'stp-install args)))))
 
-(cl-defun stp-install (pkg-name pkg-alist options &key dependency (refresh t))
+(cl-defun stp-install (pkg-name pkg-alist options &key dependency (ensure-requirements t) (refresh t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
 
 If DO-COMMIT is non-nil, automatically commit to the git
@@ -669,45 +669,47 @@ of packages are installed or upgraded as needed."
   (when pkg-name
     (setq stp-current-package pkg-name)
     (stp-requirements-initialize-toplevel)
-    (let ((last-hash (stp-git-head)))
-      (let-alist pkg-alist
-        ;; Guess the method if it isn't already known.
-        (unless .method
-          (setq .method (stp-remote-method .remote))
-          (stp-set-attribute pkg-name 'method .method))
-        (when (stp-url-safe-remote-p .remote)
-          (cl-ecase .method
-            (git (stp-git-install pkg-name .remote .version .update :branch .branch))
-            (elpa (stp-elpa-install pkg-name .remote .version))
-            (archive (stp-archive-install pkg-name .remote))
-            (url (stp-url-install pkg-name .remote .version)))
-          (stp-maybe-audit-changes pkg-name 'install last-hash do-audit)
-          (stp-update-remotes pkg-name .remote .remote .other-remotes)
-          (stp-update-requirements pkg-name)
-          (when dependency
-            (stp-set-attribute pkg-name 'dependency t))
-          (stp-write-info)
-          ;; For archives, the version is determined automatically instead of
-          ;; being read and so .version will be nil here.
-          (setq .version (stp-get-attribute pkg-name 'version))
-          (stp-git-commit-push (format "Installed version %s of %s"
-                                       (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                       pkg-name)
-                               :do-commit do-commit
-                               :do-push do-push)
-          (when ensure-requirements
-            (let ((stp-requirements-toplevel nil))
-              (ignore stp-requirements-toplevel)
-              (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
-          (when (stp-maybe-call do-lock)
-            (stp-update-lock-file))
-          (when (stp-maybe-call do-actions)
-            (stp-post-actions pkg-name))
-          (when stp-requirements-toplevel
-            (stp-report-requirements 'install))
-          (when refresh
-            (stp-update-cached-latest pkg-name)
-            (stp-list-refresh :quiet t)))))))
+    (with-slots (do-commit do-push do-lock do-actions do-audit)
+        options
+      (let ((last-hash (stp-git-head)))
+        (let-alist pkg-alist
+          ;; Guess the method if it isn't already known.
+          (unless .method
+            (setq .method (stp-remote-method .remote))
+            (stp-set-attribute pkg-name 'method .method))
+          (when (stp-url-safe-remote-p .remote)
+            (cl-ecase .method
+              (git (stp-git-install pkg-name .remote .version .update :branch .branch))
+              (elpa (stp-elpa-install pkg-name .remote .version))
+              (archive (stp-archive-install pkg-name .remote))
+              (url (stp-url-install pkg-name .remote .version)))
+            (stp-maybe-audit-changes pkg-name 'install last-hash do-audit)
+            (stp-update-remotes pkg-name .remote .remote .other-remotes)
+            (stp-update-requirements pkg-name)
+            (when dependency
+              (stp-set-attribute pkg-name 'dependency t))
+            (stp-write-info)
+            ;; For archives, the version is determined automatically instead of
+            ;; being read and so .version will be nil here.
+            (setq .version (stp-get-attribute pkg-name 'version))
+            (stp-git-commit-push (format "Installed version %s of %s"
+                                         (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                         pkg-name)
+                                 :do-commit do-commit
+                                 :do-push do-push)
+            (when ensure-requirements
+              (let ((stp-requirements-toplevel nil))
+                (ignore stp-requirements-toplevel)
+                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
+            (when (stp-maybe-call do-lock)
+              (stp-update-lock-file))
+            (when (stp-maybe-call do-actions)
+              (stp-post-actions pkg-name))
+            (when stp-requirements-toplevel
+              (stp-report-requirements 'install))
+            (when refresh
+              (stp-update-cached-latest pkg-name)
+              (stp-list-refresh :quiet t))))))))
 
 (defun stp-uninstall-command ()
   "Uninstall a package interactively."
@@ -725,33 +727,36 @@ The arguments DO-COMMIT, DO-PUSH, and DO-LOCK are as in
 that are not needed anymore should also be removed."
   (when pkg-name
     (setq stp-current-package pkg-name)
-    (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
-          (requirements (stp-get-attribute pkg-name 'requirements)))
-      (let-alist (stp-get-alist pkg-name)
-        (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
-            (progn
-              (f-delete pkg-name t)
-              (stp-delete-alist pkg-name)
-              (stp-write-info)
-              (cl-dolist (feature features)
-                (push feature stp-headers-uninstalled-features))
-              (stp-delete-load-path pkg-name)
-              (stp-git-commit-push (format "Uninstalled version %s of %s"
-                                           (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                           pkg-name)
-                                   :do-commit do-commit
-                                   :do-push (and (not uninstall-requirements) do-push))
-              (when uninstall-requirements
-                (stp-maybe-uninstall-requirements requirements :do-commit do-commit)
-                (stp-git-push :do-push do-push))
-              (when (stp-maybe-call do-lock)
-                (stp-update-lock-file))
-              (when (and uninstall-requirements stp-requirements-toplevel)
-                (stp-report-requirements 'uninstall))
-              (when refresh
-                (stp-list-refresh :quiet t))
-              (stp-prune-cached-latest-versions pkg-name))
-          (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))
+    (stp-requirements-initialize-toplevel)
+    (with-slots (do-commit do-push do-lock)
+        options
+      (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
+            (requirements (stp-get-attribute pkg-name 'requirements)))
+        (let-alist (stp-get-alist pkg-name)
+          (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
+              (progn
+                (f-delete pkg-name t)
+                (stp-delete-alist pkg-name)
+                (stp-write-info)
+                (cl-dolist (feature features)
+                  (push feature stp-headers-uninstalled-features))
+                (stp-delete-load-path pkg-name)
+                (stp-git-commit-push (format "Uninstalled version %s of %s"
+                                             (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                             pkg-name)
+                                     :do-commit do-commit
+                                     :do-push (and (not uninstall-requirements) do-push))
+                (when uninstall-requirements
+                  (stp-maybe-uninstall-requirements requirements :do-commit do-commit)
+                  (stp-git-push :do-push do-push))
+                (when (stp-maybe-call do-lock)
+                  (stp-update-lock-file))
+                (when (and uninstall-requirements stp-requirements-toplevel)
+                  (stp-report-requirements 'uninstall))
+                (when refresh
+                  (stp-list-refresh :quiet t))
+                (stp-prune-cached-latest-versions pkg-name))
+            (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
@@ -764,20 +769,7 @@ DO-AUDIT are as in `stp-install'."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (stp-maybe-allow-skip (allow-skip
-                             (stp-msg "Skipped upgrading %s" (if pkg-name pkg-name "a dependency")))
-        (let* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p do-push do-commit-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p do-audit do-audit-provided-p))
-               (args (append (apply #'stp-command-args
-                                    :pkg-name pkg-name
-                                    :prompt-prefix prompt-prefix
-                                    :actions t
-                                    :audit t
-                                    :min-version min-version
-                                    :enforce-min-version stp-enforce-min-version
-                                    kwd-args)
-                             (list :min-version min-version
-                                   :enforce-min-version stp-enforce-min-version))))
-          (apply #'stp-upgrade args))))))
+      (stp-upgrade (stp-command-args) ))))
 
 (cl-defun stp-upgrade (pkg-name options &key (refresh t))
   (when pkg-name
@@ -1418,11 +1410,7 @@ package and updating the load path."
     (stp-post-actions (stp-list-read-name "Package name: "))))
 
 (defun stp-post-actions (pkg-name options)
-  (with-slots (do-update-load-path
-               do-load
-               do-build
-               do-build-info
-               do-update-info-directories)
+  (with-slots (do-update-load-path do-load do-build do-build-info do-update-info-directories)
       options
     (setq stp-current-package pkg-name)
     (when (stp-maybe-call do-update-load-path)
