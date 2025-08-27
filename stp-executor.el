@@ -4,7 +4,7 @@
 
 ;; TODO: use in code
 (defclass stp-operation ()
-  (pkg-name :initarg :pkg-name))
+  ((pkg-name :initarg :pkg-name :initform nil)))
 
 (defclass stp-package-operation (stp-operation) ())
 
@@ -31,25 +31,25 @@ the minimum required by another package.")
 (defclass stp-task-options () ())
 
 (defclass stp-basic-task-options (stp-task-options)
-  ((do-commit :initform (symbol-value 'stp-auto-commit))
-   (do-push :initform (symbol-value 'stp-auto-push))))
+  ((do-commit :initarg :do-commit :initform (symbol-value 'stp-auto-commit))
+   (do-push :initarg :do-push :initform (symbol-value 'stp-auto-push))))
 
 (defclass stp-package-task-options (stp-basic-task-options)
-  ((do-lock :initform (symbol-value 'stp-auto-lock))))
+  ((do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))))
 
 (defclass stp-action-task-options (stp-task-options)
-  ((do-actions :initform (symbol-value 'stp-auto-post-actions))
-   (do-update-load-path :initform (symbol-value 'stp-auto-update-load-path))
-   (do-load :initform (symbol-value 'stp-auto-load))
-   (do-build :initform (symbol-value 'stp-auto-build))
-   (do-build-info :initform (symbol-value 'stp-auto-build-info))
-   (do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
+  ((do-actions :initarg :do-actions :initform (symbol-value 'stp-auto-post-actions))
+   (do-update-load-path :initarg :do-update-load-path :initform (symbol-value 'stp-auto-update-load-path))
+   (do-load :initarg :do-load :initform (symbol-value 'stp-auto-load))
+   (do-build :initarg :do-build :initform (symbol-value 'stp-auto-build))
+   (do-build-info :initarg :do-build-info :initform (symbol-value 'stp-auto-build-info))
+   (do-update-info-directories :initarg :do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
 
 (defclass stp-additive-task-options (stp-package-task-options stp-action-task-options)
-  ((do-audit :initform (symbol-value 'stp-audit-changes))))
+  ((do-audit :initarg :do-audit :initform (symbol-value 'stp-audit-changes))))
 
 (defclass stp-bump-task-options (stp-basic-task-options)
-  ((do-tag :initform (symbol-value 'stp-auto-tag))))
+  ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
 
 ;; TODO: use in code
 ;; TODO: Combine features of `stp-ensure-requirements',
