@@ -4,8 +4,7 @@
 
 ;; TODO: use in code
 (defclass stp-operation ()
-  (pkg-name :initarg :pkg-name)
-  (controller :initarg controller))
+  (pkg-name :initarg :pkg-name))
 
 (defclass stp-package-operation (stp-operation) ())
 
