@@ -1171,6 +1171,7 @@ are not satisfied to the user."
 `stp-source-directory' is used.")
 
 (defun stp-fork-command ()
+  "Fork the repository for a package."
   (interactive)
   (stp-refresh-info)
   (let ((pkg-name (stp-list-read-name "Package name: ")))
