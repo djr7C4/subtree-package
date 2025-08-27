@@ -108,7 +108,7 @@ Other versions are not abbreviated."
        'stp-remote-history)
       stp-normalize-remote))
 
-(cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix ""))
+(cl-defun stp-read-remote-or-archive (prompt &key default-remote (prompt-prefix ""))
   "Read a package name and remote of any type or a package archive.
 
 When the input is ambiguous and could be package name or a local
@@ -116,15 +116,12 @@ path, it will be treated as a package name unless it contains a
 slash. Return a cons cell the contains the package name and the
 remote or archive. Archives are represented as symbols."
   (stp-archive-ensure-loaded)
-  (let* ((archive-names (if pkg-name
-                            (ensure-list (cl-find pkg-name (stp-archive-package-names) :test #'string=))
-                          (stp-archive-package-names)))
+  (let* ((archive-names (stp-archive-package-names))
          (name-or-remote (stp-comp-read-remote prompt archive-names :default default-remote :normalize nil)))
     (if (member name-or-remote archive-names)
-        (progn
+        (let ((pkg-name name-or-remote))
           ;; If the user chose a package name, find remotes from
           ;; `package-archive-contents' and allow the user to choose one.
-          (setq pkg-name name-or-remote)
           (let* ((archives (stp-archives pkg-name))
                  (archive-alist (mapcar (lambda (archive)
                                           (cons (format "%s (package archive)" archive)
@@ -143,12 +140,11 @@ remote or archive. Archives are represented as symbols."
                                (car (s-split " " remote-or-archive))))))
       ;; Otherwise the user chose a remote so prompt for its package name.
       (let ((remote (stp-normalize-remote name-or-remote)))
-        (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") :default (stp-default-name remote)))
+        (cons (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") :default (stp-default-name remote))
               remote)))))
 
-(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
+(cl-defun stp-read-package (&key pkg-alist (prompt-prefix "") min-version enforce-min-version)
   (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
-                                                              :pkg-name pkg-name
                                                               :default-remote (map-elt pkg-alist 'remote)))
           (method (stp-remote-method remote)))
     (let (version update branch)
@@ -538,13 +534,13 @@ is one. Otherwise, prompt the user for a package."
 (defun stp-toggle-options (options)
   (stp-toggle-object "Toggle options: " options))
 
-(cl-defun stp-command-options (class &key toggle-p (fn current-prefix-arg))
+(cl-defun stp-command-options (class &key (toggle-p (fn current-prefix-arg)))
   (let ((options (make-instance class)))
     (if (stp-maybe-call toggle-p)
         (stp-toggle-options options)
       options)))
 
-(cl-defun stp-command-args (&key (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) (line-pkg t))
+(cl-defun stp-command-args (&key (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) (line-pkg t) min-version enforce-min-version)
   "Prepare an argument list for an interactive command.
 
 The first argument included in the list is the name of the
@@ -554,22 +550,24 @@ READ-PKG-LIST is non-nil, a package alist will be read from the
 user and included as an additional positional argument. When
 LINE-PKG is non-nil (as it is by default), any data that would
 normally be read from the user will be inferred from the cursor
-position when `stp-list-mode' is active."
+position when `stp-list-mode' is active. MIN-VERSION is the
+minimum version that should be selected for this package. If
+ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
   (stp-with-package-source-directory
     (plet* ((`(,pkg-name . ,pkg-alist)
              (or (and read-pkg-alist
-                      (stp-read-package :pkg-name pkg-name
-                                        :prompt-prefix prompt-prefix
+                      (stp-read-package :prompt-prefix prompt-prefix
                                         :min-version min-version
                                         :enforce-min-version enforce-min-version))
-                 `(,pkg-name)))
-            (pkg-name (cond
-                       (line-pkg
-                        (stp-list-read-name "Package name: "))
-                       (existing-pkg
-                        (stp-read-existing-name "Package name: "))
-                       (t
-                        (stp-read-name "Package name: ")))))
+                 '(nil)))
+            (pkg-name (or pkg-name
+                          (cond
+                           (line-pkg
+                            (stp-list-read-name "Package name: "))
+                           (existing-pkg
+                            (stp-read-existing-name "Package name: "))
+                           (t
+                            (stp-read-name "Package name: "))))))
       (append (list pkg-name)
               (when pkg-version
                 (list (stp-get-attribute pkg-name 'version)))
@@ -643,12 +641,10 @@ returned."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (stp-maybe-allow-skip (allow-skip
-                             (stp-msg "Skipped installing %s" (if pkg-name pkg-name "a dependency")))
-        (let* ((args (append (stp-command-args :read-pkg-alist t :existing-pkg nil :line-pkg nil)
-                             (list (stp-command-options 'stp-install-task-options)))))
-          ;; TODO: Should create an install task and call stp-executor
-          (apply #'stp-install args))))))
+      (let* ((args (append (stp-command-args :read-pkg-alist t :existing-pkg nil :line-pkg nil)
+                           (list (stp-command-options 'stp-install-task-options)))))
+        ;; TODO: Should create an install task and call stp-executor
+        (apply #'stp-install args)))))
 
 (cl-defun stp-install (pkg-name pkg-alist options &key dependency (refresh t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
@@ -1260,7 +1256,7 @@ negative, repair all packages."
           (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
         (apply #'stp-repair (stp-command-args :toggle-p (fn (consp current-prefix-arg))))))))
 
-(cl-defun stp-repair (pkg-name options (refresh t))
+(cl-defun stp-repair (pkg-name options &key (refresh t))
   "Repair the package named pkg-name.
 
 The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in

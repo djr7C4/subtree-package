@@ -15,7 +15,6 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (require 'f)
-(require 'rem)
 (require 's)
 (require 'stp-bootstrap)
 (require 'stp-utils)

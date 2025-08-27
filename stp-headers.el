@@ -14,8 +14,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+(require 'cl-lib)
 (require 'lisp-mnt)
 (require 'rem)
+(require 'rem-abbrev)
 (require 'stp-git)
 (require 'stp-git-utils)
 (require 'stp-utils)

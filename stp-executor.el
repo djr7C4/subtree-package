@@ -1,7 +1,5 @@
 ;;; -*- lexical-binding: t; -*-
 
-(require 'rem)
-(require 'rem-abbrev)
 (require 'stp-utils)
 
 ;; TODO: use in code
