@@ -553,14 +553,13 @@ corresponds to that line."
   (or (stp-list-package-on-previous-line)
       (stp-list-package-on-next-line)))
 
-(cl-defun stp-list-read-name (prompt &key allow-skip)
+(cl-defun stp-list-read-name (prompt)
   "In `stp-list-mode', return the package on the current line if there
 is one. Otherwise, prompt the user for a package."
   (stp-refresh-info)
-  (stp-maybe-allow-skip (allow-skip)
-    (or (and (derived-mode-p 'stp-list-mode)
-             (stp-list-package-on-line))
-        (stp-read-existing-name prompt))))
+  (or (and (derived-mode-p 'stp-list-mode)
+           (stp-list-package-on-line))
+      (stp-read-existing-name prompt)))
 
 (defun stp-toggle-options (options)
   (stp-toggle-object "Toggle options: " options))
@@ -702,17 +701,13 @@ prior state after an audit fails.")
 
 (defvar stp-requirements-toplevel t)
 
-(cl-defun stp-install-command (&key pkg-name (prompt-prefix "") min-version allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) dependency)
+(cl-defun stp-install-command (&key pkg-name (prompt-prefix "") min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) dependency)
   "If `stp-auto-commit', `stp-auto-push', `stp-auto-lock',
 `stp-auto-post-actions' and `stp-audit-changes' are non-nil,
 commit, push update the lock file, perform post actions (see
 `stp-auto-post-actions') and audit the package before running
 actions. With a prefix argument, each of these can be toggled via
-an interactive menu before running the command.
-
-When ALLOW-SKIP is non-nil, the user is allowed to skip
-installing the package. This will result in \\='SKIP being
-returned."
+an interactive menu before running the command."
   (interactive)
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
@@ -720,22 +715,20 @@ returned."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (stp-maybe-allow-skip (allow-skip
-                             (stp-msg "Skipped installing %s" (if pkg-name pkg-name "a dependency")))
-        (let* ((kwd-args (rem-maybe-kwd-args do-commit do-commit-provided-p do-push do-push-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p do-audit do-audit-provided-p))
-               (args (append (apply #'stp-command-args
-                                    :pkg-name pkg-name
-                                    :prompt-prefix prompt-prefix
-                                    :actions t
-                                    :audit t
-                                    :read-pkg-alist t
-                                    :existing-pkg nil
-                                    :line-pkg nil
-                                    :min-version min-version
-                                    :enforce-min-version stp-enforce-min-version
-                                    kwd-args)
-                             (list :dependency dependency))))
-          (apply #'stp-install args))))))
+      (let* ((kwd-args (rem-maybe-kwd-args do-commit do-commit-provided-p do-push do-push-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p do-audit do-audit-provided-p))
+             (args (append (apply #'stp-command-args
+                                  :pkg-name pkg-name
+                                  :prompt-prefix prompt-prefix
+                                  :actions t
+                                  :audit t
+                                  :read-pkg-alist t
+                                  :existing-pkg nil
+                                  :line-pkg nil
+                                  :min-version min-version
+                                  :enforce-min-version stp-enforce-min-version
+                                  kwd-args)
+                           (list :dependency dependency))))
+        (apply #'stp-install args)))))
 
 (cl-defun stp-install (pkg-name pkg-alist &key do-commit do-push do-lock do-actions do-audit dependency (refresh t) (ensure-requirements t))
   "Install a package named PKG-NAME that has the alist PKG-ALIST.
@@ -846,7 +839,7 @@ that are not needed anymore should also be removed."
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
-(cl-defun stp-upgrade-command (&key pkg-name min-version (prompt-prefix "") allow-skip (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p))
+(cl-defun stp-upgrade-command (&key pkg-name min-version (prompt-prefix "") (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p))
   "Upgrade a package interactively.
 
 The arguments DO-COMMIT, DO-PUSH, DO-LOCK, DO-ACTIONS and
@@ -855,20 +848,18 @@ DO-AUDIT are as in `stp-install'."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (stp-maybe-allow-skip (allow-skip
-                             (stp-msg "Skipped upgrading %s" (if pkg-name pkg-name "a dependency")))
-        (let* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p do-push do-commit-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p do-audit do-audit-provided-p))
-               (args (append (apply #'stp-command-args
-                                    :pkg-name pkg-name
-                                    :prompt-prefix prompt-prefix
-                                    :actions t
-                                    :audit t
-                                    :min-version min-version
-                                    :enforce-min-version stp-enforce-min-version
-                                    kwd-args)
-                             (list :min-version min-version
-                                   :enforce-min-version stp-enforce-min-version))))
-          (apply #'stp-upgrade args))))))
+      (let* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p do-push do-commit-provided-p do-lock do-lock-provided-p do-actions do-actions-provided-p do-audit do-audit-provided-p))
+             (args (append (apply #'stp-command-args
+                                  :pkg-name pkg-name
+                                  :prompt-prefix prompt-prefix
+                                  :actions t
+                                  :audit t
+                                  :min-version min-version
+                                  :enforce-min-version stp-enforce-min-version
+                                  kwd-args)
+                           (list :min-version min-version
+                                 :enforce-min-version stp-enforce-min-version))))
+        (apply #'stp-upgrade args)))))
 
 (cl-defun stp-upgrade (pkg-name &key do-commit do-push do-lock do-actions do-audit (refresh t) min-version enforce-min-version (ensure-requirements t))
   (when pkg-name
@@ -1027,35 +1018,34 @@ required."
              ((not (member pkg-name (stp-info-names)))
               ;; Sometimes, a single repository can contain multiple packages
               ;; and so installing the dependencies naively will result in
-              ;; multiple copies. :allow-skip t is passed so that the user can
-              ;; skip these if desired.
-              (unless (eq (stp-install-command :pkg-name pkg-name
-                                               :prompt-prefix prefix
-                                               :min-version version
-                                               :do-commit do-commit
-                                               :do-push nil
-                                               :do-lock nil
-                                               :do-actions do-actions
-                                               :dependency t
-                                               :allow-skip t)
-                          'skip)
-                (push requirement stp-successful-requirements)))
+              ;; multiple copies.
+              (stp-allow-skip (stp-msg "Skipped installing %s" pkg-name)
+                (unless (eq (stp-install-command :pkg-name pkg-name
+                                                 :prompt-prefix prefix
+                                                 :min-version version
+                                                 :do-commit do-commit
+                                                 :do-push nil
+                                                 :do-lock nil
+                                                 :do-actions do-actions
+                                                 :dependency t)
+                            'skip)
+                  (push requirement stp-successful-requirements))))
              (t
               ;; The dependency attribute is left as is when upgrading because
               ;; the package might have been installed manually originally.
-              (unless (eq (stp-upgrade-command :pkg-name pkg-name
-                                               :prompt-prefix prefix
-                                               :min-version version
-                                               :do-commit do-commit
-                                               :do-push nil
-                                               :do-lock nil
-                                               :do-actions do-actions
-                                               :allow-skip t)
-                          'skip)
-                (push requirement stp-successful-requirements)
-                (when (stp-git-merge-conflict-p)
-                  (stp-msg "One or more merge conflicts occurred while upgrading. Resolve the conflict and then press M-x `exit-recursive-edit'")
-                  (recursive-edit)))))
+              (stp-allow-skip (stp-msg "Skipped upgrading %s" pkg-name)
+                (unless (eq (stp-upgrade-command :pkg-name pkg-name
+                                                 :prompt-prefix prefix
+                                                 :min-version version
+                                                 :do-commit do-commit
+                                                 :do-push nil
+                                                 :do-lock nil
+                                                 :do-actions do-actions)
+                            'skip)
+                  (push requirement stp-successful-requirements)
+                  (when (stp-git-merge-conflict-p)
+                    (stp-msg "One or more merge conflicts occurred while upgrading. Resolve the conflict and then press M-x `exit-recursive-edit'")
+                    (recursive-edit))))))
           (error
            (push requirement stp-failed-requirements)
            (stp-msg "Failed to install or upgrade %s%s: %s"

@@ -321,12 +321,11 @@ never ends with a slash (nor does it contain any slashes)."
 (defvar-keymap stp-skip-map
   "C-c C-k" #'stp-skip-package)
 
-(cl-defmacro stp-maybe-allow-skip ((skip-sym &optional skip-form) &rest body)
+(defmacro stp-allow-skip (skip-form &rest body)
   (declare (indent 1))
   (with-gensyms (result)
     `(cl-flet ((setup-keymap ()
-                 (when ,skip-sym
-                   (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map))))))
+                 (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map)))))
        (let ((,result (minibuffer-with-setup-hook (:append #'setup-keymap)
                         (catch 'stp-skip
                           ,@body))))
