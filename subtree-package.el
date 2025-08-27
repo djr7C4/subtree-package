@@ -2727,8 +2727,9 @@ if no version header is found for the current file."
                                      (and (stp-headers-version) filename)))))
                        (cl-some #'has-version-header-p
                                 (list (buffer-file-name (buffer-base-buffer))
-                                      ;; `stp-main-package-file' can prompt the user so we don't want
-                                      ;; to actually call it unless it's really necessary.
+                                      ;; `stp-main-package-file' can prompt the
+                                      ;; user so we don't want to actually call
+                                      ;; it unless it's really necessary.
                                       (fn (aand (stp-git-root)
                                                 (stp-main-package-file it)))
                                       (fn (user-error "No Version header was found")))))
@@ -2752,8 +2753,8 @@ if no version header is found for the current file."
             (save-buffer)
             (stp-git-add default-directory :update t)
             (let ((msg (format "Bumped the version to %s" new-version)))
-              ;; Give the user a chance to use their own stp-msg if we aren't just
-              ;; bumping the version in this commit.
+              ;; Give the user a chance to use their own message if we aren't
+              ;; just bumping the version in this commit.
               (unless clean
                 (setq msg (rem-read-from-mini "Commit message: " :initial-contents msg)))
               (stp-git-commit msg :do-commit t))
