@@ -368,15 +368,26 @@ occurred."
 
 Note that even if this is ommited, some operations (such as
 subtree operations) inherently involve commits and this cannot be
-disabled. When this variable is a function it will be called to
-determine the value when it is needed.")
+disabled. When this variable is a function it will be called with
+the name of the current package to determine the value when it is
+needed. If there is no current package, no arguments will be
+passed.")
 
 (defvar stp-auto-push t
   "When non-nil, automatically push commits.
 
-This has no effect unless `stp-auto-commit'
-is non-nil. When this variable is a function it will be called to
-determine the value when it is needed.")
+This has no effect unless `stp-auto-commit' is non-nil. The value
+can also be a function as for `stp-auto-commit'.")
+
+(defvar stp-auto-lock nil
+  "When non-nil, automatically update `stp-lock-file' when packages
+are changed. The value can also be a function as for
+`stp-auto-commit'.")
+
+(defvar stp-audit-changes nil
+  "Show diffs whenever a package changes or new code is added. This
+is useful for security purposes. The value can also be a function
+as for `stp-auto-commit'.")
 
 (defvar stp-auto-post-actions t
   "When non-nil, automatically perform post actions.
@@ -385,56 +396,43 @@ The value can be either t or a list containing any of the symbols
 \\='build, update-info-directories and \\='update-load-path which
 specifies which actions should be performed after a package is
 installed or upgraded. The value t indicates that all post
-actions should be performed. When this variable is a function it
-will be called to determine the value when it is needed.")
-
-(defvar stp-audit-changes nil
-  "Show diffs whenever a package changes or new code is added. This
-is useful for security purposes.")
+actions should be performed. The value can also be a function as
+for `stp-auto-commit'.")
 
 (defvar stp-auto-tag t
   "When bumping the version, automatically tag the commit with the
-new version.")
+new version. The value can also be a function as for
+`stp-auto-commit'.")
 
 (defvar stp-auto-update-load-path t
   "When non-nil, automatically update the load path.
 
-When this variable is a function it will be called to determine
-the value when it is needed.")
+The value can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-load t
   "When non-nil, automatically load packages.
 
-When this variable is a function it will be called to determine
-the value when it is needed.")
+The value can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-build nil
   "When non-nil, automatically build pacakges.
 
-General methods which may fail for some packages are used. When
-this variable is a function it will be called to determine the
-value when it is needed.")
+General methods which may fail for some packages are used. The
+value can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-build-info t
   "When non-nil, automatically build info manuals.
 
-When this variable is a function
-it will be called to determine the value when it is needed. When
-this variable is a function it will be called to determine the
-value when it is needed.")
+When this variable is a function it will be called to determine
+the value when it is needed. The value can also be a function as
+for `stp-auto-commit'.")
 
 (defvar stp-auto-update-info-directories t
   "When non-nil, automatically update the info directories.
 
-When this variable is a function
-it will be called to determine the value when it is needed. When
-this variable is a function it will be called to determine the
-value when it is needed.")
-
-(defvar stp-auto-lock nil
-  "When non-nil, automatically update `stp-lock-file' when packages
-are changed. When this variable is a function it will be called
-to determine the value when it is needed.")
+When this variable is a function it will be called to determine
+the value when it is needed. The value can also be a function as
+for `stp-auto-commit'.")
 
 (defun stp-ensure-no-merge-conflicts ()
   (when (stp-git-merge-conflict-p)
@@ -618,7 +616,7 @@ prior state after an audit fails.")
                             ": use git reset to undo the suspicious commits"))))))
 
 (defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
-  (when (stp-maybe-call do-audit)
+  (when (stp-maybe-call do-audit pkg-name)
     (stp-audit-changes pkg-name type last-hash)))
 
 (defvar stp-requirements-toplevel t)
@@ -715,9 +713,9 @@ of packages are installed or upgraded as needed."
               (let ((stp-requirements-toplevel nil))
                 (ignore stp-requirements-toplevel)
                 (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) options)))
-            (when (stp-maybe-call do-lock)
+            (when (stp-maybe-call do-lock pkg-name)
               (stp-update-lock-file))
-            (when (stp-maybe-call do-actions)
+            (when (stp-maybe-call do-actions pkg-name)
               (stp-post-actions pkg-name options))
             (when (and ensure-requirements stp-requirements-toplevel)
               (stp-report-requirements 'install))
@@ -756,8 +754,8 @@ of packages are installed or upgraded as needed."
                                      :do-push (and (not uninstall-requirements) do-push))
                 (when uninstall-requirements
                   (stp-maybe-uninstall-requirements requirements options)
-                  (stp-git-push :do-push do-push))
-                (when (stp-maybe-call do-lock)
+                  (stp-git-push :do-push (stp-maybe-call do-push pkg-name)))
+                (when (stp-maybe-call do-lock pkg-name)
                   (stp-update-lock-file))
                 (when (and uninstall-requirements stp-requirements-toplevel)
                   (stp-report-requirements 'uninstall))
@@ -851,9 +849,9 @@ DO-AUDIT are as in `stp-install'."
                     (let ((stp-requirements-toplevel nil))
                       (ignore stp-requirements-toplevel)
                       (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) options)))
-                  (when (stp-maybe-call do-lock)
+                  (when (stp-maybe-call do-lock pkg-name)
                     (stp-update-lock-file))
-                  (when (stp-maybe-call do-actions)
+                  (when (stp-maybe-call do-actions pkg-name)
                     (stp-post-actions pkg-name options)))
                 (when (and ensure-requirements stp-requirements-toplevel)
                   (stp-report-requirements 'upgrade))
@@ -1053,7 +1051,7 @@ are not satisfied to the user."
     (funcall fun pkg-names (clone options :do-commit t :do-push nil :do-lock nil))
     (with-slots (do-push do-lock)
         options
-      (stp-git-push :do-push do-push)
+      (stp-git-push :do-push (stp-maybe-call do-push))
       (when (stp-maybe-call do-lock)
         (stp-update-lock-file)))))
 
@@ -1272,7 +1270,7 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
       (stp-git-commit-push (format "Repaired the source package %s" pkg-name)
                            :do-commit do-commit
                            :do-push do-push)
-      (when (stp-maybe-call do-lock)
+      (when (stp-maybe-call do-lock pkg-name)
         (stp-update-lock-file))
       (when refresh
         (stp-list-refresh :quiet t)))))
@@ -1348,7 +1346,7 @@ DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
                                    (format "Edited the remotes for %s" pkg-name))
                                  :do-commit do-commit
                                  :do-push do-push)
-            (when (stp-maybe-call do-lock)
+            (when (stp-maybe-call do-lock pkg-name)
               (stp-update-lock-file))
             (when refresh
               (stp-list-refresh :quiet t)))
@@ -1388,7 +1386,7 @@ The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
                                            pkg-name)
                                    :do-commit do-commit
                                    :do-push do-push)
-              (when (stp-maybe-call do-lock)
+              (when (stp-maybe-call do-lock pkg-name)
                 (stp-update-lock-file))
               (when refresh
                 (stp-list-refresh :quiet t)))
@@ -1416,7 +1414,7 @@ package requires it rather than explicitly by the user."
                                      pkg-name)
                              :do-commit do-commit
                              :do-push do-push)
-        (when (stp-maybe-call do-lock)
+        (when (stp-maybe-call do-lock pkg-name)
           (stp-update-lock-file))))))
 
 (defun stp-post-actions-command ()
@@ -1437,17 +1435,17 @@ package and updating the load path."
                do-build-info
                do-update-info-directories)
       options
-    (when (stp-maybe-call do-update-load-path)
+    (when (stp-maybe-call do-update-load-path pkg-name)
       (stp-update-load-path (stp-full-path pkg-name)))
-    (when (stp-maybe-call do-build)
+    (when (stp-maybe-call do-build pkg-name)
       (stp-build pkg-name))
-    (when (stp-maybe-call do-load)
+    (when (stp-maybe-call do-load pkg-name)
       (condition-case err
           (stp-reload pkg-name)
         (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
-    (when (stp-maybe-call do-build-info)
+    (when (stp-maybe-call do-build-info pkg-name)
       (stp-build-info pkg-name))
-    (when (stp-maybe-call do-update-info-directories)
+    (when (stp-maybe-call do-update-info-directories pkg-name)
       (stp-update-info-directories pkg-name))))
 
 (defun stp-update-lock-file (&optional interactive-p)
@@ -2623,7 +2621,7 @@ longer required by any other package."
       options
     (let ((pkgs (stp-find-unnecessary-dependencies)))
       (stp-maybe-uninstall-requirements pkgs options)
-      (stp-git-push :do-push do-push))))
+      (stp-git-push :do-push (stp-maybe-call do-push)))))
 
 (cl-defun stp-bump-version (filename options)
   "Increase the version header for FILENAME. Interactively, this is
@@ -2674,8 +2672,8 @@ if no version header is found for the current file."
               (let ((tag (concat "v" new-version)))
                 (stp-git-tag tag (stp-git-head default-directory))
                 (stp-msg "Added the git tag %s for %s" tag (stp-git-root :transform #'f-full))))
-            (stp-git-push :do-push do-push)
-            (stp-git-push :do-push do-push :tags t)))))))
+            (stp-git-push :do-push (stp-maybe-call do-push))
+            (stp-git-push :do-push (stp-maybe-call do-push) :tags t)))))))
 
 (defun stp-savehist-setup ()
   (with-eval-after-load "savehist"
