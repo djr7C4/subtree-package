@@ -473,33 +473,6 @@ command should proceed.")
              (user-error "Aborted: the repository is unclean"))
         (yes-or-no-p "The git repo is unclean. Proceed anyway?"))))
 
-(cl-defun stp-command-kwd-args (&key (lock t) actions audit tag (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p) (ensure-clean t) (toggle-p (fn current-prefix-arg)))
-  (stp-ensure-no-merge-conflicts)
-  (let ((args
-         (apply #'append
-                (list :do-commit (if do-commit-provided-p do-commit stp-auto-commit)
-                      :do-push (if do-push-provided-p do-push stp-auto-push))
-                (rem-maybe-args
-                 (list :do-lock
-                       (if do-lock-provided-p do-lock stp-auto-lock))
-                 lock
-                 (list :do-actions (if do-actions-provided-p do-actions stp-auto-post-actions))
-                 actions
-                 (list :do-audit (if do-audit-provided-p do-audit stp-audit-changes))
-                 audit
-                 (list :do-tag (if do-tag-provided-p do-tag stp-auto-tag))
-                 tag))))
-    (when (funcall toggle-p)
-      (setq args (stp-toggle-plist "Toggle option: " args)))
-    ;; Perform sanity checks.
-    (when (and (not (plist-get args :do-commit)) (plist-get args :do-tag))
-      (user-error "Tagging without committing is not allowed"))
-    (when (and (not (plist-get args :do-commit)) (plist-get args :do-push))
-      (user-error "Pushing without committing is not allowed"))
-    (when (and ensure-clean (plist-get args :do-commit))
-      (stp-maybe-ensure-clean))
-    args))
-
 (defvar stp-list-version-length 16)
 
 ;; `stp-abbreviate-remote-version' is too slow to used in `stp-list-mode' so a
@@ -571,7 +544,7 @@ is one. Otherwise, prompt the user for a package."
       options)
     (stp-validate-options options)))
 
-(cl-defun stp-command-args-new (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) (line-pkg t) min-version enforce-min-version)
+(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) (line-pkg t) min-version enforce-min-version)
   "Prepare an argument list for an interactive command.
 
 The first argument included in the list is the name of the
@@ -605,55 +578,6 @@ ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
                 (list (stp-get-attribute pkg-name 'version)))
               (when read-pkg-alist
                 (list pkg-alist))))))
-
-;; TODO: remove this once migration from the old command options system is
-;; complete
-(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) actions audit tag (line-pkg t) min-version enforce-min-version (do-commit nil do-commit-provided-p) (do-push nil do-push-provided-p) (do-lock nil do-lock-provided-p) (do-actions nil do-actions-provided-p) (do-audit nil do-audit-provided-p) (do-tag nil do-tag-provided-p) (toggle-p (fn current-prefix-arg)))
-  "Prepare an argument list for an interactive command.
-
-The first argument included in the list is the name of the
-package. If PKG-VERSION is non-nil, the \\='VERSION attribute for
-the package will be included as the next positional argument. If
-READ-PKG-LIST is non-nil, a package alist will be read from the
-user and included as an additional positional argument. ACTIONS
-determines if the do-actions keyword argument should be included.
-Similarly, AUDIT determines if do-audit should be included. TAG
-indicates if do-tag should be included. When LINE-PKG is
-non-nil (as it is by default), any data that would normally be
-read from the user will be inferred from the cursor position when
-`stp-list-mode' is active. When non-nil, MIN-VERSION indicates
-the minimum version that should be installed. TOGGLE-P is a
-function that can be used to check if command options should be
-toggled by the user via an interactive menu."
-  (stp-with-package-source-directory
-    (plet* ((kwd-args (rem-maybe-kwd-args do-commit do-push-provided-p
-                                          do-push do-commit-provided-p
-                                          do-lock do-lock-provided-p
-                                          do-actions do-actions-provided-p
-                                          do-audit do-audit-provided-p
-                                          do-tag do-tag-provided-p))
-            (args (apply #'stp-command-kwd-args :actions actions :audit audit :tag tag :toggle-p toggle-p kwd-args))
-            (`(,pkg-name . ,pkg-alist)
-             (or (and read-pkg-alist
-                      (stp-read-package :pkg-name pkg-name
-                                        :prompt-prefix prompt-prefix
-                                        :min-version min-version
-                                        :enforce-min-version enforce-min-version))
-                 `(,pkg-name)))
-            (pkg-name (or pkg-name
-                          (cond
-                           (line-pkg
-                            (stp-list-read-name "Package name: "))
-                           (existing-pkg
-                            (stp-read-existing-name "Package name: "))
-                           (t
-                            (stp-read-name "Package name: "))))))
-      (append (list pkg-name)
-              (when pkg-version
-                (list (stp-get-attribute pkg-name 'version)))
-              (when read-pkg-alist
-                (list pkg-alist))
-              args))))
 
 (defvar stp-latest-versions-stale-interval (timer-duration "1 day")
   "The number of seconds until the cached latest versions in
@@ -741,7 +665,7 @@ an interactive menu before running the command."
     (stp-with-memoization
       (stp-refresh-info)
       (apply #'stp-install
-             (rem-at-end (stp-command-args-new :pkg-name pkg-name
+             (rem-at-end (stp-command-args :pkg-name pkg-name
                                                :prompt-prefix prompt-prefix
                                                :read-pkg-alist t
                                                :existing-pkg nil
@@ -812,7 +736,7 @@ of packages are installed or upgraded as needed."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-uninstall (rem-at-end (stp-command-args-new) options)))))
+      (apply #'stp-uninstall (rem-at-end (stp-command-args) options)))))
 
 (cl-defun stp-uninstall (pkg-name options &key (refresh t) (uninstall-requirements t))
   "Uninstall the package named PKG-NAME."
@@ -860,7 +784,7 @@ DO-AUDIT are as in `stp-install'."
     (stp-with-memoization
       (stp-refresh-info)
       (apply #'stp-upgrade
-             (rem-at-end (stp-command-args-new :pkg-name pkg-name
+             (rem-at-end (stp-command-args :pkg-name pkg-name
                                                :prompt-prefix prompt-prefix
                                                :min-version min-version
                                                :enforce-min-version stp-enforce-min-version)
@@ -1227,7 +1151,7 @@ are not satisfied to the user."
     (stp-with-memoization
       (stp-refresh-info)
       (apply #'stp-reinstall
-             (rem-at-end (stp-command-args-new :pkg-version t)
+             (rem-at-end (stp-command-args :pkg-version t)
                          (stp-command-options :class 'stp-additive-task-options))))))
 
 (cl-defun stp-reinstall (pkg-name version options &key refresh skip-subtree-check)
@@ -1337,7 +1261,7 @@ negative, repair all packages."
       (if (< (prefix-numeric-value current-prefix-arg) 0)
           (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
         (apply #'stp-repair
-               (rem-at-end (stp-command-args-new)
+               (rem-at-end (stp-command-args)
                            (stp-command-options 'stp-package-task-options
                                                 :toggle-p (fn (consp current-prefix-arg)))))))))
 
@@ -1391,7 +1315,7 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (apply #'stp-edit-remotes (rem-at-end (stp-command-args-new)
+    (apply #'stp-edit-remotes (rem-at-end (stp-command-args)
                                           (stp-command-options)))))
 
 (defvar stp-edit-remotes-long-commit-msg nil)
@@ -1447,7 +1371,7 @@ DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
   (interactive)
   (stp-with-memoization
     (stp-refresh-info)
-    (apply #'stp-toggle-update (rem-at-end (stp-command-args-new) (stp-command-options)))))
+    (apply #'stp-toggle-update (rem-at-end (stp-command-args) (stp-command-options)))))
 
 (cl-defun stp-toggle-update (pkg-name options &key (refresh t))
   "Toggle the update attribute for the package named PKG-NAME.
@@ -1487,7 +1411,7 @@ The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
 This indicates that the packages was installed because another
 package requires it rather than explicitly by the user."
   (interactive)
-  (apply #'stp-toggle-dependency (rem-at-end (stp-command-args-new) (stp-command-options))))
+  (apply #'stp-toggle-dependency (rem-at-end (stp-command-args) (stp-command-options))))
 
 (cl-defun stp-toggle-dependency (pkg-name options)
   (when pkg-name
