@@ -51,6 +51,23 @@ the minimum required by another package.")
 (defclass stp-bump-task-options (stp-basic-task-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
 
+(cl-defmethod stp-validate-options ((_options stp-task-options))
+  t)
+
+(cl-defmethod stp-validate-options ((options stp-basic-task-options))
+  (with-slots (do-commit do-push)
+      options
+    (when (and (not do-commit) do-push)
+      (user-error "Pushing without committing is not allowed")))
+  (cl-call-next-method))
+
+(cl-defmethod stp-validate-options ((options stp-bump-task-options))
+  (with-slots (do-commit do-tag)
+      options
+    (when (and (not do-commit) do-tag)
+      (user-error "Tagging without committing is not allowed"))
+    (cl-call-next-method)))
+
 ;; TODO: use in code
 ;; TODO: Combine features of `stp-ensure-requirements',
 ;; `stp-maybe-uninstall-requirements' and `stp-report-requirements'.

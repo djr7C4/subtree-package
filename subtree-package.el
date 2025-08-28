@@ -568,7 +568,8 @@ is one. Otherwise, prompt the user for a package."
   (let ((options (make-instance class)))
     (if (stp-maybe-call toggle-p)
         (stp-toggle-options options)
-      options)))
+      options)
+    (stp-validate-options options)))
 
 (cl-defun stp-command-args-new (&key (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) (line-pkg t) min-version enforce-min-version)
   "Prepare an argument list for an interactive command.
@@ -1514,7 +1515,7 @@ package and updating the load path."
     (stp-post-actions (stp-list-read-name "Package name: ")
                       (stp-command-options :class 'stp-action-task-options))))
 
-;; TODO: remote this compatibility kludge (it is only for migration purposes)
+;; TODO: remove this compatibility kludge (it is only for migration purposes)
 (defun stp-post-actions-options (do-update-load-path
                                  do-load
                                  do-build
