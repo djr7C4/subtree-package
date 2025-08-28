@@ -26,7 +26,8 @@ the minimum required by another package.")
 ;; Determines which remotes, versions and so forth should be used during
 ;; installation and upgrades. This can be done either interactively or via some
 ;; policy like preferring the latest stable or unstable.
-(defclass stp-controller () ())
+(defclass stp-controller ()
+  (options :initarg :options))
 
 (defclass stp-task-options () ())
 
