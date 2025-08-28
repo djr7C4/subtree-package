@@ -795,7 +795,7 @@ of packages are installed or upgraded as needed."
             (when ensure-requirements
               (let ((stp-requirements-toplevel nil))
                 (ignore stp-requirements-toplevel)
-                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
+                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) options)))
             (when (stp-maybe-call do-lock)
               (stp-update-lock-file))
             (when (stp-maybe-call do-actions)
@@ -837,7 +837,7 @@ of packages are installed or upgraded as needed."
                                      :do-commit do-commit
                                      :do-push (and (not uninstall-requirements) do-push))
                 (when uninstall-requirements
-                  (stp-maybe-uninstall-requirements requirements :do-commit do-commit)
+                  (stp-maybe-uninstall-requirements requirements options)
                   (stp-git-push :do-push do-push))
                 (when (stp-maybe-call do-lock)
                   (stp-update-lock-file))
@@ -933,7 +933,7 @@ DO-AUDIT are as in `stp-install'."
                   (when ensure-requirements
                     (let ((stp-requirements-toplevel nil))
                       (ignore stp-requirements-toplevel)
-                      (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) :do-commit do-commit :do-actions do-actions)))
+                      (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) options)))
                   (when (stp-maybe-call do-lock)
                     (stp-update-lock-file))
                   (when (stp-maybe-call do-actions)
@@ -996,7 +996,7 @@ DO-AUDIT are as in `stp-install'."
                total-requirements
                noun)))))
 
-(cl-defun stp-ensure-requirements (requirements &key do-commit do-actions (search-load-path t))
+(cl-defun stp-ensure-requirements (requirements options &key (search-load-path t))
   "Install or upgrade each requirement to ensure that at least the
 specified version is available. REQUIREMENTS should be a list
 where each entry is either the name of a package or a list
@@ -1029,13 +1029,10 @@ required."
               ;; and so installing the dependencies naively will result in
               ;; multiple copies.
               (stp-allow-skip (stp-msg "Skipped installing %s" pkg-name)
-                (unless (eq (stp-install-command :pkg-name pkg-name
+                (unless (eq (stp-install-command options
+                                                 :pkg-name pkg-name
                                                  :prompt-prefix prefix
                                                  :min-version version
-                                                 :do-commit do-commit
-                                                 :do-push nil
-                                                 :do-lock nil
-                                                 :do-actions do-actions
                                                  :dependency t)
                             'skip)
                   (push requirement stp-successful-requirements))))
@@ -1043,13 +1040,10 @@ required."
               ;; The dependency attribute is left as is when upgrading because
               ;; the package might have been installed manually originally.
               (stp-allow-skip (stp-msg "Skipped upgrading %s" pkg-name)
-                (unless (eq (stp-upgrade-command :pkg-name pkg-name
+                (unless (eq (stp-upgrade-command options
+                                                 :pkg-name pkg-name
                                                  :prompt-prefix prefix
-                                                 :min-version version
-                                                 :do-commit do-commit
-                                                 :do-push nil
-                                                 :do-lock nil
-                                                 :do-actions do-actions)
+                                                 :min-version version)
                             'skip)
                   (push requirement stp-successful-requirements)
                   (when (stp-git-merge-conflict-p)
@@ -1067,7 +1061,7 @@ required."
     (when search-load-path
       (stp-headers-update-features))))
 
-(cl-defun stp-maybe-uninstall-requirements (requirements &key do-commit)
+(cl-defun stp-maybe-uninstall-requirements (requirements options)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
          (old-to-uninstall t)
          pkg-name)
@@ -1078,14 +1072,16 @@ required."
           (progn
             (setq old-to-uninstall (cl-copy-list to-uninstall)
                   pkg-name (stp-symbol-package-name (pop to-uninstall)))
-            ;; Only uninstall STP packages that were installed as dependencies and
-            ;; are no longer required by any package.
+            ;; Only uninstall STP packages that were installed as dependencies
+            ;; and are no longer required by any package.
             (when (and (member pkg-name (stp-info-names))
                        (stp-get-attribute pkg-name 'dependency)
                        (not (stp-required-by pkg-name)))
               (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
                 (push pkg-name stp-requirements)
-                (stp-uninstall pkg-name :do-commit do-commit :uninstall-requirements nil)
+                (stp-uninstall pkg-name
+                               (clone options :do-commit nil :do-push nil :do-lock nil)
+                               :uninstall-requirements nil)
                 (setq to-uninstall (cl-union to-uninstall
                                              (stp-requirements-to-names recursive-requirements)
                                              :test #'string=)))))
@@ -1129,19 +1125,20 @@ are not satisfied to the user."
         (insert (format "Unsatisfied requirements:\n%s" (s-join "\n" msgs))))
       (read-only-mode 1))))
 
-(cl-defun stp-package-group-command (fun table &key extra-removed-kwargs)
+(cl-defun stp-package-group-command (fun table &key (class nil class-provided-p))
   (stp-refresh-info)
   (stp-requirements-initialize-toplevel)
   (let* ((pkg-names (-> (stp-read-existing-name "Group or package name: "
                                                 :table table
                                                 :multiple t)
                         stp-expand-groups))
-         (args (stp-command-kwd-args :actions t))
-         (args2 (map-into (map-remove (fn2 (memq %1 (append '(:do-push :do-lock) extra-removed-kwargs))) args) 'plist)))
-    (funcall fun pkg-names args2)
-    (stp-git-push :do-push (map-elt args :do-push))
-    (when (stp-maybe-call (map-elt args :do-lock))
-      (stp-update-lock-file))))
+         (options (apply #'stp-command-options (rem-maybe-kwd-args class class-provided-p))))
+    (funcall fun pkg-names (clone options :do-commit t :do-push nil :do-lock nil))
+    (with-slots (do-push do-lock)
+        options
+      (stp-git-push :do-push do-push)
+      (when (stp-maybe-call do-lock)
+        (stp-update-lock-file)))))
 
 (defun stp-install-or-upgrade-package-group-command ()
   "Install or upgrade the package groups or packages."
@@ -1153,11 +1150,10 @@ are not satisfied to the user."
             (table (completion-table-in-turn (stp-get-info-group-names)
                                              (stp-info-names)
                                              (stp-archive-package-names))))
-        (stp-package-group-command (lambda (pkg-names args)
-                                     (apply #'stp-ensure-requirements
-                                            pkg-names
-                                            args))
-                                   table)
+        (stp-package-group-command (lambda (pkg-names options)
+                                     (stp-ensure-requirements pkg-names options))
+                                   table
+                                   :class 'stp-additive-task-options)
         (stp-report-requirements 'install t)))))
 
 (defun stp-uninstall-package-group-command ()
@@ -1168,11 +1164,10 @@ are not satisfied to the user."
       (stp-requirements-initialize-toplevel)
       (let ((stp-requirements-toplevel nil)
             (table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
-        (stp-package-group-command (lambda (pkg-names args)
-                                     (apply #'stp-maybe-uninstall-requirements
-                                            pkg-names
-                                            args))
-                                   table)
+        (stp-package-group-command (lambda (pkg-names options)
+                                     (stp-maybe-uninstall-requirements pkg-names options))
+                                   table
+                                   :class 'stp-package-task-options)
         (stp-report-requirements 'uninstall t)))))
 
 (defvar stp-fork-directory nil
@@ -1269,7 +1264,9 @@ are not satisfied to the user."
                      (redisplay)))
           (user-error "Reinstall aborted")))
       ;; Committing is required here because otherwise `stp-install' will fail.
-      (stp-uninstall pkg-name (clone options :do-commit t) :refresh nil)
+      (stp-uninstall pkg-name
+                     (clone options :do-commit t :do-push nil :do-lock nil)
+                     :refresh nil)
       (setf (map-elt pkg-alist 'version) version)
       ;; The :do-commit argument is not required here.
       (stp-install pkg-name pkg-alist options :refresh refresh))))
@@ -1352,7 +1349,9 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   (when pkg-name
     (with-slots (do-commit do-push do-lock)
         options
-      (stp-repair-info (clone options :do-commit nil :do-push nil) :quiet nil :pkg-names (list pkg-name))
+      (stp-repair-info (clone options :do-commit nil :do-push nil :do-lock nil)
+                       :quiet nil
+                       :pkg-names (list pkg-name))
       (stp-write-info)
       (stp-git-commit-push (format "Repaired the source package %s" pkg-name)
                            :do-commit do-commit
@@ -1375,7 +1374,8 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   "Repair the stored package information for all packages."
   (with-slots (do-commit do-push do-lock)
       options
-    (stp-repair-info (clone options :do-commit nil :do-push nil) :quiet nil)
+    (stp-repair-info (clone options :do-commit nil :do-push nil :do-lock nil)
+                     :quiet nil)
     (stp-write-info)
     (stp-git-commit-push (format "Repaired source packages")
                          :do-commit do-commit
@@ -2709,12 +2709,12 @@ but are no longer required by any other package."
 (defun stp-delete-unnecessary-dependencies (options)
   "Uninstall packages that were installed as dependencies but are no
 longer required by any other package."
-  (interactive (list (stp-command-options :class 'stp-basic-task-options)))
+  (interactive (list (stp-command-options)))
   (stp-refresh-info)
-  (with-slots (do-commit do-push)
+  (with-slots (do-push)
       options
     (let ((pkgs (stp-find-unnecessary-dependencies)))
-      (stp-maybe-uninstall-requirements pkgs :do-commit do-commit)
+      (stp-maybe-uninstall-requirements pkgs options)
       (stp-git-push :do-push do-push))))
 
 (cl-defun stp-bump-version (filename options)
