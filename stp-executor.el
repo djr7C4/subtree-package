@@ -2,9 +2,18 @@
 
 (require 'stp-utils)
 
+;; TODO: fill in
+;; Determines which remotes, versions and so forth should be used during
+;; installation and upgrades. This can be done either interactively or via some
+;; policy like preferring the latest stable or unstable.
+(defclass stp-controller ()
+  (options :initarg :options))
+
 ;; TODO: use in code
 (defclass stp-operation ()
-  ((pkg-name :initarg :pkg-name :initform nil)))
+  ((pkg-name :initarg :pkg-name :initform nil)
+   ;; This slot overrides the controller argument in `stp-execute' when non-nil.
+   (controller :initarg :controller :initform nil)))
 
 (defclass stp-package-operation (stp-operation) ())
 
@@ -21,13 +30,6 @@ the minimum required by another package.")
 (defclass stp-install-operation (stp-additive-operation) ())
 (defclass stp-upgrade-operation (stp-additive-operation) ())
 ;; TODO: fill in other types of operations
-
-;; TODO: fill in
-;; Determines which remotes, versions and so forth should be used during
-;; installation and upgrades. This can be done either interactively or via some
-;; policy like preferring the latest stable or unstable.
-(defclass stp-controller ()
-  (options :initarg :options))
 
 (defclass stp-task-options () ())
 
