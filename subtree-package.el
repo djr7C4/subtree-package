@@ -73,9 +73,6 @@ each type per interactive command."
 
 (def-edebug-spec stp-with-memoization t)
 
-(defvar stp-current-package nil
-  "The name of the package that is currently being operated on.")
-
 (defvar stp-normalize-versions nil
   "Indicates if versions should be printed in a standardized format.
 
@@ -273,7 +270,6 @@ occurred."
     (unwind-protect
         (cl-dolist (pkg-name pkg-names)
           (let ((pkg-name (stp-name pkg-name)))
-            (setq stp-current-package pkg-name)
             (let-alist (stp-get-alist pkg-name)
               (unless quiet
                 (stp-msg (concat (if (> n 1)
@@ -686,7 +682,6 @@ of packages are installed or upgraded as needed."
   ;; pkg-name may be nil in interactive calls depending on the value of
   ;; `stp-allow-unclean'. See `stp-maybe-ensure-clean'.
   (when pkg-name
-    (setq stp-current-package pkg-name)
     (stp-requirements-initialize-toplevel)
     (with-slots (do-commit do-push do-lock do-audit do-actions)
         options
@@ -741,7 +736,6 @@ of packages are installed or upgraded as needed."
 (cl-defun stp-uninstall (pkg-name options &key (refresh t) (uninstall-requirements t))
   "Uninstall the package named PKG-NAME."
   (when pkg-name
-    (setq stp-current-package pkg-name)
     (with-slots (do-commit do-push do-lock)
         options
       (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
@@ -794,7 +788,6 @@ DO-AUDIT are as in `stp-install'."
 
 (cl-defun stp-upgrade (pkg-name options &key (refresh t) min-version enforce-min-version (ensure-requirements t))
   (when pkg-name
-    (setq stp-current-package pkg-name)
     (stp-requirements-initialize-toplevel)
     (with-slots (do-commit do-push do-lock do-actions do-audit)
         options
@@ -1111,7 +1104,6 @@ are not satisfied to the user."
         (stp-fork pkg-name remote dir (stp-command-options 'stp-basic-task-options))))))
 
 (cl-defun stp-fork (pkg-name remote dir options)
-  (setq stp-current-package pkg-name)
   (with-slots (do-commit do-push)
       options
     (let-alist (stp-get-alist pkg-name)
@@ -1343,7 +1335,6 @@ DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
                           (rem-join-and invalid-remotes)
                           (if (= (length invalid-remotes) 1) "is" "are")
                           .method))
-            (setq stp-current-package pkg-name)
             (stp-set-attribute pkg-name 'remote new-remote)
             (if new-other-remotes
                 (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
@@ -1379,7 +1370,6 @@ DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
 The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
 `stp-install'."
   (when pkg-name
-    (setq stp-current-package pkg-name)
     (with-slots (do-commit do-push do-lock)
         options
       (let-alist (stp-get-alist pkg-name)
@@ -1407,7 +1397,6 @@ The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
 (defun stp-toggle-dependency-command ()
   "Toggle the dependency attribute of a package interactively.
 
-
 This indicates that the packages was installed because another
 package requires it rather than explicitly by the user."
   (interactive)
@@ -1415,7 +1404,6 @@ package requires it rather than explicitly by the user."
 
 (cl-defun stp-toggle-dependency (pkg-name options)
   (when pkg-name
-    (setq stp-current-package pkg-name)
     (with-slots (do-commit do-push do-lock)
         options
       (let ((dependency (stp-get-attribute pkg-name 'dependency)))
@@ -1443,7 +1431,6 @@ package and updating the load path."
                       (stp-command-options :class 'stp-action-task-options))))
 
 (defun stp-post-actions (pkg-name options)
-  (setq stp-current-package pkg-name)
   (with-slots (do-update-load-path
                do-load
                do-build
@@ -1508,7 +1495,6 @@ This is done by running the appropriate build systems or
 performing naive byte compilation. Return non-nil if there were
 no errors."
   (when pkg-name
-    (setq stp-current-package pkg-name)
     (let* ((output-buffer stp-build-output-buffer-name)
          (pkg-path (stp-canonical-path pkg-name))
          (build-dir pkg-path))
@@ -1620,7 +1606,6 @@ inverted with a prefix argument. Packages in
   "Build the info manuals for PKG-NAME."
   (interactive (list (stp-list-read-name "Package name: ")))
   (when pkg-name
-    (setq stp-current-package pkg-name)
     (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
                                (lambda (path)
                                  (member (f-filename path) stp-gnu-makefile-names))
@@ -1711,7 +1696,6 @@ inverted with a prefix argument. Packages in
   "Make the info files for PKG-NAME available to info commands."
   (interactive (list (stp-list-read-name "Package name: ")))
   (when pkg-name
-    (setq stp-current-package pkg-name)
     (let* ((directory (stp-canonical-path pkg-name))
            (new (mapcar 'f-dirname
                         (f-entries directory
