@@ -19,6 +19,8 @@
 (require 'stp-utils)
 (require 'stp-git-utils)
 
+(declare-function stp-additive-task-options "stp-executor")
+
 ;; Defined in stp.el.
 (defvar stp-auto-commit)
 (declare-function stp-reinstall "stp")
@@ -335,7 +337,9 @@ returned."
             (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
             nil
             (stp-with-package-source-directory
-              (stp-reinstall pkg-name fallback-version))))
+              ;; Options will be handled in the higher-level code that called
+              ;; `stp-git-upgrade' so we can just disable all of them here.
+              (stp-reinstall pkg-name fallback-version (rem-nil-slots (stp-additive-task-options))))))
           ;; If we get this far it means that either the merge succeeded or
           ;; there was a merge conflict which will be resolved manually by the
           ;; user. Either way, we update the package database.

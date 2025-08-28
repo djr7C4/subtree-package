@@ -293,9 +293,7 @@ never ends with a slash (nor does it contain any slashes)."
                         stp-candidate-separator
                         value))
               (read-toggle ()
-                (let* ((slots (->> (type-of object)
-                                   eieio-class-slots
-                                   (mapcar #'eieio-slot-descriptor-name)))
+                (let* ((slots (rem-object-slots object))
                        (width (apply #'max (mapcar (-compose #'length #'symbol-name) slots)))
                        (candidates (append (list "done")
                                            (mapcar (lambda (slot)
