@@ -331,7 +331,8 @@ returned."
            ;; version instead.
            ((and stp-subtree-pull-fallback
                  (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
-                 ;; TODO: use options here instead
+                 ;; TODO: use the controller here instead and don't depend on
+                 ;; stp-auto-commit
                  (or (stp-maybe-call stp-auto-commit)
                      (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
             (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
