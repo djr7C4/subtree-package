@@ -13,7 +13,9 @@
 (defclass stp-operation ()
   ((pkg-name :initarg :pkg-name :initform nil)
    ;; This slot overrides the controller argument in `stp-execute' when non-nil.
-   (controller :initarg :controller :initform nil)))
+   (controller :initarg :controller :initform nil)
+   ;; This slot overrides the options argument in `stp-execute' when non-nil.
+   (options :initarg :options :initform nil)))
 
 (defclass stp-package-operation (stp-operation) ())
 
