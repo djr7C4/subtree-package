@@ -777,12 +777,22 @@ DO-AUDIT are as in `stp-install'."
       (stp-refresh-info)
       (apply #'stp-upgrade
              (rem-at-end (stp-command-args :pkg-name pkg-name
-                                               :prompt-prefix prompt-prefix
-                                               :min-version min-version
-                                               :enforce-min-version stp-enforce-min-version)
+                                           :prompt-prefix prompt-prefix
+                                           :min-version min-version
+                                           :enforce-min-version stp-enforce-min-version)
                          options
                          :min-version min-version
                          :enforce-min-version stp-enforce-min-version)))))
+
+(defun stp-upgrade-handle-merge-conflicts ()
+  (let ((first t))
+    (while (stp-git-merge-conflict-p)
+      (stp-msg "%s Resolve the conflict(s) and then press M-x `exit-recursive-edit'"
+               (if first
+                   "One or more merge conflicts occurred while upgrading."
+                 "One or more merge conflicts are still unresolved."))
+      (recursive-edit)
+      (setq first nil))))
 
 (cl-defun stp-upgrade (pkg-name options &key (refresh t) min-version enforce-min-version (ensure-requirements t))
   (when pkg-name
@@ -833,26 +843,22 @@ DO-AUDIT are as in `stp-install'."
                 (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
                 (stp-update-requirements pkg-name)
                 (stp-write-info)
-                ;; Don't commit, push or perform push actions when there are
-                ;; merge conflicts.
-                (if (stp-git-merge-conflict-p)
-                    (stp-msg "%s occurred. Please resolve and commit manually."
-                             (if (> (length (stp-git-conflicted-files)) 1)
-                                 "Merge conflicts"
-                               "A merge conflict"))
-                  (stp-git-commit-push (format "Upgraded to version %s of %s"
-                                               (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
-                                               pkg-name)
-                                       :do-commit do-commit
-                                       :do-push do-push)
-                  (when ensure-requirements
-                    (let ((stp-requirements-toplevel nil))
-                      (ignore stp-requirements-toplevel)
-                      (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) options)))
-                  (when (stp-maybe-call do-lock pkg-name)
-                    (stp-update-lock-file))
-                  (when (stp-maybe-call do-actions pkg-name)
-                    (stp-post-actions pkg-name options)))
+                ;; Don't commit, push or perform push actions until the user
+                ;; resolves any merge conflicts.
+                (stp-upgrade-handle-merge-conflicts)
+                (stp-git-commit-push (format "Upgraded to version %s of %s"
+                                             (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
+                                             pkg-name)
+                                     :do-commit do-commit
+                                     :do-push do-push)
+                (when ensure-requirements
+                  (let ((stp-requirements-toplevel nil))
+                    (ignore stp-requirements-toplevel)
+                    (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) options)))
+                (when (stp-maybe-call do-lock pkg-name)
+                  (stp-update-lock-file))
+                (when (stp-maybe-call do-actions pkg-name)
+                  (stp-post-actions pkg-name options))
                 (when (and ensure-requirements stp-requirements-toplevel)
                   (stp-report-requirements 'upgrade))
                 (when refresh
@@ -944,26 +950,23 @@ required."
               ;; and so installing the dependencies naively will result in
               ;; multiple copies.
               (stp-allow-skip (stp-msg "Skipped installing %s" pkg-name)
-                (unless (eq (stp-install-command options
-                                                 :pkg-name pkg-name
-                                                 :prompt-prefix prefix
-                                                 :min-version version
-                                                 :dependency t)
-                            'skip)
-                  (push requirement stp-successful-requirements))))
+                              (unless (eq (stp-install-command options
+                                                               :pkg-name pkg-name
+                                                               :prompt-prefix prefix
+                                                               :min-version version
+                                                               :dependency t)
+                                          'skip)
+                                (push requirement stp-successful-requirements))))
              (t
               ;; The dependency attribute is left as is when upgrading because
               ;; the package might have been installed manually originally.
               (stp-allow-skip (stp-msg "Skipped upgrading %s" pkg-name)
-                (unless (eq (stp-upgrade-command options
-                                                 :pkg-name pkg-name
-                                                 :prompt-prefix prefix
-                                                 :min-version version)
-                            'skip)
-                  (push requirement stp-successful-requirements)
-                  (when (stp-git-merge-conflict-p)
-                    (stp-msg "One or more merge conflicts occurred while upgrading. Resolve the conflict and then press M-x `exit-recursive-edit'")
-                    (recursive-edit))))))
+                              (unless (eq (stp-upgrade-command options
+                                                               :pkg-name pkg-name
+                                                               :prompt-prefix prefix
+                                                               :min-version version)
+                                          'skip)
+                                (push requirement stp-successful-requirements)))))
           (error
            (push requirement stp-failed-requirements)
            (stp-msg "Failed to install or upgrade %s%s: %s"
