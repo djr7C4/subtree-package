@@ -41,14 +41,18 @@ STP addresses all of these issues and much more.
 ** Easily manage packages
 The main entry point to STP is =M-x stp-list= which shows all installed packages
 and has convenience bindings for
-- installing (=i=),
-- upgrading (=u=),
+- installing a package (=i=),
+- upgrading a package (=u=),
+- installing or upgrading a package group (=U=),
+- adding or editing a package group (=E=),
+- uninstalling a package group (=D=),
+- deleting a package group (=x=),
 - building source (=b=),
 - building info (=m=),
 - editing remotes (=e=),
 - uninstalling (=x=),
 - toggling between stable and unstable (=t=),
-- find the latest stable and unstable versions for
+- finding the latest stable and unstable versions for
   + the current package (=v=) or
   + all packages (=V=),
 - repairing (=r=) and
