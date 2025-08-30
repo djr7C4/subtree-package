@@ -50,8 +50,10 @@ the minimum required by another package.")
    (do-build-info :initarg :do-build-info :initform (symbol-value 'stp-auto-build-info))
    (do-update-info-directories :initarg :do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
 
-(defclass stp-additive-task-options (stp-package-task-options stp-action-task-options)
+(defclass stp-audit-task-options (stp-task-options)
   ((do-audit :initarg :do-audit :initform (symbol-value 'stp-audit-changes))))
+
+(defclass stp-additive-task-options (stp-package-task-options stp-audit-task-options stp-action-task-options) ())
 
 (defclass stp-bump-task-options (stp-basic-task-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
