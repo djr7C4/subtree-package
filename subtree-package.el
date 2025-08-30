@@ -533,10 +533,10 @@ is one. Otherwise, prompt the user for a package."
 
 (cl-defun stp-command-options (&key (class 'stp-package-task-options) (toggle-p (fn current-prefix-arg)))
   (let ((options (make-instance class)))
-    (if (stp-maybe-call toggle-p)
-        (stp-toggle-options options)
-      options)
-    (stp-validate-options options)))
+    (when (stp-maybe-call toggle-p)
+        (stp-toggle-options options))
+    (stp-validate-options options)
+    options))
 
 (cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) (line-pkg t) min-version enforce-min-version)
   "Prepare an argument list for an interactive command.

@@ -441,13 +441,16 @@ installed as a git subtree."
   (and (stp-git-subtree-commit path) t))
 
 (defun stp-git-head (&optional path)
-  (stp-git-remote-head (stp-git-root :path (or path stp-source-directory))))
+  ;; This version is not used because it is memoized. The local HEAD can change
+  ;; as packaging operations are run so memoizing it is undesirable.
+  ;; (stp-git-remote-head (stp-git-root :path (or path stp-source-directory)))
+  (stp-git-rev-parse (or path default-directory) "HEAD"))
 
 (defun stp-git-diff (&optional hashes)
   (rem-run-command (cl-list* "git" "diff" hashes) :error t))
 
 (defvar stp-git-diff-buffer-name "*stp-git-diff*")
-;; This is a change
+
 (defun stp-git-show-diff (&optional hashes)
   ;; (stp-git-show-diff hash new-hash): show the changes from hash to new-hash
   ;; (stp-git-show-diff hash): show the changes from hash to the index
