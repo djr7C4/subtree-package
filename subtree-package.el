@@ -1102,7 +1102,7 @@ are not satisfied to the user."
         (user-error "Only packages that use the git method can be forked"))
       (let* ((dir (or stp-fork-directory stp-source-directory))
              (remote (stp-choose-remote "Remote: " .remote .other-remotes)))
-        (stp-fork pkg-name remote dir (stp-command-options 'stp-basic-task-options))))))
+        (stp-fork pkg-name remote dir (stp-command-options :class 'stp-basic-task-options))))))
 
 (cl-defun stp-fork (pkg-name remote dir options)
   (with-slots (do-commit do-push)
@@ -1203,7 +1203,7 @@ packages at the same time."
                                        (stp-read-existing-name "Package name: "
                                                                :multiple t
                                                                :table table)
-                                       (stp-command-options 'stp-package-task-options))))))
+                                       (stp-command-options :class 'stp-package-task-options))))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names options)
   (with-slots (do-commit do-push do-lock)
@@ -1228,7 +1228,7 @@ packages at the same time."
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (stp-delete-package-group (stp-read-group-name "Group: ") (stp-command-options 'stp-package-task-options))))
+    (stp-delete-package-group (stp-read-group-name "Group: ") (stp-command-options :class 'stp-package-task-options))))
 
 (cl-defun stp-delete-package-group (group-name options)
   (with-slots (do-commit do-push do-lock)
@@ -1255,7 +1255,7 @@ negative, repair all packages."
           (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
         (apply #'stp-repair
                (rem-at-end (stp-command-args)
-                           (stp-command-options 'stp-package-task-options
+                           (stp-command-options :class 'stp-package-task-options
                                                 :toggle-p (fn (consp current-prefix-arg)))))))))
 
 (cl-defun stp-repair (pkg-name options &key (refresh t))
