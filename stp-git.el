@@ -19,7 +19,7 @@
 (require 'stp-utils)
 (require 'stp-git-utils)
 
-(declare-function stp-additive-task-options "stp-executor")
+(declare-function stp-additive-task-options "stp-controller")
 
 ;; Defined in stp.el.
 (defvar stp-auto-commit)

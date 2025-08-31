@@ -41,7 +41,7 @@
 (require 'stp-elpa)
 (require 'stp-archive)
 (require 'stp-url)
-(require 'stp-executor)
+(require 'stp-controller)
 (require 'stp-headers)
 (require 'stp-locked)
 (require 'timer)
