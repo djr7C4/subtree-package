@@ -506,9 +506,9 @@ not be memoized even within an `stp-with-memoization' form."
                                  (s-split rem-positive-whitespace-regexp line))
                                (s-split "\n" output)))))))
 
-(defun stp-git-remote-hash-tag-alist (remote)
+(cl-defun stp-git-remote-hash-tag-alist (remote &key (memoize t))
   "Return an alist that maps hashes to tags."
-  (stp-git-remote-hash-alist remote :prefixes '("refs/tags/")))
+  (stp-git-remote-hash-alist remote :prefixes '("refs/tags/") :memoize memoize))
 
 (defun stp-git-remote-tags (remote &optional keep-dereferences)
   (let ((tags (mapcar #'cdr (stp-git-remote-hash-tag-alist remote))))
