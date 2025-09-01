@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 
+(require 'stp-headers)
+(require 'stp-latest)
 (require 'stp-utils)
 
 ;; TODO: use in code
@@ -69,6 +71,24 @@ the minimum required by another package.")
       (user-error "Tagging without committing is not allowed"))
     (cl-call-next-method)))
 
+(defvar stp-normalize-versions nil
+  "Indicates if versions should be printed in a standardized format.
+
+This overrides the specific format used for versions by the
+project.")
+
+(defun stp-abbreviate-remote-version (pkg-name method remote version)
+  "Abbreviate long hashes to make them more readable.
+
+Other versions are not abbreviated."
+  (cond
+   ((and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
+    (stp-git-abbreviate-hash version))
+   (stp-normalize-versions
+    (stp-normalize-version pkg-name remote version))
+   (t
+    version)))
+
 ;; Handles queries that might need to be done interactively such as determining
 ;; which remotes, versions and so forth should be used during installation and
 ;; upgrades. This can be done either interactively or via some policy like
@@ -101,18 +121,56 @@ the minimum required by another package.")
 (cl-defmethod stp-skip-msg ((operation stp-upgrade-operation))
   (format "Skipping upgrading %s" (slot-value operation 'pkg-name)))
 
-(cl-defmethod stp-skip-msg ((operation stp-reinstalling-operation))
+(cl-defmethod stp-skip-msg ((operation stp-reinstall-operation))
   (format "Skipping reinstalling %s" (slot-value operation 'pkg-name)))
 
 (cl-defmethod stp-operate ((_operation stp-operation) (_controller stp-controller)))
 
-(cl-defmethod stp-operate :around ((operation stp-package-operation) (controller stp-controller))
+(cl-defmethod stp-operate :around ((operation stp-package-operation) (_controller stp-controller))
   (when (slot-value operation 'allow-skip)
     (stp-allow-skip (stp-msg (stp-skip-msg operation))
       (cl-call-next-method))))
 
-;; TODO: fill in
-(cl-defmethod stp-operate ((operation stp-uninstall-operation) (controller stp-controller)))
+(cl-defmethod stp-queue-uninstall-operations ((controller stp-controller) requirements)
+  (let* ((to-uninstall (stp-requirements-to-names requirements))
+         (old-to-uninstall t)
+         pkg-name)
+    (while to-uninstall
+      (when (equal to-uninstall old-to-uninstall)
+        (error "Cyclic dependencies encountered while uninstalling packages"))
+      (setq old-to-uninstall (cl-copy-list to-uninstall)
+            pkg-name (stp-symbol-package-name (pop to-uninstall)))
+      ;; Only queue packages for uninstalling when they were installed as
+      ;; dependencies and are no longer required by any package.
+      (when (and (member pkg-name (stp-info-names))
+                 (stp-get-attribute pkg-name 'dependency)
+                 (not (stp-required-by pkg-name)))
+        (stp-append-operations controller (stp-uninstall-operation :pkg-name pkg-name))))))
+
+(cl-defmethod stp-operate ((operation stp-uninstall-operation) (controller stp-controller))
+  (with-slots (do-commit)
+      (or (slot-value operation 'options) (slot-value controller 'options))
+    (with-slots (pkg-name)
+        operation
+      (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
+            (requirements (stp-get-attribute pkg-name 'requirements)))
+        (let-alist (stp-get-alist pkg-name)
+          (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
+              (progn
+                (f-delete pkg-name t)
+                (stp-delete-alist pkg-name)
+                (stp-write-info)
+                (cl-dolist (feature features)
+                  (push feature stp-headers-uninstalled-features))
+                (stp-delete-load-path pkg-name)
+                (stp-git-commit (format "Uninstalled version %s of %s"
+                                        (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                        pkg-name)
+                                :do-commit do-commit)
+                (stp-queue-uninstall-operations controller requirements)
+                (stp-prune-cached-latest-versions pkg-name))
+            (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
+
 (cl-defmethod stp-operate ((operation stp-install-operation) (controller stp-controller)))
 (cl-defmethod stp-operate ((operation stp-upgrade-operation) (controller stp-controller)))
 (cl-defmethod stp-operate ((operation stp-reinstall-operation) (controller stp-controller)))
