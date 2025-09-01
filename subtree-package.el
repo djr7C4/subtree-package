@@ -50,30 +50,6 @@
 
 (defvar stp-memoized-functions '(stp-refresh-info stp-git-download-as-synthetic-repo stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-memoized stp-git-remote-hash-alist stp-git-valid-rev-p stp-git-timestamp stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
 
-(defvar stp-memoization-active nil)
-
-(defmacro stp-with-memoization (&rest body)
-  "Evaluate BODY with memoization active for expensive functions.
-
-Cached results are only retained while within the scope of this
-macro. This allows functions that would otherwise make many
-duplicate queries to remote git repositories to only make one of
-each type per interactive command."
-  (declare (indent 0))
-  (with-gensyms (memoization-active-orig)
-    `(let ((,memoization-active-orig stp-memoization-active)
-           (stp-memoization-active t))
-       (unwind-protect
-           (progn
-             (unless ,memoization-active-orig
-               (mapc (-rpartial #'memoize nil) stp-memoized-functions))
-             ,@body)
-         (unless ,memoization-active-orig
-           (mapc (-rpartial #'f-delete t) stp-git-synthetic-repos)
-           (mapc #'memoize-restore stp-memoized-functions))))))
-
-(def-edebug-spec stp-with-memoization t)
-
 (defvar stp-remote-history nil)
 
 (defun stp-read-remote (prompt &optional default)
@@ -427,7 +403,8 @@ for `stp-auto-commit'.")
 It requires the repository to be clean when run inside
 `stp-source-directory'. Otherwise, it causes the user to be
 prompted."
-  (rem-ancestor-of-inclusive-p (stp-git-root) default-directory))
+  (rem-ancestor-of-inclusive-p (f-canonical (stp-git-root))
+                               (f-canonical stp-source-directory)))
 
 (defvar stp-allow-unclean #'stp-unclean-fun
   "This variable determines the behavior when the git repository is
@@ -1896,6 +1873,10 @@ package."
                        :focus (not async))))
   (when pkg-name
     (stp-list-update-latest-versions :pkg-names (list pkg-name) :quiet quiet :async async :focus focus :batch nil)))
+
+(defun stp-update-cached-latest (pkg-name)
+  (when stp-latest-versions-cache
+    (stp-list-update-latest-version pkg-name :quiet t :async stp-latest-version-async)))
 
 (defvar stp-list-latest-versions-min-refresh-interval 3
   "This is the minimum number of seconds after which

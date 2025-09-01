@@ -1,5 +1,11 @@
 ;;; -*- lexical-binding: t; -*-
 
+(require 'queue nil t)
+(require 'stp-git)
+(require 'stp-elpa)
+(require 'stp-archive)
+(require 'stp-utils)
+
 (defvar stp-latest-versions-stale-interval (timer-duration "1 day")
   "The number of seconds until the cached latest versions in
 `stp-latest-versions-cache' are considered stale.")
@@ -8,10 +14,6 @@
 
 (defvar stp-latest-version-async t
   "This indicates if latest versions should be computed asynchronously.")
-
-(defun stp-update-cached-latest (pkg-name)
-  (when stp-latest-versions-cache
-    (stp-list-update-latest-version pkg-name :quiet t :async stp-latest-version-async)))
 
 (defun stp-prune-cached-latest-versions (&optional pkg-name)
   (let ((pkg-names (stp-info-names)))

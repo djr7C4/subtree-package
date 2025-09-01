@@ -27,6 +27,32 @@
 (require 'stp-locked)
 (require 'stp-package)
 
+(defvar stp-memoized-functions '(stp-refresh-info stp-git-download-as-synthetic-repo stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-memoized stp-git-remote-hash-alist stp-git-valid-rev-p stp-git-timestamp stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
+
+(defvar stp-memoization-active nil)
+
+(defmacro stp-with-memoization (&rest body)
+  "Evaluate BODY with memoization active for expensive functions.
+
+Cached results are only retained while within the scope of this
+macro. This allows functions that would otherwise make many
+duplicate queries to remote git repositories to only make one of
+each type per interactive command."
+  (declare (indent 0))
+  (with-gensyms (memoization-active-orig)
+    `(let ((,memoization-active-orig stp-memoization-active)
+           (stp-memoization-active t))
+       (unwind-protect
+           (progn
+             (unless ,memoization-active-orig
+               (mapc (-rpartial #'memoize nil) stp-memoized-functions))
+             ,@body)
+         (unless ,memoization-active-orig
+           (mapc (-rpartial #'f-delete t) stp-git-synthetic-repos)
+           (mapc #'memoize-restore stp-memoized-functions))))))
+
+(def-edebug-spec stp-with-memoization t)
+
 ;; This is required for Emacs 30+. The fix is merged upstream in the development
 ;; version and should be remove here once there is a tagged release.
 (defvar stp-async-inject-variables-exclude-regexp "-abbrev-table\\'")
