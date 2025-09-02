@@ -589,8 +589,6 @@ of packages are installed or upgraded as needed."
                 (stp-prune-cached-latest-versions pkg-name))
             (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
 
-(defvar stp-git-upgrade-always-offer-remote-heads t)
-
 (cl-defun stp-upgrade-command (options &key pkg-name min-version (prompt-prefix ""))
   "Upgrade a package interactively.
 
@@ -608,16 +606,6 @@ DO-AUDIT are as in `stp-install'."
                          options
                          :min-version min-version
                          :enforce-min-version stp-enforce-min-version)))))
-
-(defun stp-upgrade-handle-merge-conflicts ()
-  (let ((first t))
-    (while (stp-git-merge-conflict-p)
-      (stp-msg "%s Resolve the conflict(s) and then press M-x `exit-recursive-edit'"
-               (if first
-                   "One or more merge conflicts occurred while upgrading."
-                 "One or more merge conflicts are still unresolved."))
-      (recursive-edit)
-      (setq first nil))))
 
 ;; TODO: remove (to be replaced by stp-operate)
 (cl-defun stp-upgrade (pkg-name options &key (refresh t) min-version enforce-min-version (ensure-requirements t))

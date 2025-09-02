@@ -127,6 +127,16 @@ prior state after an audit fails.")
   (when (stp-maybe-call do-audit pkg-name)
     (stp-audit-changes pkg-name type last-hash)))
 
+(defun stp-upgrade-handle-merge-conflicts ()
+  (let ((first t))
+    (while (stp-git-merge-conflict-p)
+      (stp-msg "%s Resolve the conflict(s) and then press M-x `exit-recursive-edit'"
+               (if first
+                   "One or more merge conflicts occurred while upgrading."
+                 "One or more merge conflicts are still unresolved."))
+      (recursive-edit)
+      (setq first nil))))
+
 (cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix ""))
   "Read a package name and remote of any type or a package archive.
 
@@ -375,8 +385,6 @@ package and were installed as dependencies."))
           (ensure-list requirement)
         (let* ((pkg-name (stp-symbol-package-name pkg-sym))
                (prefix (format "[%s] " pkg-name)))
-          (unless (member pkg-name stp-headers-ignored-requirements)
-            (push requirement stp-requirements))
           (cond
            ((string= pkg-name "emacs")
             (unless (stp-emacs-requirement-satisfied-p pkg-name version)
@@ -448,8 +456,67 @@ package and were installed as dependencies."))
               (when (stp-maybe-call do-actions)
                 (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name))))))))))
 
-;; TODO
-(cl-defmethod stp-operate ((operation stp-upgrade-operation) (controller stp-controller)))
+(defvar stp-git-upgrade-always-offer-remote-heads t)
+
+(cl-defmethod stp-operate ((operation stp-upgrade-operation) (controller stp-controller))
+  (let ((options (stp-options operation controller)))
+    (with-slots (do-commit do-actions do-audit)
+        options
+      (with-slots (pkg-name min-version enforce-min-version prompt-prefix)
+          operation
+        (let ((last-hash (stp-git-head)))
+          (let-alist (stp-get-alist pkg-name)
+            ;; Automatically determine missing other remotes for archive packages.
+            (when (eq .method 'archive)
+              (setq .other-remotes (cl-set-difference (stp-archives pkg-name) (cons .remote .other-remotes))))
+            (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
+                   (extra-versions (and (eq .method 'git)
+                                        (or stp-git-upgrade-always-offer-remote-heads
+                                            (eq .update 'unstable))
+                                        (stp-git-remote-heads-sorted chosen-remote)))
+                   (prompt (format "Upgrade from %s to version%s: "
+                                   (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
+                                   (stp-min-version-annotation min-version enforce-min-version))))
+              (when (stp-url-safe-remote-p chosen-remote)
+                (when (and .branch (member .branch extra-versions))
+                  (setq extra-versions (cons .branch (remove .branch extra-versions))))
+                (cl-ecase .method
+                  (git (--> extra-versions
+                            (stp-git-read-version
+                             prompt
+                             chosen-remote
+                             :extra-versions-position (if (eq .update 'unstable) 'first 'last)
+                             :extra-versions it
+                             :branch-to-hash nil
+                             :min-version min-version)
+                            (stp-git-upgrade pkg-name chosen-remote it)))
+                  (elpa (->> (stp-elpa-read-version
+                              prompt
+                              pkg-name
+                              chosen-remote
+                              :min-version min-version)
+                             (stp-elpa-upgrade pkg-name chosen-remote)))
+                  (archive (stp-archive-upgrade pkg-name .remote))
+                  (url (->> (stp-url-read-version prompt)
+                            (stp-url-upgrade pkg-name chosen-remote))))
+                (stp-maybe-audit-changes pkg-name 'upgrade last-hash do-audit)
+                ;; The call to `stp-get-attribute' can't be replaced with
+                ;; .version because the 'version attribute will have changed
+                ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
+                ;; `stp-url-upgrade'.
+                (let ((new-version (stp-get-attribute pkg-name 'version)))
+                  (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
+                  (stp-update-requirements pkg-name)
+                  (stp-write-info)
+                  ;; Don't commit, push or perform push actions until the user
+                  ;; resolves any merge conflicts.
+                  (stp-upgrade-handle-merge-conflicts)
+                  (stp-git-commit (format "Upgraded to version %s of %s"
+                                          (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
+                                          pkg-name)
+                                  :do-commit do-commit)
+                  (stp-ensure-requirements2 controller (stp-get-attribute pkg-name 'requirements) options))))))))))
+
 (cl-defmethod stp-operate ((operation stp-reinstall-operation) (controller stp-controller)))
 
 ;; TODO: Combine features of `stp-ensure-requirements',
