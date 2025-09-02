@@ -61,6 +61,11 @@ the minimum required by another package.")
 (defclass stp-bump-task-options (stp-basic-task-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
 
+(cl-defgeneric stp-validate-options (options)
+  (:documentation
+   "Determine if the options passed are valid and signal an
+appropriate error if they are not."))
+
 (cl-defmethod stp-validate-options ((_options stp-task-options))
   t)
 
@@ -116,20 +121,40 @@ Other versions are not abbreviated."
 (defclass stp-auto-controller (stp-controller)
   ((preferred-update :initarg :preferred-update :initform 'stable)))
 
+(cl-defgeneric stp-controller-append-errors (controller &rest errors)
+  (:documentation
+   "Append the specified error messages (strings) to the controller's
+list of error messages. These will be reported to the user after
+all operations are completed."))
+
 (cl-defmethod stp-controller-append-errors ((controller stp-controller) &rest new-errors)
   (with-slots (errors)
       controller
     (setq errors (append errors new-errors))))
+
+(cl-defgeneric stp-controller-append-operations (controller &rest operations)
+  (:documentation
+   "Append the specified operations to the controller's list of
+operations to perform."))
 
 (cl-defmethod stp-controller-append-operations ((controller stp-controller) &rest new-operations)
   (with-slots (operations)
       controller
     (setf operations (append operations new-operations))))
 
+(cl-defgeneric stp-controller-prepend-operations (controller &rest operations)
+  (:documentation
+   "Prepend the specified operations to the controller's list of
+operations to perform."))
+
 (cl-defmethod stp-controller-prepend-operations ((controller stp-controller) &rest new-operations)
   (with-slots (operations)
       controller
     (setf operations (append new-operations operations))))
+
+(cl-defgeneric stp-skip-msg (operation)
+  (:documentation
+   "Return a message that describes skipping OPERATION."))
 
 (cl-defmethod stp-skip-msg ((operation stp-package-operation))
   (format "Skipping an unknown package operation on %s" (slot-value operation 'pkg-name)))
@@ -146,6 +171,11 @@ Other versions are not abbreviated."
 (cl-defmethod stp-skip-msg ((operation stp-reinstall-operation))
   (format "Skipping reinstalling %s" (slot-value operation 'pkg-name)))
 
+(cl-defgeneric stp-operate (operation controller)
+  (:documentation
+   "Perform OPERATION using CONTROLLER. This may result in additional
+operations being added to the controller."))
+
 (cl-defmethod stp-operate ((_operation stp-operation) (_controller stp-controller)))
 
 (cl-defmethod stp-operate :around ((operation stp-skippable-package-operation) (_controller stp-controller))
@@ -158,7 +188,12 @@ Other versions are not abbreviated."
 (defun stp-options (operation controller)
   (or (slot-value operation 'options) (slot-value controller 'options)))
 
-(cl-defmethod stp-queue-uninstall-operations ((controller stp-controller) requirements options)
+(cl-defgeneric stp-queue-uninstall-requirements (controller requirements options)
+  (:documentation
+   "Uninstall those REQUIREMENTS that are no longer needed by any
+package and were installed as dependencies."))
+
+(cl-defmethod stp-queue-uninstall-requirements ((controller stp-controller) requirements options)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
          (old-to-uninstall t)
          pkg-name)
@@ -194,11 +229,15 @@ Other versions are not abbreviated."
                                         (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                         pkg-name)
                                 :do-commit do-commit)
-                (stp-queue-uninstall-operations controller requirements options)
+                (stp-queue-uninstall-requirements controller requirements options)
                 (stp-prune-cached-latest-versions pkg-name))
             (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
 
-(cl-defmethod stp-queue-install-operations ((controller stp-controller) requirements options)
+(cl-defgeneric stp-queue-install-requirements ((controller stp-controller) requirements options)
+  (:documentation
+   "Install or upgrade the REQUIREMENTS that are not currently satisfied."))
+
+(cl-defmethod stp-queue-install-requirements ((controller stp-controller) requirements options)
   (stp-msg "Analyzing the load path for installed packages...")
   (stp-headers-update-features)
   (let (operations)
@@ -269,7 +308,7 @@ Other versions are not abbreviated."
                                     (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                     pkg-name)
                             :do-commit do-commit)
-            (stp-queue-install-operations controller (stp-get-attribute pkg-name 'requirements) options)
+            (stp-queue-install-requirements controller (stp-get-attribute pkg-name 'requirements) options)
             ;; Perform post actions for all packages after everything else.
             (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name))))))))
 
