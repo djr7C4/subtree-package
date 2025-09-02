@@ -466,6 +466,11 @@ installed as a git subtree."
       (diff-mode))
     (pop-to-buffer buf)))
 
+(defun stp-git-bury-diff-buffer ()
+  (awhen (get-buffer stp-git-diff-buffer-name)
+    (bury-buffer it))
+  (redisplay))
+
 (defun stp-git-remote-hash-alist-basic (remote)
   (rem-run-command (list "git" "ls-remote" remote) :error t :nostderr t))
 

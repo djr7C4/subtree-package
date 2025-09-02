@@ -4,7 +4,84 @@
 (require 'stp-latest)
 (require 'stp-utils)
 
-;; TODO: use in code
+(defvar stp-auto-commit t
+  "When non-nil, automatically commit changes.
+
+Note that even if this is ommited, some operations (such as
+subtree operations) inherently involve commits and this cannot be
+disabled. When this variable is a function it will be called with
+the name of the current package to determine the value when it is
+needed. If there is no current package, no arguments will be
+passed.")
+
+(defvar stp-auto-push t
+  "When non-nil, automatically push commits.
+
+This has no effect unless `stp-auto-commit' is non-nil. The value
+can also be a function as for `stp-auto-commit'.")
+
+(defvar stp-auto-lock nil
+  "When non-nil, automatically update `stp-lock-file' when packages
+are changed. The value can also be a function as for
+`stp-auto-commit'.")
+
+(defvar stp-audit-changes nil
+  "Show diffs whenever a package changes or new code is added. This
+is useful for security purposes. The value can also be a function
+as for `stp-auto-commit'.")
+
+(defvar stp-auto-reset '(:audit)
+  "A list that indicates when git reset should be used under
+exceptional circumstances. If the list contains :audit, reset
+when an audit fails. If it contains :error, reset when errors
+occur. t means to always reset and nil means to never reset.")
+
+(defvar stp-auto-post-actions t
+  "When non-nil, automatically perform post actions.
+
+The value can be either t or a list containing any of the symbols
+\\='build, update-info-directories and \\='update-load-path which
+specifies which actions should be performed after a package is
+installed or upgraded. The value t indicates that all post
+actions should be performed. The value can also be a function as
+for `stp-auto-commit'.")
+
+(defvar stp-auto-tag t
+  "When bumping the version, automatically tag the commit with the
+new version. The value can also be a function as for
+`stp-auto-commit'.")
+
+(defvar stp-auto-update-load-path t
+  "When non-nil, automatically update the load path.
+
+The value can also be a function as for `stp-auto-commit'.")
+
+(defvar stp-auto-load t
+  "When non-nil, automatically load packages.
+
+The value can also be a function as for `stp-auto-commit'.")
+
+(defvar stp-auto-build nil
+  "When non-nil, automatically build pacakges.
+
+General methods which may fail for some packages are used. The
+value can also be a function as for `stp-auto-commit'.")
+
+(defvar stp-auto-build-info t
+  "When non-nil, automatically build info manuals.
+
+When this variable is a function it will be called to determine
+the value when it is needed. The value can also be a function as
+for `stp-auto-commit'.")
+
+(defvar stp-auto-update-info-directories t
+  "When non-nil, automatically update the info directories.
+
+When this variable is a function it will be called to determine
+the value when it is needed. The value can also be a function as
+for `stp-auto-commit'.")
+
+
 (defclass stp-operation ()
   ((pkg-name :initarg :pkg-name :initform nil)
    ;; This overrides the controller's options slot in `stp-execute' when
@@ -44,7 +121,8 @@ the minimum required by another package.")
    (do-push :initarg :do-push :initform (symbol-value 'stp-auto-push))))
 
 (defclass stp-package-task-options (stp-basic-task-options)
-  ((do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))))
+  ((do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))
+   (do-reset :initarg :do-reset :initform (symbol-value 'stp-auto-reset))))
 
 (defclass stp-action-task-options (stp-task-options)
   ((do-actions :initarg :do-actions :initform (symbol-value 'stp-auto-post-actions))
@@ -102,26 +180,25 @@ Other versions are not abbreviated."
    (t
     version)))
 
-(defvar stp-audit-auto-reset t
-  "Indicates if git reset should be used to undo changes to the
-prior state after an audit fails.")
-
-(defun stp-audit-changes (pkg-name type last-hash)
+(cl-defun stp-audit-changes (pkg-name type last-hash &key do-reset)
   (unless (memq type '(install upgrade))
     (error "type must be either 'install or 'upgrade"))
   (stp-git-show-diff (list last-hash))
-  (unless (yes-or-no-p "Are the changes to the package safe? ")
-    (when stp-audit-auto-reset
-      (stp-git-reset last-hash :mode 'hard))
-    (signal 'quit
-            (list (format "aborted %s %s due to a failed security audit%s"
-                          (if (eq type 'install)
-                              "installing"
-                            "upgrading")
-                          pkg-name
-                          (if stp-audit-auto-reset
-                              ""
-                            ": use git reset to undo the suspicious commits"))))))
+  (unless (prog1
+              (yes-or-no-p "Are the changes to the package safe? ")
+            (stp-git-bury-diff-buffer))
+    (let ((reset (or (eq do-reset t) (memq :audit do-reset))))
+      (when reset
+        (stp-git-reset last-hash :mode 'hard))
+      (signal 'quit
+              (list (format "aborted %s %s due to a failed security audit%s"
+                            (if (eq type 'install)
+                                "installing"
+                              "upgrading")
+                            pkg-name
+                            (if reset
+                                ""
+                              ": use git reset to undo the suspicious commits")))))))
 
 (defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
   (when (stp-maybe-call do-audit pkg-name)
@@ -517,7 +594,43 @@ package and were installed as dependencies."))
                                   :do-commit do-commit)
                   (stp-ensure-requirements2 controller (stp-get-attribute pkg-name 'requirements) options))))))))))
 
-(cl-defmethod stp-operate ((operation stp-reinstall-operation) (controller stp-controller)))
+(cl-defmethod stp-operate ((operation stp-reinstall-operation) (controller stp-controller))
+  (let ((options (stp-options operation controller)))
+    (with-slots (pkg-name)
+        operation
+      (when (and (stp-git-tree-package-modified-p pkg-name)
+                 (not (yes-or-no-p (format "The package %s has been modified since the last commit in the working tree. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+        (user-error "Reinstall aborted"))
+      (let-alist (stp-get-alist pkg-name)
+        (let* ((pkg-alist (stp-get-alist pkg-name))
+               (tree-hashes (and (not skip-subtree-check)
+                                 (if (eq .method 'git)
+                                     (stp-git-subtree-package-modified-p pkg-name .remote .version)
+                                   ;; For methods other than 'git, we need to create
+                                   ;; a synthetic git repository for comparision
+                                   ;; purposes.
+                                   (stp-git-subtree-package-modified-p pkg-name (stp-git-download-as-synthetic-repo pkg-name (stp-download-url pkg-name pkg-alist)) "HEAD")))))
+          ;; Warn the user about reinstalling if there are modifications to the
+          ;; subtree that were not the result of git subtree merge as this will
+          ;; result in the loss of their customizations to the package.
+          (save-window-excursion
+            (when (and tree-hashes
+                       (unwind-protect
+                           ;; curr-hash is the hash of the most recent version of
+                           ;; the subtree (which may include user modifications).
+                           ;; last-hash is the hash of the last subtree that was
+                           ;; merged (e.g. by installing or upgrading the package).
+                           (and (db (curr-hash last-hash)
+                                    tree-hashes
+                                  (stp-git-show-diff (list last-hash curr-hash))
+                                  t)
+                                (not (yes-or-no-p (format "The package %s has been modified locally. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
+                         (stp-git-bury-diff-buffer)))
+              (user-error "Reinstall aborted")))
+          (stp-controller-prepend-operations
+           controller
+           (stp-uninstall-operation :pkg-name pkg-name :options options)
+           (stp-install-operation :pkg-name pkg-name :options options :pkg-alist pkg-alist)))))))
 
 ;; TODO: Combine features of `stp-ensure-requirements',
 ;; `stp-maybe-uninstall-requirements' and `stp-report-requirements'.
@@ -529,7 +642,7 @@ package and were installed as dependencies."))
       ;; Keep track
       )
     ;; Report any errors that occurred
-    ;; Perform certain tasks that should only happen at the end (pushing,
+    ;; Perform certain tasks that should only happen at the end (resetting, pushing,
     ;; and locking)
     ))
 
