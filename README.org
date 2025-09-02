@@ -348,6 +348,25 @@ rather than adding them as git subtrees.
 
 Straight does not check that the requirements of installed packages have recent
 enough versions.
+** Borg
+Borg is based on a similar idea to STP but uses git submodules instead of git
+subtrees. While a subtree is a local copy of a package's git repository, a
+submodule is a reference to a package's repository consisting of its URL and the
+current hash that is being used.
+
+This has several implications
+- With subtrees, your configuration does not depend on external repositories.
+  All you have to do to reproduce it is clone your git repository.
+- With submodules, cloning your git repository will not copy the submodules. For
+  that, you have to supply the `--recurse-submodules` flag to `git clone` or use
+  the `git submodule init` and `git submodule update` commands. Both methods
+  involves cloning the external repository referenced by the submodule and if
+  the repository moves or no longer exists, your configuration will break.
+- Subtrees allow you to easily make local changes to packages and merge new
+  commits to the package repository using git's standard merge machinery.
+- Since submodules are just references to external repositories, local changes
+  are not advisable as they will be overwritten if you clone the repository and
+  reinitialize your submodules.
 ** package-vc
 package-vc is a builtin library that can install packages from git repositories.
 Like STP, it allows you to select a package by name and automatically install it
