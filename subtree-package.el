@@ -64,44 +64,6 @@
        'stp-remote-history)
       stp-normalize-remote))
 
-(cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix ""))
-  "Read a package name and remote of any type or a package archive.
-
-When the input is ambiguous and could be package name or a local
-path, it will be treated as a package name unless it contains a
-slash. Return a cons cell the contains the package name and the
-remote or archive. Archives are represented as symbols."
-  (stp-archive-ensure-loaded)
-  (let* ((archive-names (if pkg-name
-                            (ensure-list (cl-find pkg-name (stp-archive-package-names) :test #'string=))
-                          (stp-archive-package-names)))
-         (name-or-remote (stp-comp-read-remote prompt archive-names :default default-remote :normalize nil)))
-    (if (member name-or-remote archive-names)
-        (progn
-          ;; If the user chose a package name, find remotes from
-          ;; `package-archive-contents' and allow the user to choose one.
-          (setq pkg-name name-or-remote)
-          (let* ((archives (stp-archives pkg-name))
-                 (archive-alist (mapcar (lambda (archive)
-                                          (cons (format "%s (package archive)" archive)
-                                                (intern archive)))
-                                        archives))
-                 (remotes (append (stp-archive-find-remotes pkg-name)
-                                  (mapcar (fn (cons % 'elpa))
-                                          (stp-elpa-package-urls pkg-name archives :annotate t))))
-                 (remote-or-archive (stp-comp-read-remote
-                                     "Remote or archive: "
-                                     (->> (append remotes archive-alist)
-                                          stp-sort-remotes
-                                          (mapcar #'car))
-                                     :default (car remotes))))
-            (cons pkg-name (or (map-elt archive-alist remote-or-archive)
-                               (car (s-split " " remote-or-archive))))))
-      ;; Otherwise the user chose a remote so prompt for its package name.
-      (let ((remote (stp-normalize-remote name-or-remote)))
-        (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") :default (stp-default-name remote)))
-              remote)))))
-
 (defun stp-repair-default-callback (type pkg-name)
   (let-alist (stp-get-alist pkg-name)
     (cl-flet ((handle-partial-elpa-url (pkg-name)
@@ -475,27 +437,6 @@ ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
                 (list (stp-get-attribute pkg-name 'version)))
               (when read-pkg-alist
                 (list pkg-alist))))))
-
-(defvar stp-audit-auto-reset t
-  "Indicates if git reset should be used to undo changes to the
-prior state after an audit fails.")
-
-(defun stp-audit-changes (pkg-name type last-hash)
-  (unless (memq type '(install upgrade))
-    (error "type must be either 'install or 'upgrade"))
-  (stp-git-show-diff (list last-hash))
-  (unless (yes-or-no-p "Are the changes to the package safe? ")
-    (when stp-audit-auto-reset
-      (stp-git-reset last-hash :mode 'hard))
-    (signal 'quit
-            (list (format "aborted %s %s due to a failed security audit%s"
-                          (if (eq type 'install)
-                              "installing"
-                            "upgrading")
-                          pkg-name
-                          (if stp-audit-auto-reset
-                              ""
-                            ": use git reset to undo the suspicious commits"))))))
 
 (defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
   (when (stp-maybe-call do-audit pkg-name)

@@ -102,9 +102,68 @@ Other versions are not abbreviated."
    (t
     version)))
 
+(defvar stp-audit-auto-reset t
+  "Indicates if git reset should be used to undo changes to the
+prior state after an audit fails.")
+
+(defun stp-audit-changes (pkg-name type last-hash)
+  (unless (memq type '(install upgrade))
+    (error "type must be either 'install or 'upgrade"))
+  (stp-git-show-diff (list last-hash))
+  (unless (yes-or-no-p "Are the changes to the package safe? ")
+    (when stp-audit-auto-reset
+      (stp-git-reset last-hash :mode 'hard))
+    (signal 'quit
+            (list (format "aborted %s %s due to a failed security audit%s"
+                          (if (eq type 'install)
+                              "installing"
+                            "upgrading")
+                          pkg-name
+                          (if stp-audit-auto-reset
+                              ""
+                            ": use git reset to undo the suspicious commits"))))))
+
 (defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
   (when (stp-maybe-call do-audit pkg-name)
     (stp-audit-changes pkg-name type last-hash)))
+
+(cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix ""))
+  "Read a package name and remote of any type or a package archive.
+
+When the input is ambiguous and could be package name or a local
+path, it will be treated as a package name unless it contains a
+slash. Return a cons cell the contains the package name and the
+remote or archive. Archives are represented as symbols."
+  (stp-archive-ensure-loaded)
+  (let* ((archive-names (if pkg-name
+                            (ensure-list (cl-find pkg-name (stp-archive-package-names) :test #'string=))
+                          (stp-archive-package-names)))
+         (name-or-remote (stp-comp-read-remote prompt archive-names :default default-remote :normalize nil)))
+    (if (member name-or-remote archive-names)
+        (progn
+          ;; If the user chose a package name, find remotes from
+          ;; `package-archive-contents' and allow the user to choose one.
+          (setq pkg-name name-or-remote)
+          (let* ((archives (stp-archives pkg-name))
+                 (archive-alist (mapcar (lambda (archive)
+                                          (cons (format "%s (package archive)" archive)
+                                                (intern archive)))
+                                        archives))
+                 (remotes (append (stp-archive-find-remotes pkg-name)
+                                  (mapcar (fn (cons % 'elpa))
+                                          (stp-elpa-package-urls pkg-name archives :annotate t))))
+                 (remote-or-archive (stp-comp-read-remote
+                                     "Remote or archive: "
+                                     (->> (append remotes archive-alist)
+                                          stp-sort-remotes
+                                          (mapcar #'car))
+                                     :default (car remotes))))
+            (cons pkg-name (or (map-elt archive-alist remote-or-archive)
+                               (car (s-split " " remote-or-archive))))))
+      ;; Otherwise the user chose a remote so prompt for its package name.
+      (let ((remote (stp-normalize-remote name-or-remote)))
+        (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") :default (stp-default-name remote)))
+              remote)))))
 
 (cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
   (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
@@ -214,7 +273,7 @@ operations to perform."))
   (:documentation
    "Query the controller for a package."))
 
-(cl-defmethod stp-controller-get-package ((controller stp-interactive-controller) &key pkg-name (prompt-prefix "") min-version enforce-min-version)
+(cl-defmethod stp-controller-get-package ((_controller stp-interactive-controller) &key pkg-name (prompt-prefix "") min-version enforce-min-version)
   (stp-read-package :pkg-name pkg-name
                     :prompt-prefix prompt-prefix
                     :min-version min-version
@@ -256,12 +315,12 @@ operations being added to the controller."))
 (defun stp-options (operation controller)
   (or (slot-value operation 'options) (slot-value controller 'options)))
 
-(cl-defgeneric stp-queue-uninstall-requirements (controller requirements options)
+(cl-defgeneric stp-uninstall-requirements2 (controller requirements options)
   (:documentation
    "Uninstall those REQUIREMENTS that are no longer needed by any
 package and were installed as dependencies."))
 
-(cl-defmethod stp-queue-uninstall-requirements ((controller stp-controller) requirements options)
+(cl-defmethod stp-uninstall-requirements2 ((controller stp-controller) requirements options)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
          (old-to-uninstall t)
          pkg-name)
@@ -278,34 +337,35 @@ package and were installed as dependencies."))
         (stp-controller-prepend-operations controller (stp-uninstall-operation :pkg-name pkg-name :options options))))))
 
 (cl-defmethod stp-operate ((operation stp-uninstall-operation) (controller stp-controller))
-  (with-slots (do-commit)
-      (stp-options operation controller)
-    (with-slots (pkg-name)
-        operation
-      (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
-            (requirements (stp-get-attribute pkg-name 'requirements)))
-        (let-alist (stp-get-alist pkg-name)
-          (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
-              (progn
-                (f-delete pkg-name t)
-                (stp-delete-alist pkg-name)
-                (stp-write-info)
-                (cl-dolist (feature features)
-                  (push feature stp-headers-uninstalled-features))
-                (stp-delete-load-path pkg-name)
-                (stp-git-commit (format "Uninstalled version %s of %s"
-                                        (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                        pkg-name)
-                                :do-commit do-commit)
-                (stp-queue-uninstall-requirements controller requirements options)
-                (stp-prune-cached-latest-versions pkg-name))
-            (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
+  (let ((options (stp-options operation controller)))
+    (with-slots (do-commit)
+        options
+      (with-slots (pkg-name)
+          operation
+        (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
+              (requirements (stp-get-attribute pkg-name 'requirements)))
+          (let-alist (stp-get-alist pkg-name)
+            (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
+                (progn
+                  (f-delete pkg-name t)
+                  (stp-delete-alist pkg-name)
+                  (stp-write-info)
+                  (cl-dolist (feature features)
+                    (push feature stp-headers-uninstalled-features))
+                  (stp-delete-load-path pkg-name)
+                  (stp-git-commit (format "Uninstalled version %s of %s"
+                                          (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                          pkg-name)
+                                  :do-commit do-commit)
+                  (stp-uninstall-requirements2 controller requirements options)
+                  (stp-prune-cached-latest-versions pkg-name))
+              (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))))
 
-(cl-defgeneric stp-queue-install-requirements ((controller stp-controller) requirements options)
+(cl-defgeneric stp-ensure-requirements2 (controller requirements options)
   (:documentation
    "Install or upgrade the REQUIREMENTS that are not currently satisfied."))
 
-(cl-defmethod stp-queue-install-requirements ((controller stp-controller) requirements options)
+(cl-defmethod stp-ensure-requirements2 ((controller stp-controller) requirements options)
   (stp-msg "Analyzing the load path for installed packages...")
   (stp-headers-update-features)
   (let (operations)
@@ -347,45 +407,46 @@ package and were installed as dependencies."))
     (stp-controller-prepend-operations controller (reverse operations))))
 
 (cl-defmethod stp-operate ((operation stp-install-operation) (controller stp-controller))
-  (with-slots (do-commit do-audit do-actions)
-      (stp-options operation controller)
-    (with-slots (pkg-name min-version enforce-min-version prompt-prefix dependency)
-        operation
-      (let* ((pkg-alist (or (slot-value operation 'pkg-alist)
-                            (stp-controller-get-package controller
-                                                        :pkg-name pkg-name
-                                                        :prompt-prefix prompt-prefix
-                                                        :min-version min-version
-                                                        :enforce-min-version enforce-min-version)))
-             (last-hash (stp-git-head)))
-        (let-alist pkg-alist
-          ;; Guess the method if it isn't already known.
-          (unless .method
-            (setq .method (stp-remote-method .remote))
-            (stp-set-attribute pkg-name 'method .method))
-          (when (stp-url-safe-remote-p .remote)
-            (cl-ecase .method
-              (git (stp-git-install pkg-name .remote .version .update :branch .branch))
-              (elpa (stp-elpa-install pkg-name .remote .version))
-              (archive (stp-archive-install pkg-name .remote))
-              (url (stp-url-install pkg-name .remote .version)))
-            (stp-maybe-audit-changes pkg-name 'install last-hash do-audit)
-            (stp-update-remotes pkg-name .remote .remote .other-remotes)
-            (stp-update-requirements pkg-name)
-            (when dependency
-              (stp-set-attribute pkg-name 'dependency t))
-            (stp-write-info)
-            ;; For archives, the version is determined automatically instead of
-            ;; being read and so .version will be nil here.
-            (setq .version (stp-get-attribute pkg-name 'version))
-            (stp-git-commit (format "Installed version %s of %s"
-                                    (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                    pkg-name)
-                            :do-commit do-commit)
-            (stp-queue-install-requirements controller (stp-get-attribute pkg-name 'requirements) options)
-            ;; Perform post actions for all packages after everything else.
-            (when (stp-maybe-call do-actions)
-              (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name)))))))))
+  (let ((options (stp-options operation controller)))
+    (with-slots (do-commit do-audit do-actions)
+        options
+      (with-slots (pkg-name min-version enforce-min-version prompt-prefix dependency)
+          operation
+        (let* ((pkg-alist (or (slot-value operation 'pkg-alist)
+                              (stp-controller-get-package controller
+                                                          :pkg-name pkg-name
+                                                          :prompt-prefix prompt-prefix
+                                                          :min-version min-version
+                                                          :enforce-min-version enforce-min-version)))
+               (last-hash (stp-git-head)))
+          (let-alist pkg-alist
+            ;; Guess the method if it isn't already known.
+            (unless .method
+              (setq .method (stp-remote-method .remote))
+              (stp-set-attribute pkg-name 'method .method))
+            (when (stp-url-safe-remote-p .remote)
+              (cl-ecase .method
+                (git (stp-git-install pkg-name .remote .version .update :branch .branch))
+                (elpa (stp-elpa-install pkg-name .remote .version))
+                (archive (stp-archive-install pkg-name .remote))
+                (url (stp-url-install pkg-name .remote .version)))
+              (stp-maybe-audit-changes pkg-name 'install last-hash do-audit)
+              (stp-update-remotes pkg-name .remote .remote .other-remotes)
+              (stp-update-requirements pkg-name)
+              (when dependency
+                (stp-set-attribute pkg-name 'dependency t))
+              (stp-write-info)
+              ;; For archives, the version is determined automatically instead of
+              ;; being read and so .version will be nil here.
+              (setq .version (stp-get-attribute pkg-name 'version))
+              (stp-git-commit (format "Installed version %s of %s"
+                                      (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                      pkg-name)
+                              :do-commit do-commit)
+              (stp-ensure-requirements2 controller (stp-get-attribute pkg-name 'requirements) options)
+              ;; Perform post actions for all packages after everything else.
+              (when (stp-maybe-call do-actions)
+                (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name))))))))))
 
 ;; TODO
 (cl-defmethod stp-operate ((operation stp-upgrade-operation) (controller stp-controller)))
