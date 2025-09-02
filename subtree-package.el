@@ -102,63 +102,6 @@ remote or archive. Archives are represented as symbols."
         (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") :default (stp-default-name remote)))
               remote)))))
 
-(cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
-  (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
-                                                              :pkg-name pkg-name
-                                                              :default-remote (map-elt pkg-alist 'remote)))
-          (method (stp-remote-method remote)))
-    (let (version update branch)
-      (cl-ecase method
-        (git
-         (unless (stp-git-valid-remote-p remote)
-           (user-error (stp-prefix-prompt prompt-prefix "Invalid git repository (or host is down): %s") remote))
-         (unless update
-           (setq update (stp-git-read-update (stp-prefix-prompt prompt-prefix "Update policy: ")
-                                             :default (map-elt pkg-alist 'update)
-                                             :remote remote
-                                             :other-remotes (map-elt pkg-alist 'other-remotes))))
-         (when (and (eq update 'unstable)
-                    (not branch))
-           (setq branch (stp-git-read-branch (stp-prefix-prompt prompt-prefix "Branch: ") remote (map-elt pkg-alist 'branch))))
-         (unless version
-           (setq version (stp-git-read-version
-                          (stp-prefix-prompt prompt-prefix (format "Version%s: " (stp-min-version-annotation min-version enforce-min-version)))
-                          remote
-                          :extra-versions (list (map-elt pkg-alist 'version) branch)
-                          :default (map-elt pkg-alist 'version)
-                          :min-version (and enforce-min-version min-version))))
-         `(,pkg-name
-           (method . ,method)
-           (remote . ,remote)
-           (version . ,version)
-           (update . ,update)
-           (branch . ,branch)))
-        ;; Archives only have one version so the minimum version cannot be
-        ;; enforced.
-        (archive
-         `(,pkg-name
-           (method . ,method)
-           (remote . ,remote)))
-        ((elpa url)
-         (unless (or (and (string-match-p rem-strict-url-regexp remote)
-                          (url-file-exists-p remote))
-                     ;; Allow local files too.
-                     (f-exists-p remote))
-           (user-error (stp-prefix-prompt prompt-prefix "Invalid URL (or host is down): %s") remote))
-         (unless version
-           (cl-ecase method
-             (elpa (setq version (stp-elpa-read-version
-                                  (stp-prefix-prompt prompt-prefix "Version: ")
-                                  pkg-name
-                                  remote
-
-                                  :min-version (and enforce-min-version min-version))))
-             (url (setq version (stp-url-read-version (stp-prefix-prompt prompt-prefix "Version: "))))))
-         `(,pkg-name
-           (method . ,method)
-           (remote . ,remote)
-           (version . ,version)))))))
-
 (defun stp-repair-default-callback (type pkg-name)
   (let-alist (stp-get-alist pkg-name)
     (cl-flet ((handle-partial-elpa-url (pkg-name)
