@@ -1,5 +1,6 @@
 ;;; -*- lexical-binding: t; -*-
 
+(require 'info)
 (require 'stp-headers)
 (require 'stp-latest)
 (require 'stp-utils)
@@ -34,7 +35,8 @@ as for `stp-auto-commit'.")
   "A list that indicates when git reset should be used under
 exceptional circumstances. If the list contains :audit, reset
 when an audit fails. If it contains :error, reset when errors
-occur. t means to always reset and nil means to never reset.")
+occur. t means to always reset and nil means to never reset. The
+value can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-post-actions t
   "When non-nil, automatically perform post actions.
@@ -180,6 +182,38 @@ Other versions are not abbreviated."
    (t
     version)))
 
+(cl-defun stp-list-read-name (prompt)
+  "In `stp-list-mode', return the package on the current line if there
+is one. Otherwise, prompt the user for a package."
+  (stp-refresh-info)
+  (or (and (derived-mode-p 'stp-list-mode)
+           (stp-list-package-on-line))
+      (stp-read-existing-name prompt)))
+
+(defun stp-list-package-on-line (&optional offset)
+  "Return the name of the package on the current line.
+
+When OFFSET is non-nil, return the name of the packages that is
+OFFSET lines from the current line or nil if no package
+corresponds to that line."
+  (stp-refresh-info)
+  (when (derived-mode-p 'stp-list-mode)
+    (setq offset (or offset 0))
+    (let ((line (line-number-at-pos)))
+      (save-excursion
+        (forward-line offset)
+        (when (= (line-number-at-pos) (+ line offset))
+          (when-let ((pkg-name (rem-plain-symbol-at-point)))
+            (and (not (save-excursion
+                        (beginning-of-line)
+                        (bobp)))
+                 (not (save-excursion
+                        (end-of-line)
+                        (eobp)))
+                 (not (string= pkg-name ""))
+                 (member pkg-name (stp-info-names))
+                 pkg-name)))))))
+
 (cl-defun stp-audit-changes (pkg-name type last-hash &key do-reset)
   (unless (memq type '(install upgrade))
     (error "type must be either 'install or 'upgrade"))
@@ -187,8 +221,8 @@ Other versions are not abbreviated."
   (unless (prog1
               (yes-or-no-p "Are the changes to the package safe? ")
             (stp-git-bury-diff-buffer))
-    (let ((reset (or (eq do-reset t) (memq :audit do-reset))))
-      (when reset
+    (let ((reset (stp-maybe-call do-reset)))
+      (when (or (eq reset t) (memq :audit reset))
         (stp-git-reset last-hash :mode 'hard))
       (signal 'quit
               (list (format "aborted %s %s due to a failed security audit%s"
@@ -251,6 +285,214 @@ remote or archive. Archives are represented as symbols."
       (let ((remote (stp-normalize-remote name-or-remote)))
         (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") :default (stp-default-name remote)))
               remote)))))
+
+(defun stp-download-url (pkg-name pkg-alist)
+  (let-alist pkg-alist
+    ;; Note that for the 'git method there is no download URL.
+    (cl-ecase .method
+      (elpa
+       (stp-elpa-download-url pkg-name .remote .version))
+      (archive
+       ;; .remote is a symbol representing the archive for the 'archive method.
+       (stp-archive-download-url pkg-name .remote))
+      (url
+       .remote))))
+
+(defun stp-post-actions (pkg-name options)
+  (with-slots (do-update-load-path
+               do-load
+               do-build
+               do-build-info
+               do-update-info-directories)
+      options
+    (when (stp-maybe-call do-update-load-path pkg-name)
+      (stp-update-load-path (stp-full-path pkg-name)))
+    (when (stp-maybe-call do-build pkg-name)
+      (stp-build pkg-name))
+    (when (stp-maybe-call do-load pkg-name)
+      (condition-case err
+          (stp-reload pkg-name)
+        (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
+    (when (stp-maybe-call do-build-info pkg-name)
+      (stp-build-info pkg-name))
+    (when (stp-maybe-call do-update-info-directories pkg-name)
+      (stp-update-info-directories pkg-name))))
+
+(defvar stp-build-output-buffer-name "*STP Build Output*")
+
+(defun stp-build (pkg-name &optional allow-naive-byte-compile)
+  "Build the package PKG-NAME.
+
+This is done by running the appropriate build systems or
+performing naive byte compilation. Return non-nil if there were
+no errors."
+  (when pkg-name
+    (let* ((output-buffer stp-build-output-buffer-name)
+           (pkg-path (stp-canonical-path pkg-name))
+           (build-dir pkg-path))
+      ;; Setup output buffer
+      (get-buffer-create output-buffer)
+      ;; Handle CMake separately. Since it generates makefiles, make may need
+      ;; to be run afterwards.
+      (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
+        (stp-msg "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
+        ;; Try to use the directory build by default. It is fine if
+        ;; this directory already exists as long as it is not tracked
+        ;; by git.
+        (setq build-dir (f-expand "build" pkg-path))
+        (when (and (f-exists-p build-dir)
+                   (stp-git-tracked-p build-dir))
+          (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
+        (unless (f-exists-p build-dir)
+          (make-directory build-dir))
+        (let ((default-directory build-dir))
+          (let ((cmd '("cmake" "..")))
+            (stp-before-build-command cmd output-buffer)
+            ;; This will use `build-dir' as the build directory and
+            ;; `pkg-path' as the source directory so there is no
+            ;; ambiguity as to which CMakeLists.txt file should be
+            ;; used.
+            (unless (eql (rem-run-command cmd :buffer output-buffer) 0)
+              (stp-msg "Failed to run cmake on %s" build-dir)))))
+      (let ((success
+             ;; Try different methods of building the package until one
+             ;; succeeds.
+             (or nil
+                 ;; Handle GNU make. We use a separate binding for
+                 ;; `default-directory' here because the cmake code above
+                 ;; can change build-dir.
+                 (let ((default-directory build-dir))
+                   (when (-any (lambda (file)
+                                 (f-exists-p file))
+                               stp-gnu-makefile-names)
+                     (stp-msg "A makefile was found in %s. Attempting to run make..." build-dir)
+                     (let ((cmd '("make")))
+                       (stp-before-build-command cmd output-buffer)
+                       ;; Make expects a makefile to be in the current directory
+                       ;; so there is no ambiguity over which makefile will be
+                       ;; used.
+                       (or (eql (rem-run-command cmd :buffer output-buffer) 0)
+                           (and (stp-msg "Failed to run make on %s" pkg-path)
+                                nil)))))
+                 (and allow-naive-byte-compile
+                      (let ((default-directory pkg-path))
+                        (stp-msg "Attempting to byte compile files in %s..." pkg-path)
+                        (condition-case err
+                            (progn
+                              ;; Put the messages from `byte-recompile-directory' in
+                              ;; output-buffer.
+                              (dflet ((stp-msg (&rest args)
+                                               (with-current-buffer output-buffer
+                                                 (insert (apply #'format args)))))
+                                (stp-before-build-command "Byte compiling files" output-buffer)
+                                ;; Packages have to be compiled and loaded twice
+                                ;; to ensure that macros will work.
+                                (byte-recompile-directory pkg-path 0)
+                                (stp-reload-once pkg-name)
+                                (byte-recompile-directory pkg-path 0)
+                                (stp-reload-once pkg-name))
+                              t)
+                          (error (ignore err)
+                                 (stp-msg "Byte-compiling %s failed" pkg-path)
+                                 nil)))))))
+        ;; Return success or failure
+        (if success
+            (stp-msg "Successfully built %s" pkg-name)
+          (stp-msg "Build failed for %s" pkg-name))
+        success))))
+
+(cl-defun stp-reload (pkg-name &key quiet)
+  "Reload the package."
+  (interactive (list (stp-list-read-name "Package name: ")))
+  ;; Reload the package twice so that macros are handled properly.
+  (stp-reload-once pkg-name)
+  (stp-reload-once pkg-name)
+  (unless quiet
+    (stp-msg "Reloaded %s" pkg-name)))
+
+(defun stp-build-info (pkg-name)
+  "Build the info manuals for PKG-NAME."
+  (interactive (list (stp-list-read-name "Package name: ")))
+  (when pkg-name
+    (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
+                                 (lambda (path)
+                                   (member (f-filename path) stp-gnu-makefile-names))
+                                 t))
+           (output-buffer stp-build-output-buffer-name)
+           (texi-target (concat pkg-name ".texi"))
+           (target (concat pkg-name ".info"))
+           attempted
+           (success
+            ;; Try to build the info manual in different ways until one succeeds.
+            (or nil
+                ;; Try to find a makefile that has an appropriate target.
+                (cl-dolist (makefile makefiles)
+                  (when (member target (stp-make-targets makefile))
+                    (let ((default-directory (f-dirname makefile)))
+                      (setq attempted t)
+                      (stp-msg "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
+                      (let ((cmd (list "make" target)))
+                        (stp-before-build-command cmd output-buffer)
+                        (if (eql (rem-run-command cmd :buffer output-buffer) 0)
+                            (progn
+                              (stp-msg "Built the info manual for %s using make" pkg-name)
+                              (cl-return t))
+                          (stp-msg "'%s' failed in %s" cmd (f-dirname makefile)))))))
+
+                ;; Try to compile a texi file directly.
+                (cl-dolist (source (f-entries (stp-canonical-path pkg-name)
+                                              (lambda (path)
+                                                (string= (f-filename path) texi-target))
+                                              t))
+                  (let ((default-directory (f-dirname source)))
+                    (setq attempted t)
+                    (stp-msg "texi source file found at %s. Attempting to compile it with makeinfo..." source)
+                    (let ((cmd (list "makeinfo" "--no-split" texi-target)))
+                      (cond
+                       (;; Don't build texi files unless they have changed since the info
+                        ;; manual was last built.
+                        (f-newer-p (f-swap-ext source "info") source)
+                        (stp-msg "The info manual for %s is up to date" pkg-name)
+                        (cl-return t))
+                       ((progn
+                          (stp-before-build-command cmd output-buffer)
+                          (eql (rem-run-command cmd :buffer output-buffer) 0))
+                        (stp-msg "Built the info manual for %s using makeinfo" pkg-name)
+                        (cl-return t))
+                       (t
+                        (stp-msg "'%s' failed" cmd)))))))))
+      (unless attempted
+        (stp-msg "No makefiles or texi source files found for the %s info manual" pkg-name))
+      success)))
+
+(defun stp-update-info-directories (pkg-name &optional quiet)
+  "Make the info files for PKG-NAME available to info commands."
+  (interactive (list (stp-list-read-name "Package name: ")))
+  (when pkg-name
+    (let* ((directory (stp-canonical-path pkg-name))
+           (new (mapcar 'f-dirname
+                        (f-entries directory
+                                   (-partial #'string-match-p "\\.info$")
+                                   t))))
+      (info-initialize)
+      (setq Info-directory-list
+            (cl-remove-duplicates (append Info-directory-list new)
+                                  :test #'equal))
+      (unless quiet
+        (if new
+            (stp-msg "Added info files for %s" pkg-name)
+          (stp-msg "No info files found for %s" pkg-name))))))
+
+(defun stp-update-lock-file (&optional interactive-p)
+  "Write the hash of the git repository to the lock file."
+  (interactive (list t))
+  (stp-with-package-source-directory
+    (let ((hash (stp-git-rev-to-hash stp-source-directory "HEAD")))
+      (with-temp-buffer
+        (insert (format "%S\n" hash))
+        (f-write (buffer-string) 'utf-8 stp-lock-file)
+        (when interactive-p
+          (stp-msg "Updated the lock file at %s" stp-lock-file))))))
 
 (cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
   (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
@@ -319,22 +561,22 @@ remote or archive. Archives are represented as symbols."
    (options :initarg :options)
    (operations :initarg :tasks :initform nil)))
 
-;; TODO: add code to callback to the controller to get versions and such.
+;; TODO: Add code to callback to the controller to get versions and such.
 (defclass stp-interactive-controller (stp-controller) ())
 
 (defclass stp-auto-controller (stp-controller)
   ((preferred-update :initarg :preferred-update :initform 'stable)))
 
-(cl-defgeneric stp-controller-append-errors (controller &rest errors)
+(cl-defgeneric stp-controller-append-errors (controller pkg-name &rest errors)
   (:documentation
    "Append the specified error messages (strings) to the controller's
 list of error messages. These will be reported to the user after
 all operations are completed."))
 
-(cl-defmethod stp-controller-append-errors ((controller stp-controller) &rest new-errors)
+(cl-defmethod stp-controller-append-errors ((controller stp-controller) pkg-name &rest new-errors)
   (with-slots (errors)
       controller
-    (setq errors (append errors new-errors))))
+    (setq errors (append errors (mapcar (fn (cons pkg-name %)) new-errors)))))
 
 (cl-defgeneric stp-controller-append-operations (controller &rest operations)
   (:documentation
@@ -366,41 +608,45 @@ operations to perform."))
                     :min-version min-version
                     :enforce-min-version enforce-min-version))
 
-(cl-defgeneric stp-skip-msg (operation)
-  (:documentation
-   "Return a message that describes skipping OPERATION."))
+(cl-defgeneric stp-operation-verb (operation)
+  "Return a verb that describes the operation.")
 
-(cl-defmethod stp-skip-msg ((operation stp-package-operation))
-  (format "Skipping an unknown package operation on %s" (slot-value operation 'pkg-name)))
+(cl-defmethod stp-operation-verb ((_operation stp-package-operation))
+  "performing an unknown package operation on")
 
-(cl-defmethod stp-skip-msg ((operation stp-uninstall-operation))
-  (format "Skipping uninstalling %s" (slot-value operation 'pkg-name)))
+(cl-defmethod stp-operation-verb ((_operation stp-uninstall-operation))
+  "uninstalling")
 
-(cl-defmethod stp-skip-msg ((operation stp-install-operation))
-  (format "Skipping installing %s" (slot-value operation 'pkg-name)))
+(cl-defmethod stp-operation-verb ((_operation stp-install-operation))
+  "installing")
 
-(cl-defmethod stp-skip-msg ((operation stp-upgrade-operation))
-  (format "Skipping upgrading %s" (slot-value operation 'pkg-name)))
+(cl-defmethod stp-operation-verb ((_operation stp-upgrade-operation))
+  "upgrading")
 
-(cl-defmethod stp-skip-msg ((operation stp-reinstall-operation))
-  (format "Skipping reinstalling %s" (slot-value operation 'pkg-name)))
+(cl-defmethod stp-operation-verb ((_operation stp-reinstall-operation))
+  "reinstalling")
 
-(cl-defgeneric stp-operate (operation controller)
+(cl-defmethod stp-operation-verb ((_operation stp-post-action-operation))
+  "performing post actions on")
+
+(cl-defgeneric stp-operate (controller operation)
   (:documentation
    "Perform OPERATION using CONTROLLER. This may result in additional
 operations being added to the controller."))
 
-(cl-defmethod stp-operate ((_operation stp-operation) (_controller stp-controller)))
+(cl-defmethod stp-operate ((_controller stp-controller) (_operation stp-operation)))
 
-(cl-defmethod stp-operate :around ((operation stp-skippable-package-operation) (_controller stp-controller))
+(cl-defmethod stp-operate :around ((_controller stp-controller) (operation stp-skippable-package-operation))
   ;; Sometimes, a single repository can contain multiple packages and so
   ;; installing the dependencies naively will result in multiple copies.
   (when (slot-value operation 'allow-skip)
-    (stp-allow-skip (stp-msg (stp-skip-msg operation))
+    (stp-allow-skip (stp-msg "Skipping %s %s"
+                             (stp-operation-verb operation)
+                             (slot-value operation 'pkg-name))
       (cl-call-next-method))))
 
-(defun stp-options (operation controller)
-  (or (slot-value operation 'options) (slot-value controller 'options)))
+(defun stp-options (controller operation)
+  (or (slot-value controller 'options) (slot-value operation 'options)))
 
 (cl-defgeneric stp-uninstall-requirements2 (controller requirements options)
   (:documentation
@@ -423,8 +669,8 @@ package and were installed as dependencies."))
                  (not (stp-required-by pkg-name)))
         (stp-controller-prepend-operations controller (stp-uninstall-operation :pkg-name pkg-name :options options))))))
 
-(cl-defmethod stp-operate ((operation stp-uninstall-operation) (controller stp-controller))
-  (let ((options (stp-options operation controller)))
+(cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
+  (let ((options (stp-options controller operation)))
     (with-slots (do-commit)
         options
       (with-slots (pkg-name)
@@ -469,7 +715,7 @@ package and were installed as dependencies."))
                            version
                            emacs-major-version
                            emacs-minor-version)
-                   (stp-controller-append-errors controller))))
+                   (stp-controller-append-errors pkg-name controller))))
            ;; Do nothing when a requirement is ignored or a new enough
            ;; version is installed.
            ((stp-package-requirement-satisfied-p pkg-name version t))
@@ -491,8 +737,8 @@ package and were installed as dependencies."))
       (stp-headers-update-features))
     (stp-controller-prepend-operations controller (reverse operations))))
 
-(cl-defmethod stp-operate ((operation stp-install-operation) (controller stp-controller))
-  (let ((options (stp-options operation controller)))
+(cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-operation))
+  (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-audit do-actions)
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix dependency)
@@ -535,8 +781,8 @@ package and were installed as dependencies."))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
-(cl-defmethod stp-operate ((operation stp-upgrade-operation) (controller stp-controller))
-  (let ((options (stp-options operation controller)))
+(cl-defmethod stp-operate ((controller stp-controller) (operation stp-upgrade-operation))
+  (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-actions do-audit)
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix)
@@ -594,8 +840,8 @@ package and were installed as dependencies."))
                                   :do-commit do-commit)
                   (stp-ensure-requirements2 controller (stp-get-attribute pkg-name 'requirements) options))))))))))
 
-(cl-defmethod stp-operate ((operation stp-reinstall-operation) (controller stp-controller))
-  (let ((options (stp-options operation controller)))
+(cl-defmethod stp-operate ((controller stp-controller) (operation stp-reinstall-operation))
+  (let ((options (stp-options controller operation)))
     (with-slots (pkg-name)
         operation
       (when (and (stp-git-tree-package-modified-p pkg-name)
@@ -603,8 +849,7 @@ package and were installed as dependencies."))
         (user-error "Reinstall aborted"))
       (let-alist (stp-get-alist pkg-name)
         (let* ((pkg-alist (stp-get-alist pkg-name))
-               (tree-hashes (and (not skip-subtree-check)
-                                 (if (eq .method 'git)
+               (tree-hashes (and (if (eq .method 'git)
                                      (stp-git-subtree-package-modified-p pkg-name .remote .version)
                                    ;; For methods other than 'git, we need to create
                                    ;; a synthetic git repository for comparision
@@ -632,19 +877,42 @@ package and were installed as dependencies."))
            (stp-uninstall-operation :pkg-name pkg-name :options options)
            (stp-install-operation :pkg-name pkg-name :options options :pkg-alist pkg-alist)))))))
 
-;; TODO: Combine features of `stp-ensure-requirements',
-;; `stp-maybe-uninstall-requirements' and `stp-report-requirements'.
+(cl-defmethod stp-operate ((controller stp-controller) (operation stp-post-action-operation))
+  (let ((options (stp-options controller operation)))
+    (with-slots (pkg-name)
+        options
+      (stp-post-actions pkg-name options))))
+
 (cl-defmethod stp-execute ((controller stp-controller))
   (with-slots (options operations)
       controller
-    (while operations
-      ;; Execute operation
-      ;; Keep track
-      )
-    ;; Report any errors that occurred
-    ;; Perform certain tasks that should only happen at the end (resetting, pushing,
-    ;; and locking)
-    ))
+    (let ((last-hash (stp-git-head))
+          operation
+          failed-operations
+          skipped-operations
+          successful-operations)
+      (while (setq operation (pop operations))
+        (with-slots (pkg-name)
+            operation
+          (condition-case err
+              (if (eq (stp-operate controller operation) 'skip)
+                  (push operation skipped-operations)
+                (push operation successful-operations))
+            (error (push (cons operation err) failed-operations)))))
+      ;; TODO: Report on the packages that were installed (as in `stp-report-requirements')
+      (with-slots (do-push do-lock do-reset)
+          options
+        ;; Resetting should be done before pushing or locking if an error occurred.
+        (let ((reset (stp-maybe-call do-reset)))
+          (when (and failed-operations (or (eq reset t) (memq :error reset)))
+            (stp-msg "Resetting due to %s"
+                     (if (cdr failed-operations)
+                         "errors"
+                       "an error"))
+            (stp-git-reset last-hash :mode 'hard)))
+        (stp-git-push :do-push (stp-maybe-call do-push))
+        (when (stp-maybe-call do-lock)
+          (stp-update-lock-file))))))
 
 (provide 'stp-controller)
 ;;; stp-controller.el ends here

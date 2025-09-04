@@ -280,30 +280,6 @@ command should proceed.")
         (concat (s-left stp-list-version-length version) stp-ellipsis)
       version)))
 
-(defun stp-list-package-on-line (&optional offset)
-  "Return the name of the package on the current line.
-
-When OFFSET is non-nil, return the name of the packages that is
-OFFSET lines from the current line or nil if no package
-corresponds to that line."
-  (stp-refresh-info)
-  (when (derived-mode-p 'stp-list-mode)
-    (setq offset (or offset 0))
-    (let ((line (line-number-at-pos)))
-      (save-excursion
-        (forward-line offset)
-        (when (= (line-number-at-pos) (+ line offset))
-          (when-let ((pkg-name (rem-plain-symbol-at-point)))
-            (and (not (save-excursion
-                        (beginning-of-line)
-                        (bobp)))
-                 (not (save-excursion
-                        (end-of-line)
-                        (eobp)))
-                 (not (string= pkg-name ""))
-                 (member pkg-name (stp-info-names))
-                 pkg-name)))))))
-
 (defun stp-list-package-on-previous-line ()
   (stp-list-package-on-line -1))
 
@@ -313,14 +289,6 @@ corresponds to that line."
 (defun stp-list-other-package ()
   (or (stp-list-package-on-previous-line)
       (stp-list-package-on-next-line)))
-
-(cl-defun stp-list-read-name (prompt)
-  "In `stp-list-mode', return the package on the current line if there
-is one. Otherwise, prompt the user for a package."
-  (stp-refresh-info)
-  (or (and (derived-mode-p 'stp-list-mode)
-           (stp-list-package-on-line))
-      (stp-read-existing-name prompt)))
 
 (defun stp-toggle-options (options)
   (stp-toggle-object "Toggle options: " options))
@@ -608,10 +576,12 @@ DO-AUDIT are as in `stp-install'."
                   (stp-update-cached-latest pkg-name)
                   (stp-list-refresh :quiet t))))))))))
 
+;; TODO: remove
 (defvar stp-failed-requirements nil)
 (defvar stp-successful-requirements nil)
 (defvar stp-requirements nil)
 
+;; TODO: remove
 (defun stp-requirements-initialize-toplevel ()
   (when stp-requirements-toplevel
     (setq stp-failed-requirements nil
@@ -870,18 +840,6 @@ are not satisfied to the user."
           (stp-with-package-source-directory
             (stp-write-info)
             (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push)))))))
-
-(defun stp-download-url (pkg-name pkg-alist)
-  (let-alist pkg-alist
-    ;; Note that for the 'git method there is no download URL.
-    (cl-ecase .method
-      (elpa
-       (stp-elpa-download-url pkg-name .remote .version))
-      (archive
-       ;; .remote is a symbol representing the archive for the 'archive method.
-       (stp-archive-download-url pkg-name .remote))
-      (url
-       .remote))))
 
 (cl-defun stp-reinstall-command ()
   "Uninstall and reinstall a package interactively as the same version."
@@ -1178,43 +1136,10 @@ package and updating the load path."
     (stp-post-actions (stp-list-read-name "Package name: ")
                       (stp-command-options :class 'stp-action-task-options))))
 
-(defun stp-post-actions (pkg-name options)
-  (with-slots (do-update-load-path
-               do-load
-               do-build
-               do-build-info
-               do-update-info-directories)
-      options
-    (when (stp-maybe-call do-update-load-path pkg-name)
-      (stp-update-load-path (stp-full-path pkg-name)))
-    (when (stp-maybe-call do-build pkg-name)
-      (stp-build pkg-name))
-    (when (stp-maybe-call do-load pkg-name)
-      (condition-case err
-          (stp-reload pkg-name)
-        (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
-    (when (stp-maybe-call do-build-info pkg-name)
-      (stp-build-info pkg-name))
-    (when (stp-maybe-call do-update-info-directories pkg-name)
-      (stp-update-info-directories pkg-name))))
-
-(defun stp-update-lock-file (&optional interactive-p)
-  "Write the hash of the git repository to the lock file."
-  (interactive (list t))
-  (stp-with-package-source-directory
-    (let ((hash (stp-git-rev-to-hash stp-source-directory "HEAD")))
-      (with-temp-buffer
-        (insert (format "%S\n" hash))
-        (f-write (buffer-string) 'utf-8 stp-lock-file)
-        (when interactive-p
-          (stp-msg "Updated the lock file at %s" stp-lock-file))))))
-
 (defun stp-lock-file-watcher (event)
   (let ((action (cadr event)))
     (when (memq action '(created changed))
       (stp-checkout-locked-revision))))
-
-(defvar stp-build-output-buffer-name "*STP Build Output*")
 
 (defvar stp-allow-naive-byte-compile nil
   "If non-nil, do not naively byte compile packages.
@@ -1235,87 +1160,6 @@ inverted with a prefix argument."
       (stp-refresh-info)
       (stp-build (stp-list-read-name "Package name: ")
                  (xor stp-allow-naive-byte-compile current-prefix-arg)))))
-
-(defun stp-build (pkg-name &optional allow-naive-byte-compile)
-  "Build the package PKG-NAME.
-
-This is done by running the appropriate build systems or
-performing naive byte compilation. Return non-nil if there were
-no errors."
-  (when pkg-name
-    (let* ((output-buffer stp-build-output-buffer-name)
-         (pkg-path (stp-canonical-path pkg-name))
-         (build-dir pkg-path))
-    ;; Setup output buffer
-    (get-buffer-create output-buffer)
-    ;; Handle CMake separately. Since it generates makefiles, make may need
-    ;; to be run afterwards.
-    (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
-      (stp-msg "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
-      ;; Try to use the directory build by default. It is fine if
-      ;; this directory already exists as long as it is not tracked
-      ;; by git.
-      (setq build-dir (f-expand "build" pkg-path))
-      (when (and (f-exists-p build-dir)
-                 (stp-git-tracked-p build-dir))
-        (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
-      (unless (f-exists-p build-dir)
-        (make-directory build-dir))
-      (let ((default-directory build-dir))
-        (let ((cmd '("cmake" "..")))
-          (stp-before-build-command cmd output-buffer)
-          ;; This will use `build-dir' as the build directory and
-          ;; `pkg-path' as the source directory so there is no
-          ;; ambiguity as to which CMakeLists.txt file should be
-          ;; used.
-          (unless (eql (rem-run-command cmd :buffer output-buffer) 0)
-            (stp-msg "Failed to run cmake on %s" build-dir)))))
-    (let ((success
-           ;; Try different methods of building the package until one
-           ;; succeeds.
-           (or nil
-               ;; Handle GNU make. We use a separate binding for
-               ;; `default-directory' here because the cmake code above
-               ;; can change build-dir.
-               (let ((default-directory build-dir))
-                 (when (-any (lambda (file)
-                               (f-exists-p file))
-                             stp-gnu-makefile-names)
-                   (stp-msg "A makefile was found in %s. Attempting to run make..." build-dir)
-                   (let ((cmd '("make")))
-                     (stp-before-build-command cmd output-buffer)
-                     ;; Make expects a makefile to be in the current directory
-                     ;; so there is no ambiguity over which makefile will be
-                     ;; used.
-                     (or (eql (rem-run-command cmd :buffer output-buffer) 0)
-                         (and (stp-msg "Failed to run make on %s" pkg-path)
-                              nil)))))
-               (and allow-naive-byte-compile
-                    (let ((default-directory pkg-path))
-                      (stp-msg "Attempting to byte compile files in %s..." pkg-path)
-                      (condition-case err
-                          (progn
-                            ;; Put the messages from `byte-recompile-directory' in
-                            ;; output-buffer.
-                            (dflet ((stp-msg (&rest args)
-                                             (with-current-buffer output-buffer
-                                               (insert (apply #'format args)))))
-                              (stp-before-build-command "Byte compiling files" output-buffer)
-                              ;; Packages have to be compiled and loaded twice
-                              ;; to ensure that macros will work.
-                              (byte-recompile-directory pkg-path 0)
-                              (stp-reload-once pkg-name)
-                              (byte-recompile-directory pkg-path 0)
-                              (stp-reload-once pkg-name))
-                            t)
-                        (error (ignore err)
-                               (stp-msg "Byte-compiling %s failed" pkg-path)
-                               nil)))))))
-      ;; Return success or failure
-      (if success
-          (stp-msg "Successfully built %s" pkg-name)
-        (stp-msg "Build failed for %s" pkg-name))
-      success))))
 
 (defvar stp-build-blacklist nil
   "This is a list of packages that should not be built by
@@ -1350,61 +1194,6 @@ inverted with a prefix argument. Packages in
         (stp-msg "Failed to build: %s" (s-join " " failed))
       (stp-msg "Successfully built all packages"))))
 
-(defun stp-build-info (pkg-name)
-  "Build the info manuals for PKG-NAME."
-  (interactive (list (stp-list-read-name "Package name: ")))
-  (when pkg-name
-    (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
-                               (lambda (path)
-                                 (member (f-filename path) stp-gnu-makefile-names))
-                               t))
-         (output-buffer stp-build-output-buffer-name)
-         (texi-target (concat pkg-name ".texi"))
-         (target (concat pkg-name ".info"))
-         attempted
-         (success
-          ;; Try to build the info manual in different ways until one succeeds.
-          (or nil
-              ;; Try to find a makefile that has an appropriate target.
-              (cl-dolist (makefile makefiles)
-                (when (member target (stp-make-targets makefile))
-                  (let ((default-directory (f-dirname makefile)))
-                    (setq attempted t)
-                    (stp-msg "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
-                    (let ((cmd (list "make" target)))
-                      (stp-before-build-command cmd output-buffer)
-                      (if (eql (rem-run-command cmd :buffer output-buffer) 0)
-                          (progn
-                            (stp-msg "Built the info manual for %s using make" pkg-name)
-                            (cl-return t))
-                        (stp-msg "'%s' failed in %s" cmd (f-dirname makefile)))))))
-
-              ;; Try to compile a texi file directly.
-              (cl-dolist (source (f-entries (stp-canonical-path pkg-name)
-                                         (lambda (path)
-                                           (string= (f-filename path) texi-target))
-                                         t))
-                (let ((default-directory (f-dirname source)))
-                  (setq attempted t)
-                  (stp-msg "texi source file found at %s. Attempting to compile it with makeinfo..." source)
-                  (let ((cmd (list "makeinfo" "--no-split" texi-target)))
-                    (cond
-                     (;; Don't build texi files unless they have changed since the info
-                      ;; manual was last built.
-                      (f-newer-p (f-swap-ext source "info") source)
-                      (stp-msg "The info manual for %s is up to date" pkg-name)
-                      (cl-return t))
-                     ((progn
-                        (stp-before-build-command cmd output-buffer)
-                        (eql (rem-run-command cmd :buffer output-buffer) 0))
-                      (stp-msg "Built the info manual for %s using makeinfo" pkg-name)
-                      (cl-return t))
-                     (t
-                      (stp-msg "'%s' failed" cmd)))))))))
-    (unless attempted
-      (stp-msg "No makefiles or texi source files found for the %s info manual" pkg-name))
-    success)))
-
 (defvar stp-build-info-blacklist nil
   "This is a list of packages that should not be built by
   `stp-build-all-info' when it is called interactively.")
@@ -1424,39 +1213,12 @@ inverted with a prefix argument. Packages in
         (stp-msg "Failed to build info manuals for: %s" (s-join " " failed))
       (stp-msg "Successfully built info manuals for all packages"))))
 
-(cl-defun stp-reload (pkg-name &key quiet)
-  "Reload the package."
-  (interactive (list (stp-list-read-name "Package name: ")))
-  ;; Reload the package twice so that macros are handled properly.
-  (stp-reload-once pkg-name)
-  (stp-reload-once pkg-name)
-  (unless quiet
-    (stp-msg "Reloaded %s" pkg-name)))
-
 (cl-defun stp-list-update-load-path (&optional arg)
   "Reload the package."
   (interactive "P")
   (if arg
       (stp-update-load-paths t)
     (stp-update-load-path (stp-canonical-path (stp-list-read-name "Package name: ")) t)))
-
-(defun stp-update-info-directories (pkg-name &optional quiet)
-  "Make the info files for PKG-NAME available to info commands."
-  (interactive (list (stp-list-read-name "Package name: ")))
-  (when pkg-name
-    (let* ((directory (stp-canonical-path pkg-name))
-           (new (mapcar 'f-dirname
-                        (f-entries directory
-                                   (-partial #'string-match-p "\\.info$")
-                                   t))))
-      (info-initialize)
-      (setq Info-directory-list
-            (cl-remove-duplicates (append Info-directory-list new)
-                                  :test #'equal))
-      (unless quiet
-        (if new
-            (stp-msg "Added info files for %s" pkg-name)
-          (stp-msg "No info files found for %s" pkg-name))))))
 
 (defun stp-update-all-info-directories (&optional pkg-names quiet)
   "Make the info files for all packages available to info commands."
