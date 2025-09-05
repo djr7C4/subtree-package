@@ -293,7 +293,7 @@ command should proceed.")
 (defun stp-toggle-options (options)
   (stp-toggle-object "Toggle options: " options))
 
-(cl-defun stp-command-options (&key (class 'stp-package-task-options) (toggle-p (fn current-prefix-arg)))
+(cl-defun stp-command-options (&key (class 'stp-package-operation-options) (toggle-p (fn current-prefix-arg)))
   (let ((options (make-instance class)))
     (when (stp-maybe-call toggle-p)
         (stp-toggle-options options))
@@ -341,21 +341,20 @@ ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
 
 (defvar stp-requirements-toplevel t)
 
-(cl-defun stp-install-command (options &key pkg-name (prompt-prefix "") min-version dependency)
+(cl-defun stp-install-command (options)
   "Install a package.
 
 OPTIONS should be an instance of the class
-`stp-additive-task-options'. It controls the behaviors
+`stp-additive-operation-options'. It controls the behaviors
 corresponding to the names of the class slots. Interactively,
-these options can be toggled via an interactive menu when the
-command is run with a prefix argument.
+these options can be toggled via a menu when the command is run
+with a prefix argument.
 
-These behaviors include
-whether STP should automatically commit, push, update
-`stp-lock-file', require the code to be audited and perform post
-actions. The variables `stp-auto-commit', `stp-auto-push',
-`stp-auto-lock', `stp-audit-changes' and `stp-auto-post-actions'
-control the default values.
+These behaviors include whether STP should automatically commit,
+push, update `stp-lock-file', require the code to be audited and
+perform post actions. The variables `stp-auto-commit',
+`stp-auto-push', `stp-auto-lock', `stp-audit-changes' and
+`stp-auto-post-actions' control the default values.
 
 Finer grained control of post actions is also available via
 OPTIONS. In particular, updating the load path, loading code,
@@ -366,83 +365,22 @@ are set from `stp-auto-update-load-path', `stp-auto-load',
 `stp-auto-update-info-directories'.
 
 If `stp-auto-commit', `stp-auto-push', `stp-auto-lock',
-`stp-auto-post-actions' and `stp-audit-changes' are non-nil,
-commit, push update the lock file, perform post actions (see
-`stp-auto-post-actions') and audit the package before running
-actions. With a prefix argument, each of these can be toggled via
-an interactive menu before running the command."
-  (interactive (list (stp-command-options :class 'stp-additive-task-options)))
+`stp-auto-reset', `stp-audit-changes' and `stp-auto-post-actions'
+are non-nil, commit, push update the lock file, reset to the
+original commit on errors or failed audits, and perform post
+actions (see `stp-auto-post-actions'). With a prefix argument,
+each of these can be toggled via an interactive menu before
+running the command."
+  (interactive (list (stp-command-options :class 'stp-additive-operation-options)))
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
   ;; greatly improves efficiency).
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-install
-             (rem-at-end (stp-command-args :pkg-name pkg-name
-                                           :prompt-prefix prompt-prefix
-                                           :read-pkg-alist t
-                                           :existing-pkg nil
-                                           :line-pkg nil
-                                           :min-version min-version
-                                           :enforce-min-version stp-enforce-min-version)
-                         options
-                         :dependency dependency)))))
-
-;; TODO: remove (to be replaced by stp-operate)
-(cl-defun stp-install (pkg-name pkg-alist options &key dependency (refresh t) (ensure-requirements t))
-  "Install a package named PKG-NAME that has the alist PKG-ALIST.
-
-When DEPENDENCY is non-nil, the package will be marked as a
-dependency. When MIN-VERSION is non-nil, it indicates the minimum
-version that is required for this package due to installation as
-a dependency. When ENSURE-REQUIREMENTS is non-nil, dependencies
-of packages are installed or upgraded as needed."
-  ;; pkg-name may be nil in interactive calls depending on the value of
-  ;; `stp-allow-unclean'. See `stp-maybe-ensure-clean'.
-  (when pkg-name
-    (stp-requirements-initialize-toplevel)
-    (with-slots (do-commit do-push do-lock do-audit do-actions)
-        options
-      (let ((last-hash (stp-git-head)))
-        (let-alist pkg-alist
-          ;; Guess the method if it isn't already known.
-          (unless .method
-            (setq .method (stp-remote-method .remote))
-            (stp-set-attribute pkg-name 'method .method))
-          (when (stp-url-safe-remote-p .remote)
-            (cl-ecase .method
-              (git (stp-git-install pkg-name .remote .version .update :branch .branch))
-              (elpa (stp-elpa-install pkg-name .remote .version))
-              (archive (stp-archive-install pkg-name .remote))
-              (url (stp-url-install pkg-name .remote .version)))
-            (stp-maybe-audit-changes pkg-name 'install last-hash do-audit)
-            (stp-update-remotes pkg-name .remote .remote .other-remotes)
-            (stp-update-requirements pkg-name)
-            (when dependency
-              (stp-set-attribute pkg-name 'dependency t))
-            (stp-write-info)
-            ;; For archives, the version is determined automatically instead of
-            ;; being read and so .version will be nil here.
-            (setq .version (stp-get-attribute pkg-name 'version))
-            (stp-git-commit-push (format "Installed version %s of %s"
-                                         (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                         pkg-name)
-                                 :do-commit do-commit
-                                 :do-push do-push)
-            (when ensure-requirements
-              (let ((stp-requirements-toplevel nil))
-                (ignore stp-requirements-toplevel)
-                (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) options)))
-            (when (stp-maybe-call do-lock pkg-name)
-              (stp-update-lock-file))
-            (when (stp-maybe-call do-actions pkg-name)
-              (stp-post-actions pkg-name options))
-            (when (and ensure-requirements stp-requirements-toplevel)
-              (stp-report-requirements 'install))
-            (when refresh
-              (stp-update-cached-latest pkg-name)
-              (stp-list-refresh :quiet t))))))))
+      ;; TODO: read pkg alist and pass to operation
+      (stp-execute (stp-controller :operations (list (stp-install-operation))
+                                   :options options)))))
 
 (defun stp-uninstall-command (options)
   "Uninstall a package interactively."
@@ -450,48 +388,16 @@ of packages are installed or upgraded as needed."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-uninstall (rem-at-end (stp-command-args) options)))))
-
-;; TODO: remove (to be replaced by stp-operate)
-(cl-defun stp-uninstall (pkg-name options &key (refresh t) (uninstall-requirements t))
-  "Uninstall the package named PKG-NAME."
-  (when pkg-name
-    (with-slots (do-commit do-push do-lock)
-        options
-      (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
-            (requirements (stp-get-attribute pkg-name 'requirements)))
-        (let-alist (stp-get-alist pkg-name)
-          (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
-              (progn
-                (f-delete pkg-name t)
-                (stp-delete-alist pkg-name)
-                (stp-write-info)
-                (cl-dolist (feature features)
-                  (push feature stp-headers-uninstalled-features))
-                (stp-delete-load-path pkg-name)
-                (stp-git-commit-push (format "Uninstalled version %s of %s"
-                                             (stp-abbreviate-remote-version pkg-name .method .remote .version)
-                                             pkg-name)
-                                     :do-commit do-commit
-                                     :do-push (and (not uninstall-requirements) do-push))
-                (when uninstall-requirements
-                  (stp-maybe-uninstall-requirements requirements options)
-                  (stp-git-push :do-push (stp-maybe-call do-push pkg-name)))
-                (when (stp-maybe-call do-lock pkg-name)
-                  (stp-update-lock-file))
-                (when (and uninstall-requirements stp-requirements-toplevel)
-                  (stp-report-requirements 'uninstall))
-                (when refresh
-                  (stp-list-refresh :quiet t))
-                (stp-prune-cached-latest-versions pkg-name))
-            (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name)))))))
+      ;; TODO: read pkg-name
+      (stp-execute (stp-controller :operations (list (stp-uninstall-operation :pkg-name pkg-name))
+                                   :options options)))))
 
 (cl-defun stp-upgrade-command (options &key pkg-name min-version (prompt-prefix ""))
   "Upgrade a package interactively.
 
 The arguments DO-COMMIT, DO-PUSH, DO-LOCK, DO-ACTIONS and
 DO-AUDIT are as in `stp-install'."
-  (interactive (list (stp-command-options :class 'stp-additive-task-options)))
+  (interactive (list (stp-command-options :class 'stp-additive-operation-options)))
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
@@ -503,225 +409,6 @@ DO-AUDIT are as in `stp-install'."
                          options
                          :min-version min-version
                          :enforce-min-version stp-enforce-min-version)))))
-
-;; TODO: remove (to be replaced by stp-operate)
-(cl-defun stp-upgrade (pkg-name options &key (refresh t) min-version enforce-min-version (ensure-requirements t))
-  (when pkg-name
-    (stp-requirements-initialize-toplevel)
-    (with-slots (do-commit do-push do-lock do-actions do-audit)
-        options
-      (let ((last-hash (stp-git-head)))
-        (let-alist (stp-get-alist pkg-name)
-          ;; Automatically determine missing other remotes for archive packages.
-          (when (eq .method 'archive)
-            (setq .other-remotes (cl-set-difference (stp-archives pkg-name) (cons .remote .other-remotes))))
-          (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
-                 (extra-versions (and (eq .method 'git)
-                                      (or stp-git-upgrade-always-offer-remote-heads
-                                          (eq .update 'unstable))
-                                      (stp-git-remote-heads-sorted chosen-remote)))
-                 (prompt (format "Upgrade from %s to version%s: "
-                                 (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
-                                 (stp-min-version-annotation min-version enforce-min-version))))
-            (when (stp-url-safe-remote-p chosen-remote)
-              (when (and .branch (member .branch extra-versions))
-                (setq extra-versions (cons .branch (remove .branch extra-versions))))
-              (cl-ecase .method
-                (git (--> extra-versions
-                          (stp-git-read-version
-                           prompt
-                           chosen-remote
-                           :extra-versions-position (if (eq .update 'unstable) 'first 'last)
-                           :extra-versions it
-                           :branch-to-hash nil
-                           :min-version min-version)
-                          (stp-git-upgrade pkg-name chosen-remote it)))
-                (elpa (->> (stp-elpa-read-version
-                            prompt
-                            pkg-name
-                            chosen-remote
-                            :min-version min-version)
-                           (stp-elpa-upgrade pkg-name chosen-remote)))
-                (archive (stp-archive-upgrade pkg-name .remote))
-                (url (->> (stp-url-read-version prompt)
-                          (stp-url-upgrade pkg-name chosen-remote))))
-              (stp-maybe-audit-changes pkg-name 'upgrade last-hash do-audit)
-              ;; The call to `stp-get-attribute' can't be replaced with
-              ;; .version because the 'version attribute will have changed
-              ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
-              ;; `stp-url-upgrade'.
-              (let ((new-version (stp-get-attribute pkg-name 'version)))
-                (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
-                (stp-update-requirements pkg-name)
-                (stp-write-info)
-                ;; Don't commit, push or perform push actions until the user
-                ;; resolves any merge conflicts.
-                (stp-upgrade-handle-merge-conflicts)
-                (stp-git-commit-push (format "Upgraded to version %s of %s"
-                                             (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
-                                             pkg-name)
-                                     :do-commit do-commit
-                                     :do-push do-push)
-                (when ensure-requirements
-                  (let ((stp-requirements-toplevel nil))
-                    (ignore stp-requirements-toplevel)
-                    (stp-ensure-requirements (stp-get-attribute pkg-name 'requirements) options)))
-                (when (stp-maybe-call do-lock pkg-name)
-                  (stp-update-lock-file))
-                (when (stp-maybe-call do-actions pkg-name)
-                  (stp-post-actions pkg-name options))
-                (when (and ensure-requirements stp-requirements-toplevel)
-                  (stp-report-requirements 'upgrade))
-                (when refresh
-                  (stp-update-cached-latest pkg-name)
-                  (stp-list-refresh :quiet t))))))))))
-
-;; TODO: remove
-(defvar stp-failed-requirements nil)
-(defvar stp-successful-requirements nil)
-(defvar stp-requirements nil)
-
-;; TODO: remove
-(defun stp-requirements-initialize-toplevel ()
-  (when stp-requirements-toplevel
-    (setq stp-failed-requirements nil
-          stp-successful-requirements nil
-          stp-requirements nil)))
-
-;; TODO: remove (to be replaced by stp-execute)
-(defun stp-report-requirements (type &optional packages)
-  (unless (memq type '(install upgrade uninstall))
-    (error "type must be 'INSTALL, 'UPGRADE or 'UNINSTALL"))
-  (setq stp-failed-requirements (-uniq stp-failed-requirements)
-        stp-successful-requirements (-uniq stp-successful-requirements)
-        stp-requirements (-uniq stp-requirements))
-  (let* ((total-requirements (+ (length stp-failed-requirements)
-                                (length stp-successful-requirements)))
-         (noun (cond
-                ((and packages (> total-requirements 1)) "packages")
-                (packages "package")
-                ((> total-requirements 1) "dependencies")
-                (t "dependency"))))
-    (cond
-     (stp-failed-requirements
-      (stp-msg "Failed to %s %d/%d %s (see %s):\n%s"
-               (if (memq type '(install upgrade))
-                   "install or upgrade"
-                 "uninstall")
-               (length stp-failed-requirements)
-               total-requirements
-               noun
-               stp-log-buffer-name
-               (rem-join-and (mapcar (lambda (requirement)
-                                       ;; When type is 'uninstall,
-                                       ;; `stp-failed-requirements' can be just
-                                       ;; the package names instead of proper
-                                       ;; requirements.
-                                       (if (listp requirement)
-                                           (db (pkg-sym &optional version)
-                                               (ensure-list requirement)
-                                             (format "%s (%s)" (stp-symbol-package-name pkg-sym) version))
-                                         requirement))
-                                     stp-failed-requirements))))
-     ((> total-requirements 0)
-      (stp-msg "Successfully %s %d %s"
-               (if (memq type '(install upgrade))
-                   "installed or upgraded"
-                 "uninstalled")
-               total-requirements
-               noun)))))
-
-;; TODO: remove (to be replaced by stp-execute)
-(cl-defun stp-ensure-requirements (requirements options &key (search-load-path t))
-  "Install or upgrade each requirement to ensure that at least the
-specified version is available. REQUIREMENTS should be a list
-where each entry is either the name of a package or a list
-containing the name of the package and the minimum version
-required."
-  (when search-load-path
-    (stp-msg "Analyzing the load path for installed packages...")
-    (stp-headers-update-features))
-  (cl-dolist (requirement requirements)
-    ;; Also allow a list of package names.
-    (db (pkg-sym &optional version)
-        (ensure-list requirement)
-      (let* ((pkg-name (stp-symbol-package-name pkg-sym))
-             (prefix (format "[%s] " pkg-name)))
-        (unless (member pkg-name stp-headers-ignored-requirements)
-          (push requirement stp-requirements))
-        (condition-case err
-            (cond
-             ((string= pkg-name "emacs")
-              (unless (stp-emacs-requirement-satisfied-p pkg-name version)
-                (error "Version %s of Emacs is required but %d.%d is installed"
-                       version
-                       emacs-major-version
-                       emacs-minor-version)))
-             ;; Do nothing when a requirement is ignored or a new enough
-             ;; version is installed.
-             ((stp-package-requirement-satisfied-p pkg-name version t))
-             ((not (member pkg-name (stp-info-names)))
-              ;; Sometimes, a single repository can contain multiple packages
-              ;; and so installing the dependencies naively will result in
-              ;; multiple copies.
-              (stp-allow-skip (stp-msg "Skipped installing %s" pkg-name)
-                              (unless (eq (stp-install-command options
-                                                               :pkg-name pkg-name
-                                                               :prompt-prefix prefix
-                                                               :min-version version
-                                                               :dependency t)
-                                          'skip)
-                                (push requirement stp-successful-requirements))))
-             (t
-              ;; The dependency attribute is left as is when upgrading because
-              ;; the package might have been installed manually originally.
-              (stp-allow-skip (stp-msg "Skipped upgrading %s" pkg-name)
-                              (unless (eq (stp-upgrade-command options
-                                                               :pkg-name pkg-name
-                                                               :prompt-prefix prefix
-                                                               :min-version version)
-                                          'skip)
-                                (push requirement stp-successful-requirements)))))
-          (error
-           (push requirement stp-failed-requirements)
-           (stp-msg "Failed to install or upgrade %s%s: %s"
-                    pkg-name
-                    (if version
-                        (format " to version %s" version)
-                      "
-                        ")
-                    err)))))
-    (when search-load-path
-      (stp-headers-update-features))))
-
-;; TODO: remove (to be replaced by stp-execute)
-(cl-defun stp-maybe-uninstall-requirements (requirements options)
-  (let* ((to-uninstall (stp-requirements-to-names requirements))
-         (old-to-uninstall t)
-         pkg-name)
-    (while to-uninstall
-      (when (equal to-uninstall old-to-uninstall)
-        (error "Recursive dependencies encountered while uninstalling packages"))
-      (condition-case err
-          (progn
-            (setq old-to-uninstall (cl-copy-list to-uninstall)
-                  pkg-name (stp-symbol-package-name (pop to-uninstall)))
-            ;; Only uninstall STP packages that were installed as dependencies
-            ;; and are no longer required by any package.
-            (when (and (member pkg-name (stp-info-names))
-                       (stp-get-attribute pkg-name 'dependency)
-                       (not (stp-required-by pkg-name)))
-              (let ((recursive-requirements (stp-get-attribute pkg-name 'requirements)))
-                (push pkg-name stp-requirements)
-                (stp-uninstall pkg-name
-                               (clone options :do-commit nil :do-push nil :do-lock nil)
-                               :uninstall-requirements nil)
-                (setq to-uninstall (cl-union to-uninstall
-                                             (stp-requirements-to-names recursive-requirements)
-                                             :test #'string=)))))
-        (error
-         (push pkg-name stp-failed-requirements)
-         (stp-msg "Failed to uninstall %s: %s" pkg-name err))))))
 
 (defun stp-check-requirements ()
   "Check the requirements of all STP packages and report any that
@@ -787,7 +474,7 @@ are not satisfied to the user."
         (stp-package-group-command (lambda (pkg-names options)
                                      (stp-ensure-requirements pkg-names options))
                                    table
-                                   :class 'stp-additive-task-options)
+                                   :class 'stp-additive-operation-options)
         (stp-report-requirements 'install t)))))
 
 (defun stp-uninstall-package-group-command ()
@@ -801,7 +488,7 @@ are not satisfied to the user."
         (stp-package-group-command (lambda (pkg-names options)
                                      (stp-maybe-uninstall-requirements pkg-names options))
                                    table
-                                   :class 'stp-package-task-options)
+                                   :class 'stp-package-operation-options)
         (stp-report-requirements 'uninstall t)))))
 
 (defvar stp-fork-directory nil
@@ -818,7 +505,7 @@ are not satisfied to the user."
         (user-error "Only packages that use the git method can be forked"))
       (let* ((dir (or stp-fork-directory stp-source-directory))
              (remote (stp-choose-remote "Remote: " .remote .other-remotes)))
-        (stp-fork pkg-name remote dir (stp-command-options :class 'stp-basic-task-options))))))
+        (stp-fork pkg-name remote dir (stp-command-options :class 'stp-basic-operation-options))))))
 
 (cl-defun stp-fork (pkg-name remote dir options)
   (with-slots (do-commit do-push)
@@ -849,49 +536,7 @@ are not satisfied to the user."
       (stp-refresh-info)
       (apply #'stp-reinstall
              (rem-at-end (stp-command-args :pkg-version t)
-                         (stp-command-options :class 'stp-additive-task-options))))))
-
-;; TODO: remove (to be replaced by stp-operate)
-(cl-defun stp-reinstall (pkg-name version options &key refresh skip-subtree-check)
-  "Uninstall and reinstall PKG-NAME as VERSION."
-  (when (and (stp-git-tree-package-modified-p pkg-name)
-             (not (yes-or-no-p (format "The package %s has been modified since the last commit in the working tree. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
-    (user-error "Reinstall aborted"))
-  (let-alist (stp-get-alist pkg-name)
-    (let* ((pkg-alist (stp-get-alist pkg-name))
-           (tree-hashes (and (not skip-subtree-check)
-                             (if (eq .method 'git)
-                                 (stp-git-subtree-package-modified-p pkg-name .remote .version)
-                               ;; For methods other than 'git, we need to create
-                               ;; a synthetic git repository for comparision
-                               ;; purposes.
-                               (stp-git-subtree-package-modified-p pkg-name (stp-git-download-as-synthetic-repo pkg-name (stp-download-url pkg-name pkg-alist)) "HEAD")))))
-      ;; Warn the user about reinstalling if there are modifications to the
-      ;; subtree that were not the result of git subtree merge as this will
-      ;; result in the loss of their customizations to the package.
-      (save-window-excursion
-        (when (and tree-hashes
-                   (unwind-protect
-                       ;; curr-hash is the hash of the most recent version of
-                       ;; the subtree (which may include user modifications).
-                       ;; last-hash is the hash of the last subtree that was
-                       ;; merged (e.g. by installing or upgrading the package).
-                       (and (db (curr-hash last-hash)
-                                tree-hashes
-                              (stp-git-show-diff (list last-hash curr-hash))
-                              t)
-                            (not (yes-or-no-p (format "The package %s has been modified locally. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
-                     (awhen (get-buffer stp-git-diff-buffer-name)
-                       (bury-buffer it))
-                     (redisplay)))
-          (user-error "Reinstall aborted")))
-      ;; Committing is required here because otherwise `stp-install' will fail.
-      (stp-uninstall pkg-name
-                     (clone options :do-commit t :do-push nil :do-lock nil)
-                     :refresh nil)
-      (setf (map-elt pkg-alist 'version) version)
-      ;; The :do-commit argument is not required here.
-      (stp-install pkg-name pkg-alist options :refresh refresh))))
+                         (stp-command-options :class 'stp-additive-operation-options))))))
 
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group for easily upgrading multiple related
@@ -908,7 +553,7 @@ packages at the same time."
                                        (stp-read-existing-name "Package name: "
                                                                :multiple t
                                                                :table table)
-                                       (stp-command-options :class 'stp-package-task-options))))))
+                                       (stp-command-options :class 'stp-package-operation-options))))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names options)
   (with-slots (do-commit do-push do-lock)
@@ -933,7 +578,7 @@ packages at the same time."
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (stp-delete-package-group (stp-read-group-name "Group: ") (stp-command-options :class 'stp-package-task-options))))
+    (stp-delete-package-group (stp-read-group-name "Group: ") (stp-command-options :class 'stp-package-operation-options))))
 
 (cl-defun stp-delete-package-group (group-name options)
   (with-slots (do-commit do-push do-lock)
@@ -960,7 +605,7 @@ negative, repair all packages."
           (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
         (apply #'stp-repair
                (rem-at-end (stp-command-args)
-                           (stp-command-options :class 'stp-package-task-options
+                           (stp-command-options :class 'stp-package-operation-options
                                                 :toggle-p (fn (consp current-prefix-arg)))))))))
 
 (cl-defun stp-repair (pkg-name options &key (refresh t))
@@ -989,7 +634,7 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
     (stp-with-memoization
       (stp-refresh-info)
       (stp-repair-all (apply #'stp-command-options
-                             'stp-package-task-options
+                             'stp-package-operation-options
                              (rem-maybe-kwd-args toggle-p toggle-p-provided-p))))))
 
 (cl-defun stp-repair-all (options &key (refresh t))
@@ -1134,7 +779,7 @@ package and updating the load path."
   (stp-with-memoization
     (stp-refresh-info)
     (stp-post-actions (stp-list-read-name "Package name: ")
-                      (stp-command-options :class 'stp-action-task-options))))
+                      (stp-command-options :class 'stp-action-operation-options))))
 
 (defun stp-lock-file-watcher (event)
   (let ((action (cadr event)))
@@ -1995,7 +1640,7 @@ if no version header is found for the current file."
                                       (fn (aand (stp-git-root)
                                                 (stp-main-package-file it)))
                                       (fn (user-error "No Version header was found")))))
-                     (stp-command-options :class 'stp-bump-task-options)))
+                     (stp-command-options :class 'stp-bump-operation-options)))
   (with-slots (do-commit do-push do-tag)
       options
     (when (stp-maybe-call do-commit)

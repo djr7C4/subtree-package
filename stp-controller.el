@@ -41,12 +41,10 @@ value can also be a function as for `stp-auto-commit'.")
 (defvar stp-auto-post-actions t
   "When non-nil, automatically perform post actions.
 
-The value can be either t or a list containing any of the symbols
-\\='build, update-info-directories and \\='update-load-path which
-specifies which actions should be performed after a package is
-installed or upgraded. The value t indicates that all post
-actions should be performed. The value can also be a function as
-for `stp-auto-commit'.")
+The value can also be a function as for `stp-auto-commit'. Post
+actions can be individually enabled or disabled via
+`stp-auto-update-load-path', `stp-auto-load', `stp-auto-build',
+`stp-auto-build-info' and `stp-auto-update-info-directories'.")
 
 (defvar stp-auto-tag t
   "When bumping the version, automatically tag the commit with the
