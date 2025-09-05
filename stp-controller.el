@@ -116,17 +116,17 @@ the minimum required by another package.")
 (defclass stp-reinstall-operation (stp-additive-operation) ())
 
 ;; User options can be toggled interactively by the user when a command is run.
-(defclass stp-task-options () ())
+(defclass stp-operation-options () ())
 
-(defclass stp-basic-task-options (stp-task-options)
+(defclass stp-basic-operation-options (stp-operation-options)
   ((do-commit :initarg :do-commit :initform (symbol-value 'stp-auto-commit))
    (do-push :initarg :do-push :initform (symbol-value 'stp-auto-push))))
 
-(defclass stp-package-task-options (stp-basic-task-options)
+(defclass stp-package-operation-options (stp-basic-operation-options)
   ((do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))
    (do-reset :initarg :do-reset :initform (symbol-value 'stp-auto-reset))))
 
-(defclass stp-action-task-options (stp-task-options)
+(defclass stp-action-operation-options (stp-operation-options)
   ((do-actions :initarg :do-actions :initform (symbol-value 'stp-auto-post-actions))
    (do-update-load-path :initarg :do-update-load-path :initform (symbol-value 'stp-auto-update-load-path))
    (do-load :initarg :do-load :initform (symbol-value 'stp-auto-load))
@@ -134,12 +134,12 @@ the minimum required by another package.")
    (do-build-info :initarg :do-build-info :initform (symbol-value 'stp-auto-build-info))
    (do-update-info-directories :initarg :do-update-info-directories :initform (symbol-value 'stp-auto-update-info-directories))))
 
-(defclass stp-audit-task-options (stp-task-options)
+(defclass stp-audit-operation-options (stp-operation-options)
   ((do-audit :initarg :do-audit :initform (symbol-value 'stp-audit-changes))))
 
-(defclass stp-additive-task-options (stp-package-task-options stp-audit-task-options stp-action-task-options) ())
+(defclass stp-additive-operation-options (stp-package-operation-options stp-audit-operation-options stp-action-operation-options) ())
 
-(defclass stp-bump-task-options (stp-basic-task-options)
+(defclass stp-bump-operation-options (stp-basic-operation-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
 
 (cl-defgeneric stp-validate-options (options)
@@ -147,17 +147,17 @@ the minimum required by another package.")
    "Determine if the options passed are valid and signal an
 appropriate error if they are not."))
 
-(cl-defmethod stp-validate-options ((_options stp-task-options))
+(cl-defmethod stp-validate-options ((_options stp-operation-options))
   t)
 
-(cl-defmethod stp-validate-options ((options stp-basic-task-options))
+(cl-defmethod stp-validate-options ((options stp-basic-operation-options))
   (with-slots (do-commit do-push)
       options
     (when (and (not do-commit) do-push)
       (user-error "Pushing without committing is not allowed")))
   (cl-call-next-method))
 
-(cl-defmethod stp-validate-options ((options stp-bump-task-options))
+(cl-defmethod stp-validate-options ((options stp-bump-operation-options))
   (with-slots (do-commit do-tag)
       options
     (when (and (not do-commit) do-tag)
@@ -559,7 +559,7 @@ no errors."
 (defclass stp-controller ()
   ((errors :initform nil)
    (options :initarg :options)
-   (operations :initarg :tasks :initform nil)))
+   (operations :initarg :operations :initform nil)))
 
 ;; TODO: Add code to callback to the controller to get versions and such.
 (defclass stp-interactive-controller (stp-controller) ())
@@ -643,7 +643,12 @@ operations being added to the controller."))
     (stp-allow-skip (stp-msg "Skipping %s %s"
                              (stp-operation-verb operation)
                              (slot-value operation 'pkg-name))
-      (cl-call-next-method))))
+                    (cl-call-next-method))))
+
+(cl-defgeneric stp-describe (operation))
+
+(cl-defmethod stp-describe ((operation stp-operation))
+  (format "%s %s" (stp-operation-verb operation) (slot-value operation 'pkg-name)))
 
 (defun stp-options (controller operation)
   (or (slot-value controller 'options) (slot-value operation 'options)))
@@ -883,6 +888,22 @@ package and were installed as dependencies."))
         options
       (stp-post-actions pkg-name options))))
 
+(defun stp-report-operations (successful-operations skipped-operations failed-operations)
+  (let ((total (+ (length successful-operations)
+                  (length skipped-operations)
+                  (length failed-operations))))
+    (cond
+     (failed-operations
+      (progn
+        (stp-msg "%d/%d operations failed" (length failed-operations) total)
+        (cl-dolist (cell failed-operation)
+          (db (operation err)
+              cell
+            (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
+        (pop-to-buffer stp-log-buffer-name)))
+     (successful-operations
+      (stp-msg "Successfully completed %d operations" successful-operations)))))
+
 (cl-defmethod stp-execute ((controller stp-controller))
   (with-slots (options operations)
       controller
@@ -899,7 +920,7 @@ package and were installed as dependencies."))
                   (push operation skipped-operations)
                 (push operation successful-operations))
             (error (push (cons operation err) failed-operations)))))
-      ;; TODO: Report on the packages that were installed (as in `stp-report-requirements')
+      (stp-report-operations successful-operations skipped-operations failed-operations)
       (with-slots (do-push do-lock do-reset)
           options
         ;; Resetting should be done before pushing or locking if an error occurred.
