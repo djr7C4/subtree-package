@@ -89,13 +89,11 @@ for `stp-auto-commit'.")
    (options :initarg :options :initform nil)))
 
 (defclass stp-package-operation (stp-operation) ())
-
+(defclass stp-uninstall-operation (stp-package-operation) ())
 (defclass stp-post-action-operation (stp-package-operation) ())
 
 (defclass stp-skippable-package-operation (stp-package-operation)
   (allow-skip :initarg :allow-skip :initform nil))
-
-(defclass stp-uninstall-operation (stp-skippable-package-operation) ())
 
 (defvar stp-enforce-min-version nil
   "Determines if the user is allowed to select a version older than
