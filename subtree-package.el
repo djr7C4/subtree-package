@@ -341,7 +341,7 @@ ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
 
 (defvar stp-requirements-toplevel t)
 
-(cl-defun stp-install-command (options)
+(cl-defun stp-install-command ()
   "Install a package.
 
 OPTIONS should be an instance of the class
@@ -371,44 +371,45 @@ original commit on errors or failed audits, and perform post
 actions (see `stp-auto-post-actions'). With a prefix argument,
 each of these can be toggled via an interactive menu before
 running the command."
-  (interactive (list (stp-command-options :class 'stp-install-operation-options)))
+  (interactive)
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
   ;; greatly improves efficiency).
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      ;; TODO: read pkg alist and pass to operation
-      (stp-execute (stp-controller :operations (list (stp-install-operation))
-                                   :options options)))))
+      (db (pkg-name pkg-alist options)
+          ;; This needs to be inside `stp-with-memoization' for efficiency
+          ;; reasons so it is here instead of in the interactive spec.
+          (rem-at-end (stp-command-args :read-pkg-alist t
+                                        :existing-pkg nil
+                                        :line-pkg nil)
+                      (stp-command-options :class 'stp-install-operation-options))
+        (stp-execute (stp-controller :operations (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
+                                     :options options))))))
 
-(defun stp-uninstall-command (options)
+(defun stp-uninstall-command ()
   "Uninstall a package interactively."
-  (interactive (list (stp-command-options)))
+  (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      ;; TODO: read pkg-name
-      (stp-execute (stp-controller :operations (list (stp-uninstall-operation :pkg-name pkg-name))
-                                   :options options)))))
+      (db (pkg-name options)
+          (rem-at-end (stp-command-args) (stp-command-options))
+        (stp-execute (stp-controller :operations (list (stp-uninstall-operation :pkg-name pkg-name))
+                                     :options options))))))
 
-(cl-defun stp-upgrade-command (options &key pkg-name min-version (prompt-prefix ""))
-  "Upgrade a package interactively.
-
-The arguments DO-COMMIT, DO-PUSH, DO-LOCK, DO-ACTIONS and
-DO-AUDIT are as in `stp-install'."
-  (interactive (list (stp-command-options :class 'stp-upgrade-operation-options)))
+(cl-defun stp-upgrade-command ()
+  "Upgrade a package interactively."
+  (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-upgrade
-             (rem-at-end (stp-command-args :pkg-name pkg-name
-                                           :prompt-prefix prompt-prefix
-                                           :min-version min-version
-                                           :enforce-min-version stp-enforce-min-version)
-                         options
-                         :min-version min-version
-                         :enforce-min-version stp-enforce-min-version)))))
+      (db (pkg-name pkg-alist options)
+          (rem-at-end (stp-command-args)
+                      (stp-command-options :class 'stp-upgrade-operation-options))
+        (stp-execute (stp-controller :operations (list (stp-upgrade-operation :pkg-name pkg-name))
+                                     :options options))))))
 
 (defun stp-check-requirements ()
   "Check the requirements of all STP packages and report any that
