@@ -371,7 +371,7 @@ original commit on errors or failed audits, and perform post
 actions (see `stp-auto-post-actions'). With a prefix argument,
 each of these can be toggled via an interactive menu before
 running the command."
-  (interactive (list (stp-command-options :class 'stp-additive-operation-options)))
+  (interactive (list (stp-command-options :class 'stp-install-operation-options)))
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
   ;; greatly improves efficiency).
@@ -397,7 +397,7 @@ running the command."
 
 The arguments DO-COMMIT, DO-PUSH, DO-LOCK, DO-ACTIONS and
 DO-AUDIT are as in `stp-install'."
-  (interactive (list (stp-command-options :class 'stp-additive-operation-options)))
+  (interactive (list (stp-command-options :class 'stp-upgrade-operation-options)))
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
@@ -488,7 +488,7 @@ are not satisfied to the user."
         (stp-package-group-command (lambda (pkg-names options)
                                      (stp-maybe-uninstall-requirements pkg-names options))
                                    table
-                                   :class 'stp-package-operation-options)
+                                   :class 'stp-uninstall-operation-options)
         (stp-report-requirements 'uninstall t)))))
 
 (defvar stp-fork-directory nil
@@ -536,7 +536,7 @@ are not satisfied to the user."
       (stp-refresh-info)
       (apply #'stp-reinstall
              (rem-at-end (stp-command-args :pkg-version t)
-                         (stp-command-options :class 'stp-additive-operation-options))))))
+                         (stp-command-options :class 'stp-reinstall-operation-options))))))
 
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group for easily upgrading multiple related

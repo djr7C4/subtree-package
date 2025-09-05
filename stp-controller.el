@@ -124,6 +124,9 @@ the minimum required by another package.")
   ((do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))
    (do-reset :initarg :do-reset :initform (symbol-value 'stp-auto-reset))))
 
+(defclass stp-uninstall-operation-options (stp-package-operation-options) ())
+(defclass stp-reinstall-operation-options (stp-package-operation-options) ())
+
 (defclass stp-action-operation-options (stp-operation-options)
   ((do-actions :initarg :do-actions :initform (symbol-value 'stp-auto-post-actions))
    (do-update-load-path :initarg :do-update-load-path :initform (symbol-value 'stp-auto-update-load-path))
@@ -136,6 +139,9 @@ the minimum required by another package.")
   ((do-audit :initarg :do-audit :initform (symbol-value 'stp-audit-changes))))
 
 (defclass stp-additive-operation-options (stp-package-operation-options stp-audit-operation-options stp-action-operation-options) ())
+
+(defclass stp-install-operation-options (stp-additive-operation-options) ())
+(defclass stp-upgrade-operation-options (stp-additive-operation-options) ())
 
 (defclass stp-bump-operation-options (stp-basic-operation-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
