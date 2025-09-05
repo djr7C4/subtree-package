@@ -524,7 +524,7 @@ not be memoized even within an `stp-with-memoization' form."
 (defun stp-git-remote-tag-p (remote rev)
   (member rev (stp-git-remote-tags remote t)))
 
-(defun stp-git-remote-hash-head-alist (remote)
+(cl-defun stp-git-remote-hash-head-alist (remote &key (memoize t))
   "Return an alist that maps hashes to heads."
   ;; Manually add HEAD instead of using the branch refs/heads/HEAD. This branch
   ;; should not exist as it is likely to create confusion but some repositories
@@ -534,7 +534,9 @@ not be memoized even within an `stp-with-memoization' form."
         ;; ignored.
         (map-remove (lambda (_hash head)
                       (string= head "HEAD"))
-                    (stp-git-remote-hash-alist remote :prefixes '("refs/heads/")))))
+                    (stp-git-remote-hash-alist remote
+                                               :prefixes '("refs/heads/")
+                                               :memoize memoize))))
 
 (defun stp-git-remote-head (remote)
   "Return HEAD for REMOTE."
