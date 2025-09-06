@@ -219,9 +219,8 @@ repository. Return the path to the repository."
                            :error t)
           ;; When the --tags argument is used, only tags are pushed so this is
           ;; done as a separate command.
-          (rem-run-command (append '("git" "push")
-                                   (rem-maybe-args "--tags" tags))
-                           :error t))
+          (when tags
+            (rem-run-command '("git" "push" "--tags") :error t)))
       (stp-msg "There is nothing to push. Skipping..."))))
 
 (cl-defun stp-git-commit-push (msg &key (do-commit t) (do-push t) all tags)
