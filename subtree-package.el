@@ -1596,7 +1596,7 @@ longer required by any other package."
   "Increase the version header for FILENAME. Interactively, this is
 the file for the current buffer or the main file for the package
 if no version header is found for the current file."
-  (interactive (cons (cl-flet ((has-version-header-p (filename)
+  (interactive (list (cl-flet ((has-version-header-p (filename)
                                  (when filename
                                    (when (functionp filename)
                                      (setq filename (funcall filename)))
