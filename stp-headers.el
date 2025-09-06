@@ -351,7 +351,7 @@ was inserted."
   (let ((header "Version: "))
     (cl-flet ((insert-version (value)
                 (let ((version (stp-git-latest-stable-version (stp-git-root))))
-                  (insert (format ";; %s: %s\n"
+                  (insert (format ";; %s%s\n"
                                   header
                                   (or (and version
                                            (s-join "." (stp-version-extract version)))
