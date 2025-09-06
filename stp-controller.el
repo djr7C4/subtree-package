@@ -655,12 +655,12 @@ operations being added to the controller."))
 (defun stp-options (controller operation)
   (or (slot-value controller 'options) (slot-value operation 'options)))
 
-(cl-defgeneric stp-uninstall-requirements2 (controller requirements options)
+(cl-defgeneric stp-uninstall-requirements (controller requirements options)
   (:documentation
    "Uninstall those REQUIREMENTS that are no longer needed by any
 package and were installed as dependencies."))
 
-(cl-defmethod stp-uninstall-requirements2 ((controller stp-controller) requirements options)
+(cl-defmethod stp-uninstall-requirements ((controller stp-controller) requirements options)
   (let* ((to-uninstall (stp-requirements-to-names requirements))
          (old-to-uninstall t)
          pkg-name)
@@ -677,6 +677,7 @@ package and were installed as dependencies."))
         (stp-controller-prepend-operations controller (stp-uninstall-operation :pkg-name pkg-name :options options))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
+  (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit)
         options
@@ -697,15 +698,15 @@ package and were installed as dependencies."))
                                           (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                           pkg-name)
                                   :do-commit do-commit)
-                  (stp-uninstall-requirements2 controller requirements options)
+                  (stp-uninstall-requirements controller requirements options)
                   (stp-prune-cached-latest-versions pkg-name))
               (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))))
 
-(cl-defgeneric stp-ensure-requirements2 (controller requirements options)
+(cl-defgeneric stp-ensure-requirements (controller requirements options)
   (:documentation
    "Install or upgrade the REQUIREMENTS that are not currently satisfied."))
 
-(cl-defmethod stp-ensure-requirements2 ((controller stp-controller) requirements options)
+(cl-defmethod stp-ensure-requirements ((controller stp-controller) requirements options)
   (stp-msg "Analyzing the load path for installed packages...")
   (stp-headers-update-features)
   (let (operations)
@@ -745,6 +746,7 @@ package and were installed as dependencies."))
     (stp-controller-prepend-operations controller (reverse operations))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-operation))
+  (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-audit do-actions)
         options
@@ -781,7 +783,7 @@ package and were installed as dependencies."))
                                       (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                       pkg-name)
                               :do-commit do-commit)
-              (stp-ensure-requirements2 controller (stp-get-attribute pkg-name 'requirements) options)
+              (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options)
               ;; Perform post actions for all packages after everything else.
               (when (stp-maybe-call do-actions)
                 (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name))))))))))
@@ -789,6 +791,7 @@ package and were installed as dependencies."))
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-upgrade-operation))
+  (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-actions do-audit)
         options
@@ -845,7 +848,7 @@ package and were installed as dependencies."))
                                           (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
                                           pkg-name)
                                   :do-commit do-commit)
-                  (stp-ensure-requirements2 controller (stp-get-attribute pkg-name 'requirements) options))))))))))
+                  (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-reinstall-operation))
   (let ((options (stp-options controller operation)))
