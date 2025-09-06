@@ -284,7 +284,12 @@ headers did not exist and was inserted."
       (beginning-of-line)
       (insert (format ";;; %s --- " filename))
       (end-of-line)
-      (insert "\n")))
+      (insert "\n")
+      (save-excursion
+        (forward-line)
+        (skip-chars-forward rem-spaces)
+        (when (looking-at-p comment-start)
+          (delete-region (line-beginning-position) (1+ (line-end-position)))))))
     (acond
      ((stp-headers-bounds-of-eob-header)
       (save-excursion
