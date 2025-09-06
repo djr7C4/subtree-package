@@ -1641,7 +1641,6 @@ if no version header is found for the current file."
               (let ((tag (concat "v" new-version)))
                 (stp-git-tag tag (stp-git-head default-directory))
                 (stp-msg "Added the git tag %s for %s" tag (stp-git-root :transform #'f-full))))
-            (stp-git-push :do-push (stp-maybe-call do-push))
             (stp-git-push :do-push (stp-maybe-call do-push) :tags t)))))))
 
 (defun stp-savehist-setup ()

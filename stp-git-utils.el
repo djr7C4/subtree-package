@@ -213,10 +213,15 @@ repository. Return the path to the repository."
 (cl-defun stp-git-push (&key (do-push t) all tags)
   (when do-push
     (if (or all tags (stp-git-unpushed-p))
-        (rem-run-command (append '("git" "push")
-                                 (rem-maybe-args "--all" all
-                                                 "--tags" tags))
-                         :error t)
+        (progn
+          (rem-run-command (append '("git" "push")
+                                   (rem-maybe-args "--all" all))
+                           :error t)
+          ;; When the --tags argument is used, only tags are pushed so this is
+          ;; done as a separate command.
+          (rem-run-command (append '("git" "push")
+                                   (rem-maybe-args "--tags" tags))
+                           :error t))
       (stp-msg "There is nothing to push. Skipping..."))))
 
 (cl-defun stp-git-commit-push (msg &key (do-commit t) (do-push t) all tags)
