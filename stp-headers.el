@@ -345,13 +345,12 @@ was inserted."
 (defun stp-headers-update-version-header (&optional insert)
   (let ((header "Version: "))
     (cl-flet ((insert-version (value)
-                (insert (format ";; %s: %s\n"
-                                header
-                                (or (->> (stp-git-root)
-                                         stp-git-latest-stable-version
-                                         stp-version-extract
-                                         (s-join "."))
-                                    "TODO")))
+                (let ((version (stp-git-latest-stable-version (stp-git-root))))
+                  (insert (format ";; %s: %s\n"
+                                  header
+                                  (or (and version
+                                           (s-join "." (stp-version-extract version)))
+                                      "TODO"))))
                 value))
       (if (save-excursion (stp-headers-version))
           (save-excursion
