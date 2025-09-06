@@ -19,7 +19,8 @@
 (require 'stp-utils)
 (require 'stp-git-utils)
 
-(declare-function stp-additive-operation-options "stp-controller")
+(declare-function stp-reinstall-operation "stp-controller")
+(declare-function stp-controller-prepend-operations "stp-controller")
 
 ;; Defined in stp.el.
 (defvar stp-auto-commit)
@@ -238,7 +239,7 @@ returned."
         (nonzero-count count-to-stable)
       (nonzero-count count-to-unstable))))
 
-(cl-defun stp-git-install (pkg-name remote version update &key branch (squash t) (set-pkg-info t))
+(cl-defun stp-git-install (_controller pkg-name remote version update _options &key branch (squash t) (set-pkg-info t))
   "Install the specified version of PKG-NAME from REMOTE."
   (let* ((git-root (stp-git-root :path stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
@@ -272,7 +273,7 @@ returned."
 (defvar stp-subtree-pull-fallback t
   "When this is non-nil, attempt to reinstall when upgrading fails.")
 
-(cl-defun stp-git-upgrade (pkg-name remote version &key (squash t) (set-pkg-info t) fallback-version)
+(cl-defun stp-git-upgrade (controller pkg-name remote version options &key (squash t) (set-pkg-info t) fallback-version)
   "Upgrade PKG-NAME to the specified VERSION from REMOTE."
   (setq fallback-version (or fallback-version version))
   (let* ((git-root (stp-git-root :path stp-source-directory))
@@ -337,11 +338,11 @@ returned."
                      (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
             (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
             nil
-            (stp-with-package-source-directory
-              ;; TODO: this should be done using the controller
-              ;; Options will be handled in the higher-level code that called
-              ;; `stp-git-upgrade' so we can just disable all of them here.
-              (stp-reinstall pkg-name fallback-version (rem-nil-slots (stp-additive-operation-options))))))
+            (stp-controller-prepend-operations controller
+                                               (stp-reinstall-operation :pkg-name pkg-name
+                                                                        :version fallback-version
+                                                                        :options options))
+            (setq set-pkg-info nil)))
           ;; If we get this far it means that either the merge succeeded or
           ;; there was a merge conflict which will be resolved manually by the
           ;; user. Either way, we update the package database.

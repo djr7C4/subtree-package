@@ -109,7 +109,9 @@ the minimum required by another package.")
    (pkg-alist :initarg :pkg-alist :initform nil)))
 
 (defclass stp-upgrade-operation (stp-additive-operation) ())
-(defclass stp-reinstall-operation (stp-additive-operation) ())
+
+(defclass stp-reinstall-operation (stp-additive-operation)
+  (version :initarg :version :initform nil))
 
 ;; User options can be toggled interactively by the user when a command is run.
 (defclass stp-operation-options () ())
@@ -215,6 +217,36 @@ corresponds to that line."
                  (not (string= pkg-name ""))
                  (member pkg-name (stp-info-names))
                  pkg-name)))))))
+
+(defun stp-unclean-fun ()
+  "This function is intended as a value of `stp-allow-unclean'.
+
+It requires the repository to be clean when run inside
+`stp-source-directory'. Otherwise, it causes the user to be
+prompted."
+  (rem-ancestor-of-inclusive-p (f-canonical (stp-git-root))
+                               (f-canonical stp-source-directory)))
+
+(defvar stp-allow-unclean #'stp-unclean-fun
+  "This variable determines the behavior when the git repository is
+unclean at the beginning of commands.
+
+When it is nil, an error occurs. :allow means that the command
+should proceed without user intervention. If the value is a
+function, it will be called with no arguments and the return
+value will be interpreted as described here. Any other value
+means that the user should be prompted to determine if the
+command should proceed.")
+
+(defun stp-maybe-ensure-clean ()
+  (let ((unclean (if (functionp stp-allow-unclean)
+                     (funcall stp-allow-unclean)
+                   stp-allow-unclean)))
+    (or (eq unclean :allow)
+        (stp-git-clean-p)
+        (and (not unclean)
+             (user-error "Aborted: the repository is unclean"))
+        (yes-or-no-p "The git repo is unclean. Proceed anyway?"))))
 
 (cl-defun stp-audit-changes (pkg-name type last-hash &key do-reset)
   (unless (memq type '(install upgrade))
@@ -766,10 +798,10 @@ package and were installed as dependencies."))
               (stp-set-attribute pkg-name 'method .method))
             (when (stp-url-safe-remote-p .remote)
               (cl-ecase .method
-                (git (stp-git-install pkg-name .remote .version .update :branch .branch))
-                (elpa (stp-elpa-install pkg-name .remote .version))
-                (archive (stp-archive-install pkg-name .remote))
-                (url (stp-url-install pkg-name .remote .version)))
+                (git (stp-git-install controller pkg-name .remote .version .update options :branch .branch))
+                (elpa (stp-elpa-install controller pkg-name .remote .version options))
+                (archive (stp-archive-install controller pkg-name .remote options))
+                (url (stp-url-install controller pkg-name .remote .version options)))
               (stp-maybe-audit-changes pkg-name 'install last-hash do-audit)
               (stp-update-remotes pkg-name .remote .remote .other-remotes)
               (stp-update-requirements pkg-name)
@@ -822,16 +854,16 @@ package and were installed as dependencies."))
                              :extra-versions it
                              :branch-to-hash nil
                              :min-version min-version)
-                            (stp-git-upgrade pkg-name chosen-remote it)))
-                  (elpa (->> (stp-elpa-read-version
+                            (stp-git-upgrade controller pkg-name chosen-remote it options)))
+                  (elpa (--> (stp-elpa-read-version
                               prompt
                               pkg-name
                               chosen-remote
                               :min-version min-version)
-                             (stp-elpa-upgrade pkg-name chosen-remote)))
-                  (archive (stp-archive-upgrade pkg-name .remote))
+                             (stp-elpa-upgrade controller pkg-name chosen-remote it options)))
+                  (archive (stp-archive-upgrade controller pkg-name .remote options))
                   (url (->> (stp-url-read-version prompt)
-                            (stp-url-upgrade pkg-name chosen-remote))))
+                            (stp-url-upgrade controller pkg-name chosen-remote options))))
                 (stp-maybe-audit-changes pkg-name 'upgrade last-hash do-audit)
                 ;; The call to `stp-get-attribute' can't be replaced with
                 ;; .version because the 'version attribute will have changed
@@ -901,7 +933,7 @@ package and were installed as dependencies."))
      (failed-operations
       (progn
         (stp-msg "%d/%d operations failed" (length failed-operations) total)
-        (cl-dolist (cell failed-operation)
+        (cl-dolist (cell failed-operations)
           (db (operation err)
               cell
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))

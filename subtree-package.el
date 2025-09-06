@@ -231,36 +231,6 @@ occurred."
   (when (stp-git-merge-conflict-p)
     (user-error "Merge conflicts must be resolved before running this command")))
 
-(defun stp-unclean-fun ()
-  "This function is intended as a value of `stp-allow-unclean'.
-
-It requires the repository to be clean when run inside
-`stp-source-directory'. Otherwise, it causes the user to be
-prompted."
-  (rem-ancestor-of-inclusive-p (f-canonical (stp-git-root))
-                               (f-canonical stp-source-directory)))
-
-(defvar stp-allow-unclean #'stp-unclean-fun
-  "This variable determines the behavior when the git repository is
-unclean at the beginning of commands.
-
-When it is nil, an error occurs. :allow means that the command
-should proceed without user intervention. If the value is a
-function, it will be called with no arguments and the return
-value will be interpreted as described here. Any other value
-means that the user should be prompted to determine if the
-command should proceed.")
-
-(defun stp-maybe-ensure-clean ()
-  (let ((unclean (if (functionp stp-allow-unclean)
-                     (funcall stp-allow-unclean)
-                   stp-allow-unclean)))
-    (or (eq unclean :allow)
-        (stp-git-clean-p)
-        (and (not unclean)
-             (user-error "Aborted: the repository is unclean"))
-        (yes-or-no-p "The git repo is unclean. Proceed anyway?"))))
-
 (defvar stp-list-version-length 16)
 
 ;; `stp-abbreviate-remote-version' is too slow to used in `stp-list-mode' so a

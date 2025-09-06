@@ -122,7 +122,7 @@
                   (error "Version %s not found" version))))
     url))
 
-(cl-defun stp-elpa-install-or-upgrade (pkg-name remote version action)
+(cl-defun stp-elpa-install-or-upgrade (controller pkg-name remote version action options)
   "Install or upgrade to the specified VERSION of PKG-NAME.
 
 The package is downloaded from REMOTE. If the file fetched from
@@ -135,18 +135,18 @@ operation should be performed."
     (when (and (eq action 'upgrade)
                (string= old-version new-version))
       (user-error "Version %s of %s is already installed" old-version pkg-name))
-    (stp-url-install-or-upgrade-basic pkg-name url new-version action :set-remote nil)
+    (stp-url-install-or-upgrade-basic controller pkg-name url new-version action options :set-remote nil)
     (stp-set-attribute pkg-name 'remote remote)
     (when (eq action 'install)
       (stp-set-attribute pkg-name 'method 'elpa))))
 
-(defun stp-elpa-install (pkg-name remote version)
+(defun stp-elpa-install (controller pkg-name remote version options)
   "Install the specified VERSION of PKG-NAME from REMOTE."
-  (stp-elpa-install-or-upgrade pkg-name remote version 'install))
+  (stp-elpa-install-or-upgrade controller pkg-name remote version 'install options))
 
-(defun stp-elpa-upgrade (pkg-name remote version)
+(defun stp-elpa-upgrade (controller pkg-name remote version options)
   "Upgrade to the specified VERSION of PKG-NAME from REMOTE."
-  (stp-elpa-install-or-upgrade pkg-name remote version 'upgrade))
+  (stp-elpa-install-or-upgrade controller pkg-name remote version 'upgrade options))
 
 (provide 'stp-elpa)
 ;;; stp-elpa.el ends here

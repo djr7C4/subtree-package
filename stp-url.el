@@ -54,7 +54,7 @@
   ;; one possibility.
   (rem-read-from-mini prompt :default default :history stp-url-version-history))
 
-(cl-defun stp-url-install-or-upgrade-basic (pkg-name remote version action &key (set-remote t))
+(cl-defun stp-url-install-or-upgrade-basic (controller pkg-name remote version action options &key (set-remote t))
   (let ((pkg-path (stp-canonical-path pkg-name)))
     (cond
      ((and (eq action 'install) (f-exists-p pkg-path))
@@ -71,12 +71,12 @@
       (if (eq action 'install)
           (stp-git-install pkg-name repo branch 'unstable :squash t :set-pkg-info nil)
         ;; fallback-version is needed for when a package has to be reinstalled.
-        (stp-git-upgrade pkg-name repo branch :squash t :set-pkg-info nil :fallback-version version)))
+        (stp-git-upgrade controller pkg-name repo branch options :squash t :set-pkg-info nil :fallback-version version)))
     (when set-remote
       (stp-set-attribute pkg-name 'remote remote))
     (stp-set-attribute pkg-name 'version version)))
 
-(defun stp-url-install-or-upgrade (pkg-name remote version action)
+(defun stp-url-install-or-upgrade (controller pkg-name remote version action options)
   "Install or upgrade PKG-NAME from REMOTE.
 
 If the file fetched from remote is an archive, it will be
@@ -84,17 +84,17 @@ automatically extracted. type should be either \\='install or
 upgrade depending on which operation should be performed."
   (when (or (stp-url-safe-remote-p remote)
             (yes-or-no-p (format "The remote %s is unsafe. Proceed anyway?" remote)))
-    (stp-url-install-or-upgrade-basic pkg-name remote version action)
+    (stp-url-install-or-upgrade-basic controller pkg-name remote version action options)
     (when (eq action 'install)
       (stp-set-attribute pkg-name 'method 'url))))
 
-(defun stp-url-install (pkg-name remote version)
+(defun stp-url-install (controller pkg-name remote version options)
   "Install PKG-NAME from REMOTE."
-  (stp-url-install-or-upgrade pkg-name remote version 'install))
+  (stp-url-install-or-upgrade controller pkg-name remote version 'install options))
 
-(defun stp-url-upgrade (pkg-name remote version)
+(defun stp-url-upgrade (controller pkg-name remote version options)
   "Upgrade PKG-NAME from REMOTE."
-  (stp-url-install-or-upgrade pkg-name remote version 'upgrade))
+  (stp-url-install-or-upgrade controller pkg-name remote version 'upgrade options))
 
 (provide 'stp-url)
 ;;; stp-url.el ends here
