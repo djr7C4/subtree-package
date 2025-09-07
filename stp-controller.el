@@ -8,7 +8,7 @@
 (defvar stp-auto-commit t
   "When non-nil, automatically commit changes.
 
-Note that even if this is ommited, some operations (such as
+Note that even if this is omitted, some operations (such as
 subtree operations) inherently involve commits and this cannot be
 disabled. When this variable is a function it will be called with
 the name of the current package to determine the value when it is
@@ -37,6 +37,11 @@ exceptional circumstances. If the list contains :audit, reset
 when an audit fails. If it contains :error, reset when errors
 occur. t means to always reset and nil means to never reset. The
 value can also be a function as for `stp-auto-commit'.")
+
+(defvar stp-auto-dependencies t
+  "When non-nil, automatically install or upgrade dependencies as
+needed when installing, uninstalling, upgrading or reinstalling
+packages.")
 
 (defvar stp-auto-post-actions t
   "When non-nil, automatically perform post actions.
@@ -122,7 +127,8 @@ the minimum required by another package.")
 
 (defclass stp-package-operation-options (stp-basic-operation-options)
   ((do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))
-   (do-reset :initarg :do-reset :initform (symbol-value 'stp-auto-reset))))
+   (do-reset :initarg :do-reset :initform (symbol-value 'stp-auto-reset))
+   (do-dependencies :initarg :do-dependencies :initform (symbol-value 'stp-auto-dependencies))))
 
 (defclass stp-uninstall-operation-options (stp-package-operation-options) ())
 (defclass stp-reinstall-operation-options (stp-package-operation-options) ())
@@ -711,7 +717,7 @@ package and were installed as dependencies."))
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
   (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
-    (with-slots (do-commit)
+    (with-slots (do-commit do-dependencies)
         options
       (with-slots (pkg-name)
           operation
@@ -730,7 +736,8 @@ package and were installed as dependencies."))
                                           (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                           pkg-name)
                                   :do-commit do-commit)
-                  (stp-uninstall-requirements controller requirements options)
+                  (when (stp-maybe-call do-dependencies)
+                    (stp-uninstall-requirements controller requirements options))
                   (stp-prune-cached-latest-versions pkg-name))
               (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))))
 
@@ -780,7 +787,7 @@ package and were installed as dependencies."))
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-operation))
   (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
-    (with-slots (do-commit do-audit do-actions)
+    (with-slots (do-commit do-audit do-dependencies do-actions)
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix dependency)
           operation
@@ -815,7 +822,8 @@ package and were installed as dependencies."))
                                       (stp-abbreviate-remote-version pkg-name .method .remote .version)
                                       pkg-name)
                               :do-commit do-commit)
-              (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options)
+              (when (stp-maybe-call do-dependencies)
+                (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
               ;; Perform post actions for all packages after everything else.
               (when (stp-maybe-call do-actions)
                 (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name))))))))))
@@ -825,7 +833,7 @@ package and were installed as dependencies."))
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-upgrade-operation))
   (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
-    (with-slots (do-commit do-actions do-audit)
+    (with-slots (do-commit do-actions do-dependencies do-audit)
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix)
           operation
@@ -879,7 +887,8 @@ package and were installed as dependencies."))
                                           (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
                                           pkg-name)
                                   :do-commit do-commit)
-                  (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))))))))))
+                  (when (stp-maybe-call do-dependencies)
+                    (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options)))))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-reinstall-operation))
   (let ((options (stp-options controller operation)))
