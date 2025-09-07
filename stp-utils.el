@@ -75,7 +75,9 @@ it is t, the buffer is never truncated.")
 
 (defun stp-msg (&rest args)
   (with-current-buffer (get-buffer-create stp-log-buffer-name)
-    (let ((msg (apply #'message args)))
+    (read-only-mode 1)
+    (let ((inhibit-read-only t)
+          (msg (apply #'message args)))
       (when stp-log-max
         (insert msg "\n"))))
   (stp-truncate-log))
