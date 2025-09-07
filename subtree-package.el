@@ -1655,8 +1655,7 @@ if no version header is found for the current file."
       (add-to-list 'savehist-additional-variables var))))
 
 (defun stp-setup ()
-  (unless stp-headers-installed-features
-    (stp-headers-update-features))
+  (stp-headers-update-features)
   (stp-savehist-setup))
 
 (provide 'subtree-package)
