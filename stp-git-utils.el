@@ -838,5 +838,24 @@ remote repositories."
   (let ((path (stp-git-ensure-cached-repo remote)))
     (stp-git-timestamp path rev)))
 
+(cl-defun stp-git-describe (rev &key (tags t))
+  (let ((output (rem-run-command (append '("git" "describe")
+                                         (rem-maybe-args "--tags" tags)
+                                         (list rev)))))
+    (when output
+      ;; Keep only the tag by removing the number of commits and the hash.
+      (s-join "-" (butlast (s-split "-" (s-trim output)) 2)))))
+
+(defun stp-git-last-stable (path rev)
+  (let ((default-directory path))
+    (while (and (setq rev (stp-git-describe rev))
+                (not (stp-version-extract rev))))
+    rev))
+
+(defun stp-git-remote-last-stable (remote rev)
+  "Find the last stable version up to and including REV."
+  (let ((path (stp-git-ensure-cached-repo remote)))
+    (stp-git-last-stable path rev)))
+
 (provide 'stp-git-utils)
 ;;; stp-git-utils.el ends here

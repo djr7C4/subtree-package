@@ -79,9 +79,18 @@ of FILE is different from the last time BODY was evaluated."
 
 (defun stp-headers-elisp-feature (name)
   "Return requirements satisfied by the current buffer."
-  (let ((version (save-excursion (stp-headers-version))))
-    (when version
-      (list (intern name) (stp-headers-normalize-version version)))))
+  (let-alist (stp-get-alist name)
+    (let ((version (or (save-excursion (stp-headers-version))
+                       ;; Fallback on version stored in the package info if it
+                       ;; can be converted to the right form.
+                       (and .version (stp-requirements-version .version))
+                       ;; As a last resort, query the remote to find the most
+                       ;; recent stable tag before the version recorded by STP.
+                       (and (eq .method 'git)
+                            (stp-requirements-version (stp-git-remote-last-stable .remote .version))))))
+      (setq version (stp-headers-normalize-version version))
+      (when version
+        (list (intern name) version)))))
 
 (defvar stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
 

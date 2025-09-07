@@ -638,6 +638,12 @@ expression is active.")
                  (stp-version<= min-version version)))
            versions))
 
+(defun stp-requirements-version (version)
+  "Convert VERSION to the form that is accepted by
+`version-to-list'. This is what appears in requirements headers."
+  (let ((extracted-version (stp-version-extract version)))
+    (and extracted-version (s-join "." extracted-version))))
+
 (defvar stp-info-file (f-join user-emacs-directory "stp-pkg-info.eld")
   "The name of the file that stores the package information.
 
