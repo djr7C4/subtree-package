@@ -943,12 +943,12 @@ package and were installed as dependencies."))
       (progn
         (stp-msg "%d/%d operations failed" (length failed-operations) total)
         (cl-dolist (cell failed-operations)
-          (db (operation err)
+          (db (operation . err)
               cell
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
         (pop-to-buffer stp-log-buffer-name)))
      (successful-operations
-      (stp-msg "Successfully completed %d operations" successful-operations)))))
+      (stp-msg "Successfully completed %d operations" (length successful-operations))))))
 
 (cl-defmethod stp-execute ((controller stp-controller))
   (with-slots (options operations)
