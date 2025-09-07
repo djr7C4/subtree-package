@@ -98,7 +98,7 @@ for `stp-auto-commit'.")
 (defclass stp-post-action-operation (stp-package-operation) ())
 
 (defclass stp-skippable-package-operation (stp-package-operation)
-  (allow-skip :initarg :allow-skip :initform nil))
+  ((allow-skip :initarg :allow-skip :initform t)))
 
 (defvar stp-enforce-min-version nil
   "Determines if the user is allowed to select a version older than
@@ -679,11 +679,12 @@ operations being added to the controller."))
 (cl-defmethod stp-operate :around ((_controller stp-controller) (operation stp-skippable-package-operation))
   ;; Sometimes, a single repository can contain multiple packages and so
   ;; installing the dependencies naively will result in multiple copies.
-  (when (slot-value operation 'allow-skip)
-    (stp-allow-skip (stp-msg "Skipping %s %s"
-                             (stp-operation-verb operation)
-                             (slot-value operation 'pkg-name))
-                    (cl-call-next-method))))
+  (if (slot-value operation 'allow-skip)
+      (stp-allow-skip (stp-msg "Skipping %s %s"
+                               (stp-operation-verb operation)
+                               (slot-value operation 'pkg-name))
+        (cl-call-next-method))
+    (cl-call-next-method)))
 
 (cl-defgeneric stp-describe (operation))
 
