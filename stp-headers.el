@@ -86,8 +86,9 @@ of FILE is different from the last time BODY was evaluated."
                        (and .version (stp-requirements-version .version))
                        ;; As a last resort, query the remote to find the most
                        ;; recent stable tag before the version recorded by STP.
-                       (and (eq .method 'git)
-                            (stp-requirements-version (stp-git-remote-last-stable .remote .version))))))
+                       (aand (eq .method 'git)
+                             (stp-git-remote-last-stable .remote .version)
+                             (stp-requirements-version it)))))
       (setq version (stp-headers-normalize-version version))
       (when version
         (list (intern name) version)))))
