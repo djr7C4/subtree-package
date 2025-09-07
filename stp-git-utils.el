@@ -644,7 +644,7 @@ is present."
   "If REV is a hash that corresponds to a tag, return the tag.
 
 Otherwise, return REV."
-  (or (let ((tag (map-elt (stp-git-remote-hash-tag-alist remote) rev)))
+  (or (let ((tag (map-elt (stp-git-remote-hash-tag-alist remote :memoize memoize) rev)))
         (if keep-dereference
             tag
           (stp-git-tag-strip-dereference tag)))
