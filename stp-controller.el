@@ -939,7 +939,7 @@ package and were installed as dependencies."))
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-post-action-operation))
   (let ((options (stp-options controller operation)))
     (with-slots (pkg-name)
-        options
+        operation
       (stp-post-actions pkg-name options))))
 
 (defun stp-report-operations (successful-operations skipped-operations failed-operations)
