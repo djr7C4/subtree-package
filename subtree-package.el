@@ -217,7 +217,8 @@ occurred."
                       (when (and (not (stp-git-subtree-package-commit pkg-name))
                                  (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
                                                       pkg-name)))
-                        (stp-reinstall pkg-name version options))))
+                        (stp-execute (stp-make-controller :operations (list (stp-reinstall-operation :pkg-name pkg-name :version version))
+                                                          :options options)))))
                 (when (funcall callback 'ghost-package pkg-name)
                   (stp-delete-alist pkg-name)))
               (unless quiet
@@ -355,8 +356,8 @@ running the command."
                                         :existing-pkg nil
                                         :line-pkg nil)
                       (stp-command-options :class 'stp-install-operation-options))
-        (stp-execute (stp-controller :operations (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
-                                     :options options))))))
+        (stp-execute (stp-make-controller :operations (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
+                                          :options options))))))
 
 (defun stp-uninstall-command ()
   "Uninstall a package interactively."
@@ -366,8 +367,8 @@ running the command."
       (stp-refresh-info)
       (db (pkg-name options)
           (rem-at-end (stp-command-args) (stp-command-options))
-        (stp-execute (stp-controller :operations (list (stp-uninstall-operation :pkg-name pkg-name))
-                                     :options options))))))
+        (stp-execute (stp-make-controller :operations (list (stp-uninstall-operation :pkg-name pkg-name))
+                                          :options options))))))
 
 (cl-defun stp-upgrade-command ()
   "Upgrade a package interactively."
@@ -375,11 +376,11 @@ running the command."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (db (pkg-name pkg-alist options)
+      (db (pkg-name options)
           (rem-at-end (stp-command-args)
                       (stp-command-options :class 'stp-upgrade-operation-options))
-        (stp-execute (stp-controller :operations (list (stp-upgrade-operation :pkg-name pkg-name))
-                                     :options options))))))
+        (stp-execute (stp-make-controller :operations (list (stp-upgrade-operation :pkg-name pkg-name))
+                                          :options options))))))
 
 (defun stp-check-requirements ()
   "Check the requirements of all STP packages and report any that
@@ -419,7 +420,6 @@ are not satisfied to the user."
 
 (cl-defun stp-package-group-command (fun table &key (class nil class-provided-p))
   (stp-refresh-info)
-  (stp-requirements-initialize-toplevel)
   (let* ((pkg-names (-> (stp-read-existing-name "Group or package name: "
                                                 :table table
                                                 :multiple t)
@@ -437,30 +437,25 @@ are not satisfied to the user."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
-      (stp-requirements-initialize-toplevel)
-      (let ((stp-requirements-toplevel nil)
-            (table (completion-table-in-turn (stp-get-info-group-names)
+      (let ((table (completion-table-in-turn (stp-get-info-group-names)
                                              (stp-info-names)
                                              (stp-archive-package-names))))
         (stp-package-group-command (lambda (pkg-names options)
                                      (stp-ensure-requirements pkg-names options))
                                    table
-                                   :class 'stp-additive-operation-options)
-        (stp-report-requirements 'install t)))))
+                                   :class 'stp-additive-operation-options)))))
 
 (defun stp-uninstall-package-group-command ()
   "Uninstall the package groups or packages."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
-      (stp-requirements-initialize-toplevel)
       (let ((stp-requirements-toplevel nil)
             (table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
         (stp-package-group-command (lambda (pkg-names options)
                                      (stp-maybe-uninstall-requirements pkg-names options))
                                    table
-                                   :class 'stp-uninstall-operation-options)
-        (stp-report-requirements 'uninstall t)))))
+                                   :class 'stp-uninstall-operation-options)))))
 
 (defvar stp-fork-directory nil
   "The directory to use for forks. When this is nil,

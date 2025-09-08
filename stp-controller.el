@@ -607,6 +607,11 @@ no errors."
 (defclass stp-auto-controller (stp-controller)
   ((preferred-update :initarg :preferred-update :initform 'stable)))
 
+(defvar stp-default-controller 'stp-interactive-controller)
+
+(defun stp-make-controller (&rest args)
+  (apply stp-default-controller args))
+
 (cl-defgeneric stp-controller-append-errors (controller pkg-name &rest errors)
   (:documentation
    "Append the specified error messages (strings) to the controller's
