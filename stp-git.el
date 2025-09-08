@@ -338,10 +338,11 @@ returned."
                      (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
             (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
             nil
-            (stp-controller-prepend-operations controller
-                                               (stp-reinstall-operation :pkg-name pkg-name
-                                                                        :version fallback-version
-                                                                        :options options))
+            (stp-controller-prepend-operations
+             controller
+             (stp-reinstall-operation :pkg-name pkg-name
+                                      :version fallback-version
+                                      :options options))
             (setq set-pkg-info nil)))
           ;; If we get this far it means that either the merge succeeded or
           ;; there was a merge conflict which will be resolved manually by the

@@ -771,6 +771,7 @@ package and were installed as dependencies."))
          ((stp-package-requirement-satisfied-p pkg-name version t))
          ((not (member pkg-name (stp-info-names)))
           (stp-controller-prepend-operations
+           controller
            (stp-install-operation :pkg-name pkg-name
                                   :options options
                                   :prompt-prefix prefix
