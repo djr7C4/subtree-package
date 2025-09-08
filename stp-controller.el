@@ -113,10 +113,11 @@ the minimum required by another package.")
   ((dependency :initarg :dependency :initform nil)
    (pkg-alist :initarg :pkg-alist :initform nil)))
 
-(defclass stp-upgrade-operation (stp-additive-operation) ())
+(defclass stp-upgrade-operation (stp-additive-operation)
+  ((new-version :initarg :new-version :initform nil)))
 
 (defclass stp-reinstall-operation (stp-additive-operation)
-  (version :initarg :version :initform nil))
+  (new-version :initarg :new-version :initform nil))
 
 ;; User options can be toggled interactively by the user when a command is run.
 (defclass stp-operation-options () ())
@@ -844,7 +845,7 @@ package and were installed as dependencies."))
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-actions do-dependencies do-audit)
         options
-      (with-slots (pkg-name min-version enforce-min-version prompt-prefix)
+      (with-slots (pkg-name min-version enforce-min-version prompt-prefix new-version)
           operation
         (let ((last-hash (stp-git-head)))
           (let-alist (stp-get-alist pkg-name)
@@ -853,33 +854,37 @@ package and were installed as dependencies."))
               (setq .other-remotes (cl-set-difference (stp-archives pkg-name) (cons .remote .other-remotes))))
             (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
                    (extra-versions (and (eq .method 'git)
+                                        (not new-version)
                                         (or stp-git-upgrade-always-offer-remote-heads
                                             (eq .update 'unstable))
                                         (stp-git-remote-heads-sorted chosen-remote)))
-                   (prompt (format "Upgrade from %s to version%s: "
-                                   (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
-                                   (stp-min-version-annotation min-version enforce-min-version))))
+                   (prompt (and (not new-version)
+                                (format "Upgrade from %s to version%s: "
+                                        (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
+                                        (stp-min-version-annotation min-version enforce-min-version)))))
               (when (stp-url-safe-remote-p chosen-remote)
                 (when (and .branch (member .branch extra-versions))
                   (setq extra-versions (cons .branch (remove .branch extra-versions))))
                 (cl-ecase .method
                   (git (--> extra-versions
-                            (stp-git-read-version
-                             prompt
-                             chosen-remote
-                             :extra-versions-position (if (eq .update 'unstable) 'first 'last)
-                             :extra-versions it
-                             :branch-to-hash nil
-                             :min-version min-version)
+                            (or new-version
+                                (stp-git-read-version
+                                 prompt
+                                 chosen-remote
+                                 :extra-versions-position (if (eq .update 'unstable) 'first 'last)
+                                 :extra-versions it
+                                 :branch-to-hash nil
+                                 :min-version min-version))
                             (stp-git-upgrade controller pkg-name chosen-remote it options)))
-                  (elpa (--> (stp-elpa-read-version
-                              prompt
-                              pkg-name
-                              chosen-remote
-                              :min-version min-version)
+                  (elpa (--> (or new-version
+                                 (stp-elpa-read-version
+                                  prompt
+                                  pkg-name
+                                  chosen-remote
+                                  :min-version min-version))
                              (stp-elpa-upgrade controller pkg-name chosen-remote it options)))
                   (archive (stp-archive-upgrade controller pkg-name .remote options))
-                  (url (stp-url-upgrade controller pkg-name chosen-remote (stp-url-read-version prompt) options)))
+                  (url (stp-url-upgrade controller pkg-name chosen-remote (or new-version (stp-url-read-version prompt)) options)))
                 (stp-maybe-audit-changes pkg-name 'upgrade last-hash do-audit)
                 ;; The call to `stp-get-attribute' can't be replaced with
                 ;; .version because the 'version attribute will have changed
@@ -901,7 +906,7 @@ package and were installed as dependencies."))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-reinstall-operation))
   (let ((options (stp-options controller operation)))
-    (with-slots (pkg-name)
+    (with-slots (pkg-name new-version)
         operation
       (when (and (stp-git-tree-package-modified-p pkg-name)
                  (not (yes-or-no-p (format "The package %s has been modified since the last commit in the working tree. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
@@ -931,6 +936,9 @@ package and were installed as dependencies."))
                                 (not (yes-or-no-p (format "The package %s has been modified locally. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
                          (stp-git-bury-diff-buffer)))
               (user-error "Reinstall aborted")))
+          (when new-version
+            (setf pkg-alist (copy-tree pkg-alist)
+                  (map-elt pkg-alist 'version) new-version))
           (stp-controller-prepend-operations
            controller
            (stp-uninstall-operation :pkg-name pkg-name :options options)
