@@ -341,7 +341,7 @@ returned."
             (stp-controller-prepend-operations
              controller
              (stp-reinstall-operation :pkg-name pkg-name
-                                      :version fallback-version
+                                      :new-version fallback-version
                                       :options options))
             (setq set-pkg-info nil)))
           ;; If we get this far it means that either the merge succeeded or

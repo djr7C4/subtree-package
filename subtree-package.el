@@ -217,7 +217,7 @@ occurred."
                       (when (and (not (stp-git-subtree-package-commit pkg-name))
                                  (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
                                                       pkg-name)))
-                        (stp-execute (stp-make-controller :operations (list (stp-reinstall-operation :pkg-name pkg-name :version version))
+                        (stp-execute (stp-make-controller :operations (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
                                                           :options options)))))
                 (when (funcall callback 'ghost-package pkg-name)
                   (stp-delete-alist pkg-name)))
