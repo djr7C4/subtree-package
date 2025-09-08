@@ -713,7 +713,10 @@ package and were installed as dependencies."))
       (when (and (member pkg-name (stp-info-names))
                  (stp-get-attribute pkg-name 'dependency)
                  (not (stp-required-by pkg-name)))
-        (stp-controller-prepend-operations controller (stp-uninstall-operation :pkg-name pkg-name :options options))))))
+        (stp-controller-prepend-operations
+         controller
+         (stp-uninstall-operation :pkg-name pkg-name
+                                  :options options))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
   (stp-maybe-ensure-clean)
@@ -749,41 +752,40 @@ package and were installed as dependencies."))
 (cl-defmethod stp-ensure-requirements ((controller stp-controller) requirements options)
   (stp-msg "Analyzing the load path for installed packages...")
   (stp-headers-update-features)
-  (let (operations)
-    (cl-dolist (requirement requirements)
-      ;; Also allow a list of package names.
-      (db (pkg-sym &optional version)
-          (ensure-list requirement)
-        (let* ((pkg-name (stp-symbol-package-name pkg-sym))
-               (prefix (format "[%s] " pkg-name)))
-          (cond
-           ((string= pkg-name "emacs")
-            (unless (stp-emacs-requirement-satisfied-p pkg-name version)
-              (->> (format "Version %s of Emacs is required but %d.%d is installed"
-                           version
-                           emacs-major-version
-                           emacs-minor-version)
-                   (stp-controller-append-errors pkg-name controller))))
-           ;; Do nothing when a requirement is ignored or a new enough
-           ;; version is installed.
-           ((stp-package-requirement-satisfied-p pkg-name version t))
-           ((not (member pkg-name (stp-info-names)))
-            (push (stp-install-operation :pkg-name pkg-name
-                                         :options options
-                                         :prompt-prefix prefix
-                                         :min-version version
-                                         :dependency t)
-                  operations))
-           (t
-            ;; The dependency attribute is left as is when upgrading because
-            ;; the package might have been installed manually originally.
-            (push (stp-upgrade-operation :pkg-name pkg-name
-                                         :options options
-                                         :prompt-prefix prefix
-                                         :min-version version)
-                  operations)))))
-      (stp-headers-update-features))
-    (stp-controller-prepend-operations controller (reverse operations))))
+  (cl-dolist (requirement requirements)
+    ;; Also allow a list of package names.
+    (db (pkg-sym &optional version)
+        (ensure-list requirement)
+      (let* ((pkg-name (stp-symbol-package-name pkg-sym))
+             (prefix (format "[%s] " pkg-name)))
+        (cond
+         ((string= pkg-name "emacs")
+          (unless (stp-emacs-requirement-satisfied-p pkg-name version)
+            (->> (format "Version %s of Emacs is required but %d.%d is installed"
+                         version
+                         emacs-major-version
+                         emacs-minor-version)
+                 (stp-controller-append-errors pkg-name controller))))
+         ;; Do nothing when a requirement is ignored or a new enough
+         ;; version is installed.
+         ((stp-package-requirement-satisfied-p pkg-name version t))
+         ((not (member pkg-name (stp-info-names)))
+          (stp-controller-prepend-operations
+           (stp-install-operation :pkg-name pkg-name
+                                  :options options
+                                  :prompt-prefix prefix
+                                  :min-version version
+                                  :dependency t)))
+         (t
+          ;; The dependency attribute is left as is when upgrading because
+          ;; the package might have been installed manually originally.
+          (stp-controller-prepend-operations
+           controller
+           (stp-upgrade-operation :pkg-name pkg-name
+                                  :options options
+                                  :prompt-prefix prefix
+                                  :min-version version))))))
+    (stp-headers-update-features)))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-operation))
   (stp-maybe-ensure-clean)
