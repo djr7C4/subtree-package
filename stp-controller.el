@@ -105,7 +105,7 @@ for `stp-auto-commit'.")
 the minimum required by another package.")
 
 (defclass stp-additive-operation (stp-skippable-package-operation)
-  ((min-version :initarg :min-version)
+  ((min-version :initarg :min-version :initform nil)
    (enforce-min-version :initarg :enforce-min-version :initform (symbol-value 'stp-enforce-min-version))
    (prompt-prefix :initarg :prompt-prefix :initform "")))
 
