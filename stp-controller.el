@@ -116,6 +116,9 @@ the minimum required by another package.")
 (defclass stp-upgrade-operation (stp-additive-operation)
   ((new-version :initarg :new-version :initform nil)))
 
+(defclass stp-install-or-upgrade-operation (stp-install-operation stp-upgrade-operation)
+  ((new-version :initarg :new-version :initform nil)))
+
 (defclass stp-reinstall-operation (stp-additive-operation)
   (new-version :initarg :new-version :initform nil))
 
@@ -903,6 +906,12 @@ package and were installed as dependencies."))
                                   :do-commit do-commit)
                   (when (stp-maybe-call do-dependencies)
                     (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options)))))))))))
+
+(cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-or-upgrade-operation))
+  (let ((class (if (member (slot-value operation 'pkg-name) (stp-info-names))
+                   'stp-upgrade-operation
+                 'stp-install-operation)))
+    (stp-controller-prepend-operations controller (rem-change-class operation class))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-reinstall-operation))
   (let ((options (stp-options controller operation)))

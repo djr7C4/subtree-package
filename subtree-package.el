@@ -424,7 +424,7 @@ are not satisfied to the user."
         (insert (format "Unsatisfied requirements:\n%s" (s-join "\n" msgs))))
       (read-only-mode 1))))
 
-(cl-defun stp-package-group-command (fun table &key (class nil class-provided-p))
+(cl-defun stp-package-group-command (fun table &key (class nil class-provided-p) (refresh t))
   (stp-refresh-info)
   (let* ((pkg-names (-> (stp-read-existing-name "Group or package name: "
                                                 :table table
@@ -436,7 +436,9 @@ are not satisfied to the user."
         options
       (stp-git-push :do-push (stp-maybe-call do-push))
       (when (stp-maybe-call do-lock)
-        (stp-update-lock-file)))))
+        (stp-update-lock-file))
+      (when refresh
+        (stp-list-refresh :quiet t)))))
 
 (defun stp-install-or-upgrade-package-group-command ()
   "Install or upgrade the package groups or packages."
@@ -447,7 +449,8 @@ are not satisfied to the user."
                                              (stp-info-names)
                                              (stp-archive-package-names))))
         (stp-package-group-command (lambda (pkg-names options)
-                                     (stp-ensure-requirements pkg-names options))
+                                     (stp-execute :operations (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
+                                                  :options options))
                                    table
                                    :class 'stp-additive-operation-options)))))
 
@@ -459,7 +462,8 @@ are not satisfied to the user."
       (let ((stp-requirements-toplevel nil)
             (table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
         (stp-package-group-command (lambda (pkg-names options)
-                                     (stp-maybe-uninstall-requirements pkg-names options))
+                                     (stp-execute :operations (mapcar (fn (stp-uninstall-operation :pkg-name %))))
+                                     :options options)
                                    table
                                    :class 'stp-uninstall-operation-options)))))
 
