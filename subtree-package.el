@@ -312,7 +312,7 @@ ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
 
 (defvar stp-requirements-toplevel t)
 
-(cl-defun stp-install-command ()
+(cl-defun stp-install-command (&key (refresh t))
   "Install a package.
 
 OPTIONS should be an instance of the class
@@ -357,9 +357,11 @@ running the command."
                                         :line-pkg nil)
                       (stp-command-options :class 'stp-install-operation-options))
         (stp-execute (stp-make-controller :operations (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
-                                          :options options))))))
+                                          :options options))
+        (when refresh
+          (stp-list-refresh :quiet t))))))
 
-(defun stp-uninstall-command ()
+(cl-defun stp-uninstall-command (&key (refresh t))
   "Uninstall a package interactively."
   (interactive)
   (stp-with-package-source-directory
@@ -368,9 +370,11 @@ running the command."
       (db (pkg-name options)
           (rem-at-end (stp-command-args) (stp-command-options))
         (stp-execute (stp-make-controller :operations (list (stp-uninstall-operation :pkg-name pkg-name))
-                                          :options options))))))
+                                          :options options))
+        (when refresh
+          (stp-list-refresh :quiet t))))))
 
-(cl-defun stp-upgrade-command ()
+(cl-defun stp-upgrade-command (&key (refresh t))
   "Upgrade a package interactively."
   (interactive)
   (stp-with-package-source-directory
@@ -380,7 +384,9 @@ running the command."
           (rem-at-end (stp-command-args)
                       (stp-command-options :class 'stp-upgrade-operation-options))
         (stp-execute (stp-make-controller :operations (list (stp-upgrade-operation :pkg-name pkg-name))
-                                          :options options))))))
+                                          :options options))
+        (when refresh
+          (stp-list-refresh :quiet t))))))
 
 (defun stp-check-requirements ()
   "Check the requirements of all STP packages and report any that
