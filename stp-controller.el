@@ -975,13 +975,11 @@ package and were installed as dependencies."))
           skipped-operations
           successful-operations)
       (while (setq operation (pop operations))
-        (with-slots (pkg-name)
-            operation
-          (condition-case err
-              (if (eq (stp-operate controller operation) 'skip)
-                  (push operation skipped-operations)
-                (push operation successful-operations))
-            (error (push (cons operation err) failed-operations)))))
+        (condition-case err
+            (if (eq (stp-operate controller operation) 'skip)
+                (push operation skipped-operations)
+              (push operation successful-operations))
+          (error (push (cons operation err) failed-operations))))
       (stp-report-operations successful-operations skipped-operations failed-operations)
       (with-slots (do-push do-lock do-reset)
           options
