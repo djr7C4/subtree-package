@@ -200,10 +200,13 @@ will not be detected."
              (dev-paths (and stp-headers-update-recompute-development-directory
                              (stp-compute-load-paths stp-development-directory)))
              (new-features (stp-headers-paths-features (append new-paths dev-paths))))
-        (setq stp-headers-installed-features (-> stp-headers-installed-features
-                                                 (cl-set-difference stp-headers-uninstalled-features :test #'equal)
-                                                 (append new-features)
-                                                 stp-headers-merge-elisp-requirements)
+        (setq stp-headers-installed-features (--> stp-headers-installed-features
+                                                  (cl-set-difference it stp-headers-uninstalled-features :test #'equal)
+                                                  ;; This is more robust but it
+                                                  ;; is also much slower.
+                                                  ;; (-filter #'stp-library-exists-p it)
+                                                  (append it new-features)
+                                                  stp-headers-merge-elisp-requirements)
               stp-headers-uninstalled-features nil
               stp-headers-versions new-versions))
     (unless suppress-first

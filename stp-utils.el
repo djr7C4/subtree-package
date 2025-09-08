@@ -958,5 +958,14 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
     (cl-dolist (f files)
       (load f))))
 
+(defun stp-library-exists-p (name)
+  "Check if NAME exists in the load path. NAME can be a symbol, a
+string or a list of the form (NAME VERSION)."
+  (when (listp name)
+    (setq name (car name)))
+  (when (symbolp name)
+    (setq name (symbol-name name)))
+  (locate-library name))
+
 (provide 'stp-utils)
 ;;; stp-utils.el ends here
