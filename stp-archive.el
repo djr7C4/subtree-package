@@ -166,7 +166,7 @@ methods."
                   (error "Failed to find %s in the %s package archive" pkg-name archive))))
     (package-version-join (package-desc-version desc))))
 
-(cl-defun stp-archive-install-or-upgrade (pkg-name archive action)
+(cl-defun stp-archive-install-or-upgrade (controller pkg-name archive action options)
   "Install or upgrade PKG-NAME from the package archive ARCHIVE.
 
 The current version is used instead of allowing the version to be
@@ -180,17 +180,17 @@ depending on which operation should be performed."
          (new-version (stp-archive-version pkg-name archive)))
     (when (and (eq action 'upgrade) (string= old-version new-version))
       (user-error "Version %s of %s is already installed" old-version pkg-name))
-    (stp-url-install-or-upgrade-basic pkg-name url new-version action)
+    (stp-url-install-or-upgrade-basic controller pkg-name url new-version action options)
     (when (eq action 'install)
       (stp-set-attribute pkg-name 'method 'archive))))
 
-(defun stp-archive-install (pkg-name archive)
+(defun stp-archive-install (controller pkg-name archive options)
   "Install PKG-NAME from ARCHIVE."
-  (stp-archive-install-or-upgrade pkg-name archive 'install))
+  (stp-archive-install-or-upgrade controller pkg-name archive 'install options))
 
-(defun stp-archive-upgrade (pkg-name archive)
+(defun stp-archive-upgrade (controller pkg-name archive options)
   "Upgrade PKG-NAME using ARCHIVE."
-  (stp-archive-install-or-upgrade pkg-name archive 'upgrade))
+  (stp-archive-install-or-upgrade controller pkg-name archive 'upgrade options))
 
 (provide 'stp-archive)
 ;;; stp-archive.el ends here

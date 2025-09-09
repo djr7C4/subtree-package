@@ -14,8 +14,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+(require 'cl-lib)
 (require 'lisp-mnt)
 (require 'rem)
+(require 'rem-abbrev)
 (require 'stp-git)
 (require 'stp-git-utils)
 (require 'stp-utils)
@@ -77,9 +79,19 @@ of FILE is different from the last time BODY was evaluated."
 
 (defun stp-headers-elisp-feature (name)
   "Return requirements satisfied by the current buffer."
-  (let ((version (save-excursion (stp-headers-version))))
-    (when version
-      (list (intern name) (stp-headers-normalize-version version)))))
+  (let-alist (stp-get-alist name)
+    (let ((version (or (save-excursion (stp-headers-version))
+                       ;; Fallback on version stored in the package info if it
+                       ;; can be converted to the right form.
+                       (and .version (stp-requirements-version .version))
+                       ;; As a last resort, query the remote to find the most
+                       ;; recent stable tag before the version recorded by STP.
+                       (aand (eq .method 'git)
+                             (stp-git-remote-last-stable .remote .version)
+                             (stp-requirements-version it)))))
+      (setq version (stp-headers-normalize-version version))
+      (when version
+        (list (intern name) version)))))
 
 (defvar stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
 
@@ -188,10 +200,13 @@ will not be detected."
              (dev-paths (and stp-headers-update-recompute-development-directory
                              (stp-compute-load-paths stp-development-directory)))
              (new-features (stp-headers-paths-features (append new-paths dev-paths))))
-        (setq stp-headers-installed-features (-> stp-headers-installed-features
-                                                 (cl-set-difference stp-headers-uninstalled-features :test #'equal)
-                                                 (append new-features)
-                                                 stp-headers-merge-elisp-requirements)
+        (setq stp-headers-installed-features (--> stp-headers-installed-features
+                                                  (cl-set-difference it stp-headers-uninstalled-features :test #'equal)
+                                                  ;; This is more robust but it
+                                                  ;; is also much slower.
+                                                  ;; (-filter #'stp-library-exists-p it)
+                                                  (append it new-features)
+                                                  stp-headers-merge-elisp-requirements)
               stp-headers-uninstalled-features nil
               stp-headers-versions new-versions))
     (unless suppress-first
@@ -199,14 +214,28 @@ will not be detected."
     (setq stp-headers-installed-features (stp-headers-paths-features load-path)
           stp-headers-versions (stp-headers-compute-versions))))
 
-(defun stp-headers-recompute-features ()
-  "Recompute all features in the load path. This may be necessary if
-a package is installed outside of STP."
+(defun stp-headers-recompute-features (&optional all)
+  "Recompute features in the load path. This may be necessary if a
+package is installed outside of STP. By default, features
+provided by files distributed with Emacs are not recomputed
+unless the installed version of Emacs hash changed. With a prefix
+argument, all features are recomputed unconditionally."
   (interactive)
   (stp-refresh-info)
-  (setq stp-headers-installed-features nil
-        stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
-  (stp-headers-update-features t))
+  (cl-flet ((emacs-feature-p (feature)
+              (when (listp feature)
+                (setq feature (car feature)))
+              (f-ancestor-of-p lisp-directory (locate-library (symbol-name feature)))))
+    (if (or all (not (string= (cadar stp-headers-versions) emacs-version)))
+        (setq stp-headers-installed-features nil
+              stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
+      (setq stp-headers-installed-features (-filter #'emacs-feature-p
+                                                    stp-headers-installed-features))
+      (mapc (lambda (file)
+              (unless (f-ancestor-of-p lisp-directory file)
+                (remhash file stp-headers-elisp-file-feature-cache)))
+            (hash-table-keys stp-headers-elisp-file-feature-cache)))
+    (stp-headers-update-features t)))
 
 (defun stp-headers-compute-versions ()
   (cons `(emacs ,emacs-version)
@@ -282,7 +311,12 @@ headers did not exist and was inserted."
       (beginning-of-line)
       (insert (format ";;; %s --- " filename))
       (end-of-line)
-      (insert "\n")))
+      (insert "\n")
+      (save-excursion
+        (forward-line)
+        (skip-chars-forward rem-spaces)
+        (when (looking-at-p comment-start)
+          (delete-region (line-beginning-position) (1+ (line-end-position)))))))
     (acond
      ((stp-headers-bounds-of-eob-header)
       (save-excursion
@@ -343,13 +377,12 @@ was inserted."
 (defun stp-headers-update-version-header (&optional insert)
   (let ((header "Version: "))
     (cl-flet ((insert-version (value)
-                (insert (format ";; %s: %s\n"
-                                header
-                                (or (->> (stp-git-root)
-                                         stp-git-latest-stable-version
-                                         stp-version-extract
-                                         (s-join "."))
-                                    "TODO")))
+                (let ((version (stp-git-latest-stable-version (stp-git-root))))
+                  (insert (format ";; %s%s\n"
+                                  header
+                                  (or (and version
+                                           (s-join "." (stp-version-extract version)))
+                                      "TODO"))))
                 value))
       (if (save-excursion (stp-headers-version))
           (save-excursion

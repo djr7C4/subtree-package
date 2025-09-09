@@ -14,8 +14,9 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(require 'cl-lib)
 (require 'crm)
+(require 'cl-lib)
+(require 'eieio)
 (require 'f)
 (require 'map)
 (require 'pp)
@@ -24,6 +25,33 @@
 (require 's)
 (require 'seq)
 (require 'stp-locked)
+(require 'stp-package)
+
+(defvar stp-memoized-functions '(stp-refresh-info stp-git-download-as-synthetic-repo stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-memoized stp-git-remote-hash-alist stp-git-valid-rev-p stp-git-timestamp stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
+
+(defvar stp-memoization-active nil)
+
+(defmacro stp-with-memoization (&rest body)
+  "Evaluate BODY with memoization active for expensive functions.
+
+Cached results are only retained while within the scope of this
+macro. This allows functions that would otherwise make many
+duplicate queries to remote git repositories to only make one of
+each type per interactive command."
+  (declare (indent 0))
+  (with-gensyms (memoization-active-orig)
+    `(let ((,memoization-active-orig stp-memoization-active)
+           (stp-memoization-active t))
+       (unwind-protect
+           (progn
+             (unless ,memoization-active-orig
+               (mapc (-rpartial #'memoize nil) stp-memoized-functions))
+             ,@body)
+         (unless ,memoization-active-orig
+           (mapc (-rpartial #'f-delete t) stp-git-synthetic-repos)
+           (mapc #'memoize-restore stp-memoized-functions))))))
+
+(def-edebug-spec stp-with-memoization t)
 
 ;; This is required for Emacs 30+. The fix is merged upstream in the development
 ;; version and should be remove here once there is a tagged release.
@@ -47,10 +75,13 @@ it is t, the buffer is never truncated.")
 
 (defun stp-msg (&rest args)
   (with-current-buffer (get-buffer-create stp-log-buffer-name)
-    (let ((msg (apply #'message args)))
+    (read-only-mode 1)
+    (let ((inhibit-read-only t)
+          (msg (apply #'message args)))
       (when stp-log-max
-        (insert msg "\n"))))
-  (stp-truncate-log))
+        (insert msg "\n"))
+      (stp-truncate-log)
+      msg)))
 
 ;; Based on `comint-truncate-buffer'.
 (defun stp-truncate-log ()
@@ -86,7 +117,7 @@ non-nil."
     (cl-every #'identity values)))
 
 (defun stp-maybe-call (value &rest args)
-  "If VALUE is a function with ARGS, call it and return the result.
+  "If VALUE is a function, call it with ARGS and return the result.
 Otherwise, return VALUE."
   (if (functionp value)
       (apply value args)
@@ -258,6 +289,8 @@ never ends with a slash (nor does it contain any slashes)."
 
 (defvar stp-candidate-separator "  ")
 
+;; TODO: remove this once migration from the old command options system is
+;; complete
 (defun stp-toggle-plist (prompt plist)
   (cl-labels ((make-cand (group width)
                 (format "%s%s%S"
@@ -282,6 +315,31 @@ never ends with a slash (nor does it contain any slashes)."
           (setf (plist-get plist kwd) (not (plist-get plist kwd)))))
       plist)))
 
+(defun stp-toggle-object (prompt object)
+  (cl-labels ((make-cand (slot value width)
+                (format "%s%s%S"
+                        (string-pad (symbol-name slot) width)
+                        stp-candidate-separator
+                        value))
+              (read-toggle ()
+                (let* ((slots (rem-object-slots object))
+                       (width (apply #'max (mapcar (-compose #'length #'symbol-name) slots)))
+                       (candidates (append (list "done")
+                                           (mapcar (lambda (slot)
+                                                     (make-cand slot
+                                                                (slot-value object slot)
+                                                                width))
+                                                   slots))))
+                  (rem-comp-read prompt
+                                 candidates
+                                 :require-match t
+                                 :sort-fun #'identity))))
+    (let (choice)
+      (while (not (string= (setq choice (read-toggle)) "done"))
+        (let ((slot (intern (car (s-split stp-candidate-separator choice)))))
+          (setf (slot-value object slot) (not (slot-value object slot)))))
+      object)))
+
 (defun stp-skip-package ()
   "Skip installing or upgrading this package."
   (interactive)
@@ -290,12 +348,11 @@ never ends with a slash (nor does it contain any slashes)."
 (defvar-keymap stp-skip-map
   "C-c C-k" #'stp-skip-package)
 
-(cl-defmacro stp-maybe-allow-skip ((skip-sym &optional skip-form) &rest body)
+(defmacro stp-allow-skip (skip-form &rest body)
   (declare (indent 1))
   (with-gensyms (result)
     `(cl-flet ((setup-keymap ()
-                 (when ,skip-sym
-                   (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map))))))
+                 (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map)))))
        (let ((,result (minibuffer-with-setup-hook (:append #'setup-keymap)
                         (catch 'stp-skip
                           ,@body))))
@@ -303,7 +360,7 @@ never ends with a slash (nor does it contain any slashes)."
            ,skip-form)
          ,result))))
 
-(def-edebug-spec stp-maybe-allow-skip ((form &optional form) body))
+(def-edebug-spec stp-allow-skip (form body))
 
 (cl-defun stp-read-name (prompt &key default)
   "Read the name of a package."
@@ -553,6 +610,12 @@ expression is active.")
           ;; Compare strings after removing leading zeros.
           (rem-shortlex-string< v1-nz v2-nz)))))
 
+(defun stp-version-list= (v1 v2)
+  ;; Add zeros for missing components.
+  (db (v1 v2)
+      (-pad "0" v1 v2)
+    (equal v1 v2)))
+
 (defun stp-version-list< (v1 v2)
   (and (not (and (null v1) (null v2)))
        ;; Missing elements default to 0 as in `version-to-list'.
@@ -562,6 +625,10 @@ expression is active.")
              (and (stp-version-component= v1-comp v2-comp)
                   (stp-version-list< (cdr v1) (cdr v2)))))))
 
+(defun stp-version-list<= (v1 v2)
+  (or (stp-version-list= v1 v2)
+      (stp-version-list< v1 v2)))
+
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
   (stp-version-list< (stp-version-extract v1)
@@ -569,20 +636,27 @@ expression is active.")
 
 (defun stp-version= (v1 v2)
   "Determine if v1 of the package is equal to v2."
-  (equal (stp-version-extract v1) (stp-version-extract v2)))
+  (let ((v1e (stp-version-extract v1))
+        (v2e (stp-version-extract v2)))
+    (stp-verion-list= v1e v2e)))
 
 (defun stp-version<= (v1 v2)
   "Determine if v1 of the package is less than or equal to v2."
   (let ((v1e (stp-version-extract v1))
         (v2e (stp-version-extract v2)))
-    (or (equal v1e v2e)
-        (stp-version-list< v1e v2e))))
+    (stp-version-list<= v1e v2e)))
 
 (defun stp-filter-by-min-version (min-version versions)
   (-filter (lambda (version)
              (or (not (stp-version-extract version))
                  (stp-version<= min-version version)))
            versions))
+
+(defun stp-requirements-version (version)
+  "Convert VERSION to the form that is accepted by
+`version-to-list'. This is what appears in requirements headers."
+  (let ((extracted-version (stp-version-extract version)))
+    (and extracted-version (s-join "." extracted-version))))
 
 (defvar stp-info-file (f-join user-emacs-directory "stp-pkg-info.eld")
   "The name of the file that stores the package information.
@@ -719,7 +793,11 @@ PKG-NAME."
   "Return a list of the names of all packages that are no longer
 required by another package but were installed as dependencies."
   (mapcar #'car
-          (-filter (fn (map-elt (cdr %) 'dependency))
+          (-filter (lambda (pkg)
+                     (db (pkg-name . pkg-alist)
+                         pkg
+                       (and (map-elt pkg-alist 'dependency)
+                            (not (stp-required-by pkg-name)))))
                    (stp-get-info-packages))))
 
 (defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?\\)*\\)[-_./]?$")
@@ -894,6 +972,15 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
          (files (mapcar #'f-no-ext (rem-elisp-files-to-load pkg-path :recursive t))))
     (cl-dolist (f files)
       (load f))))
+
+(defun stp-library-exists-p (name)
+  "Check if NAME exists in the load path. NAME can be a symbol, a
+string or a list of the form (NAME VERSION)."
+  (when (listp name)
+    (setq name (car name)))
+  (when (symbolp name)
+    (setq name (symbol-name name)))
+  (locate-library name))
 
 (provide 'stp-utils)
 ;;; stp-utils.el ends here

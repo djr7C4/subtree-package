@@ -15,7 +15,6 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (require 'f)
-(require 'rem)
 (require 's)
 (require 'stp-bootstrap)
 (require 'stp-utils)
@@ -163,7 +162,7 @@ repository. Return the path to the repository."
     dir))
 
 (cl-defun stp-git-commit (msg &key (do-commit t))
-  (when (stp-maybe-call do-commit)
+  (when do-commit
     (when (stp-git-merge-conflict-p)
       (error "Committing is not possible due to %s."
              (if (> (length (stp-git-conflicted-files)) 1)
@@ -212,16 +211,20 @@ repository. Return the path to the repository."
     t))
 
 (cl-defun stp-git-push (&key (do-push t) all tags)
-  (when (stp-maybe-call do-push)
+  (when do-push
     (if (or all tags (stp-git-unpushed-p))
-        (rem-run-command (append '("git" "push")
-                                 (rem-maybe-args "--all" all
-                                                 "--tags" tags))
-                         :error t)
+        (progn
+          (rem-run-command (append '("git" "push")
+                                   (rem-maybe-args "--all" all))
+                           :error t)
+          ;; When the --tags argument is used, only tags are pushed so this is
+          ;; done as a separate command.
+          (when tags
+            (rem-run-command '("git" "push" "--tags") :error t)))
       (stp-msg "There is nothing to push. Skipping..."))))
 
 (cl-defun stp-git-commit-push (msg &key (do-commit t) (do-push t) all tags)
-  (when (stp-maybe-call do-commit)
+  (when do-commit
     (stp-git-commit msg)
     ;; Pushing does not make sense if we did not commit earlier.
     (stp-git-push :do-push do-push :all all :tags tags)))
@@ -442,13 +445,16 @@ installed as a git subtree."
   (and (stp-git-subtree-commit path) t))
 
 (defun stp-git-head (&optional path)
-  (stp-git-remote-head (stp-git-root :path (or path stp-source-directory))))
+  ;; This version is not used because it is memoized. The local HEAD can change
+  ;; as packaging operations are run so memoizing it is undesirable.
+  ;; (stp-git-remote-head (stp-git-root :path (or path stp-source-directory)))
+  (stp-git-rev-parse (or path default-directory) "HEAD"))
 
 (defun stp-git-diff (&optional hashes)
   (rem-run-command (cl-list* "git" "diff" hashes) :error t))
 
 (defvar stp-git-diff-buffer-name "*stp-git-diff*")
-;; This is a change
+
 (defun stp-git-show-diff (&optional hashes)
   ;; (stp-git-show-diff hash new-hash): show the changes from hash to new-hash
   ;; (stp-git-show-diff hash): show the changes from hash to the index
@@ -464,22 +470,32 @@ installed as a git subtree."
       (diff-mode))
     (pop-to-buffer buf)))
 
-;; This function exists to facilitate memoization.
+(defun stp-git-bury-diff-buffer ()
+  (awhen (get-buffer stp-git-diff-buffer-name)
+    (bury-buffer it))
+  (redisplay))
+
 (defun stp-git-remote-hash-alist-basic (remote)
   (rem-run-command (list "git" "ls-remote" remote) :error t :nostderr t))
 
-(cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p))
+(defun stp-git-remote-hash-alist-memoized (remote)
+  (stp-git-remote-hash-alist-basic remote))
+
+(cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p) (memoize t))
   "Return an alist that maps hashes to refs.
 
 If supplied, PREFIXES is a list of allowed prefixes. Matching
 prefixes are removed from the refs. By default all refs are
-returned."
+returned. If MEMOIZE is nil, git commands called by function will
+not be memoized even within an `stp-with-memoization' form."
   ;; This function should not be passed an invalid remote and this check has a
   ;; significant performance penalty even with caching.
   ;; (unless (stp-git-valid-remote-p remote)
   ;;   (error "%s is not a valid remote" remote))
   ;; Handle empty repositories that do not have any tags.
-  (let ((output (stp-git-remote-hash-alist-basic remote)))
+  (let ((output (if memoize
+                    (stp-git-remote-hash-alist-memoized remote)
+                  (stp-git-remote-hash-alist-basic remote))))
     (unless (equal output "")
       (mapcar (lambda (list)
                 (db (hash ref)
@@ -499,9 +515,9 @@ returned."
                                  (s-split rem-positive-whitespace-regexp line))
                                (s-split "\n" output)))))))
 
-(defun stp-git-remote-hash-tag-alist (remote)
+(cl-defun stp-git-remote-hash-tag-alist (remote &key (memoize t))
   "Return an alist that maps hashes to tags."
-  (stp-git-remote-hash-alist remote :prefixes '("refs/tags/")))
+  (stp-git-remote-hash-alist remote :prefixes '("refs/tags/") :memoize memoize))
 
 (defun stp-git-remote-tags (remote &optional keep-dereferences)
   (let ((tags (mapcar #'cdr (stp-git-remote-hash-tag-alist remote))))
@@ -512,7 +528,7 @@ returned."
 (defun stp-git-remote-tag-p (remote rev)
   (member rev (stp-git-remote-tags remote t)))
 
-(defun stp-git-remote-hash-head-alist (remote)
+(cl-defun stp-git-remote-hash-head-alist (remote &key (memoize t))
   "Return an alist that maps hashes to heads."
   ;; Manually add HEAD instead of using the branch refs/heads/HEAD. This branch
   ;; should not exist as it is likely to create confusion but some repositories
@@ -522,7 +538,9 @@ returned."
         ;; ignored.
         (map-remove (lambda (_hash head)
                       (string= head "HEAD"))
-                    (stp-git-remote-hash-alist remote :prefixes '("refs/heads/")))))
+                    (stp-git-remote-hash-alist remote
+                                               :prefixes '("refs/heads/")
+                                               :memoize memoize))))
 
 (defun stp-git-remote-head (remote)
   "Return HEAD for REMOTE."
@@ -556,7 +574,7 @@ returned."
                      (list "--pretty='%%H'"))))
     (s-split "\n" (rem-run-command cmd :error t) t)))
 
-(defun stp-git-remote-rev-to-hash (remote rev)
+(cl-defun stp-git-remote-rev-to-hash (remote rev &key (memoize t))
   "Convert REV to a hash if it isn't one already.
 
 Refs that do not match any hash will remain unchanged."
@@ -565,46 +583,46 @@ Refs that do not match any hash will remain unchanged."
                ;; dereferenced tags in which case it will not be possible to
                ;; determine the hash for the tag. This is why there is a
                ;; fallback.
-               (rassoc (stp-git-tag-append-dereference rev) (stp-git-remote-hash-tag-alist remote))
-               (rassoc rev (stp-git-remote-hash-tag-alist remote))))
+               (rassoc (stp-git-tag-append-dereference rev) (stp-git-remote-hash-tag-alist remote :memoize memoize))
+               (rassoc rev (stp-git-remote-hash-tag-alist remote :memoize memoize))))
       rev))
 
-(defun stp-git-remote-head-to-hash (remote rev)
+(cl-defun stp-git-remote-head-to-hash (remote rev &key (memoize t))
   "If REV is a head, convert it to a hash.
 
 Otherwise, return REV."
-  (or (car (rassoc rev (stp-git-remote-hash-head-alist remote)))
+  (or (car (rassoc rev (stp-git-remote-hash-head-alist remote :memoize memoize)))
       rev))
 
-(defun stp-git-remote-tag-to-hash (remote rev)
+(cl-defun stp-git-remote-tag-to-hash (remote rev &key (memoize t))
   "If REV is a tag, convert it to a hash.
 
 Otherwise, return REV."
-  (or (car (rassoc rev (stp-git-remote-hash-tag-alist remote)))
+  (or (car (rassoc rev (stp-git-remote-hash-tag-alist remote :memoize memoize)))
       rev))
 
-(defun stp-git-remote-hash-to-head (remote rev)
+(cl-defun stp-git-remote-hash-to-head (remote rev &key (memoize t))
   "If REV is a hash that corresponds to a head, return the head.
 
 Otherwise, return REV."
-  (or (map-elt (stp-git-remote-hash-head-alist remote) rev)
+  (or (map-elt (stp-git-remote-hash-head-alist remote :memoize memoize) rev)
       rev))
 
 (defun stp-git-rev-to-hash (path rev)
   (let ((default-directory path))
-    (stp-git-remote-rev-to-hash "." rev)))
+    (stp-git-remote-rev-to-hash "." rev :memoize nil)))
 
 (defun stp-git-head-to-hash (path rev)
   (let ((default-directory path))
-    (stp-git-remote-head-to-hash "." rev)))
+    (stp-git-remote-head-to-hash "." rev :memoize nil)))
 
 (defun stp-git-tag-to-hash (path rev)
   (let ((default-directory path))
-    (stp-git-remote-tag-to-hash "." rev)))
+    (stp-git-remote-tag-to-hash "." rev :memoize nil)))
 
 (defun stp-git-hash-to-head (path rev)
   (let ((default-directory path))
-    (stp-git-remote-hash-to-head "." rev)))
+    (stp-git-remote-hash-to-head "." rev :memoize nil)))
 
 (defun stp-git-tag-strip-dereference (tag)
   "When tag is non-nil, remove the ^{} following a tag object if it
@@ -622,19 +640,19 @@ is present."
 (defun stp-git-remote-dereferencable-tag-p (remote rev)
   (car (rassoc (stp-git-tag-append-dereference rev) (stp-git-remote-hash-tag-alist remote))))
 
-(defun stp-git-remote-rev-to-tag (remote rev &optional keep-dereference)
+(cl-defun stp-git-remote-rev-to-tag (remote rev &key keep-dereference (memoize t))
   "If REV is a hash that corresponds to a tag, return the tag.
 
 Otherwise, return REV."
-  (or (let ((tag (map-elt (stp-git-remote-hash-tag-alist remote) rev)))
+  (or (let ((tag (map-elt (stp-git-remote-hash-tag-alist remote :memoize memoize) rev)))
         (if keep-dereference
             tag
           (stp-git-tag-strip-dereference tag)))
       rev))
 
-(defun stp-git-rev-to-tag (path rev &optional keep-dereference)
+(cl-defun stp-git-rev-to-tag (path rev &key keep-dereference)
   (let ((default-directory path))
-    (stp-git-remote-rev-to-tag "." rev keep-dereference)))
+    (stp-git-remote-rev-to-tag "." rev :keep-dereference keep-dereference :memoize nil)))
 
 (defun stp-git-hash= (hash hash2)
   (and (>= (length hash) 6)
@@ -819,6 +837,25 @@ repositories."
 remote repositories."
   (let ((path (stp-git-ensure-cached-repo remote)))
     (stp-git-timestamp path rev)))
+
+(cl-defun stp-git-describe (rev &key (tags t))
+  (let ((output (rem-run-command (append '("git" "describe")
+                                         (rem-maybe-args "--tags" tags)
+                                         (list rev)))))
+    (when output
+      ;; Keep only the tag by removing the number of commits and the hash.
+      (s-join "-" (butlast (s-split "-" (s-trim output)) 2)))))
+
+(defun stp-git-last-stable (path rev)
+  (let ((default-directory path))
+    (while (and (setq rev (stp-git-describe rev))
+                (not (stp-version-extract rev))))
+    rev))
+
+(defun stp-git-remote-last-stable (remote rev)
+  "Find the last stable version up to and including REV."
+  (let ((path (stp-git-ensure-cached-repo remote)))
+    (stp-git-last-stable path rev)))
 
 (provide 'stp-git-utils)
 ;;; stp-git-utils.el ends here
