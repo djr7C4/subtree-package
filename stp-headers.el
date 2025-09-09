@@ -214,14 +214,28 @@ will not be detected."
     (setq stp-headers-installed-features (stp-headers-paths-features load-path)
           stp-headers-versions (stp-headers-compute-versions))))
 
-(defun stp-headers-recompute-features ()
+(defun stp-headers-recompute-features (&optional all)
   "Recompute features in the load path. This may be necessary if a
-package is installed outside of STP."
+package is installed outside of STP. By default, features
+provided by files distributed with Emacs are not recomputed
+unless the installed version of Emacs hash changed. With a prefix
+argument, all features are recomputed unconditionally."
   (interactive)
   (stp-refresh-info)
-  (setq stp-headers-installed-features nil
-        stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
-  (stp-headers-update-features t))
+  (cl-flet ((emacs-feature-p (feature)
+              (when (listp feature)
+                (setq feature (car feature)))
+              (f-ancestor-of-p lisp-directory (locate-library (symbol-name feature)))))
+    (if (or all (not (string= (cadar stp-headers-versions) emacs-version)))
+        (setq stp-headers-installed-features nil
+              stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
+      (setq stp-headers-installed-features (-filter #'emacs-feature-p
+                                                    stp-headers-installed-features))
+      (mapc (lambda (file)
+              (unless (f-ancestor-of-p lisp-directory file)
+                (remhash file stp-headers-elisp-file-feature-cache)))
+            (hash-table-keys stp-headers-elisp-file-feature-cache)))
+    (stp-headers-update-features t)))
 
 (defun stp-headers-compute-versions ()
   (cons `(emacs ,emacs-version)
