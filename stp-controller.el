@@ -978,20 +978,19 @@ package and were installed as dependencies."))
 (cl-defmethod stp-execute ((controller stp-controller))
   (with-slots (options operations)
       controller
-    (let ((last-hash (stp-git-head))
-          operation
-          failed-operations
-          skipped-operations
-          successful-operations)
-      (while (setq operation (pop operations))
-        (condition-case err
-            (if (eq (stp-operate controller operation) 'skip)
-                (push operation skipped-operations)
-              (push operation successful-operations))
-          (error (push (cons operation err) failed-operations))))
-      (stp-report-operations successful-operations skipped-operations failed-operations)
-      (with-slots (do-push do-lock do-reset)
-          options
+    (with-slots (do-push do-lock do-reset)
+        options
+      (let ((last-hash (stp-git-head))
+            operation
+            failed-operations
+            skipped-operations
+            successful-operations)
+        (while (setq operation (pop operations))
+          (condition-case err
+              (if (eq (stp-operate controller operation) 'skip)
+                  (push operation skipped-operations)
+                (push operation successful-operations))
+            (error (push (cons operation err) failed-operations))))
         ;; Resetting should be done before pushing or locking if an error occurred.
         (let ((reset (stp-maybe-call do-reset)))
           (when (and failed-operations (or (eq reset t) (memq :error reset)))
@@ -1002,7 +1001,8 @@ package and were installed as dependencies."))
             (stp-git-reset last-hash :mode 'hard)))
         (stp-git-push :do-push (stp-maybe-call do-push))
         (when (stp-maybe-call do-lock)
-          (stp-update-lock-file))))))
+          (stp-update-lock-file))
+        (stp-report-operations successful-operations skipped-operations failed-operations)))))
 
 (provide 'stp-controller)
 ;;; stp-controller.el ends here
