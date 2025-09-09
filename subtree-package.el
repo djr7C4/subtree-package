@@ -737,18 +737,20 @@ package requires it rather than explicitly by the user."
   (when pkg-name
     (with-slots (do-commit do-push do-lock)
         options
-      (let ((dependency (stp-get-attribute pkg-name 'dependency)))
+      (let* ((dependency (stp-get-attribute pkg-name 'dependency))
+             (msg (format "Changed dependency to %s for %s"
+                          (not dependency)
+                          pkg-name)))
         (if dependency
             (stp-delete-attribute pkg-name 'dependency)
           (stp-set-attribute pkg-name 'dependency t))
         (stp-write-info)
-        (stp-git-commit-push (format "Changed dependency to %s for %s"
-                                     (not dependency)
-                                     pkg-name)
+        (stp-git-commit-push msg
                              :do-commit do-commit
                              :do-push do-push)
         (when (stp-maybe-call do-lock pkg-name)
-          (stp-update-lock-file))))))
+          (stp-update-lock-file))
+        (stp-msg msg)))))
 
 (defun stp-post-actions-command ()
   "Perform actions for newly installed or upgraded packages.
