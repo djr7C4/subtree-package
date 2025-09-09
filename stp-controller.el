@@ -661,6 +661,13 @@ operations to perform."))
                     :min-version min-version
                     :enforce-min-version enforce-min-version))
 
+(cl-defgeneric stp-controller-get-remote (controller prompt remote other-remotes)
+  (:documentation
+   "Query the controller for a remote."))
+
+(cl-defmethod stp-controller-get-remote ((_controller stp-interactive-controller) prompt remote other-remotes)
+  (stp-choose-remote prompt remote other-remotes))
+
 (cl-defgeneric stp-operation-verb (operation)
   "Return a verb that describes the operation.")
 
@@ -683,7 +690,8 @@ operations to perform."))
   "performing post actions on")
 
 (cl-defgeneric stp-ensure-prerequistites (controller operation)
-  (:documentation "Determine if the prerequisites for OPERATION are satisfied."))
+  (:documentation
+   "Determine if the prerequisites for OPERATION are satisfied."))
 
 (cl-defmethod stp-ensure-prerequistites ((_controller stp-controller) (_operation stp-operation))
   t)
@@ -866,7 +874,7 @@ package and were installed as dependencies."))
             ;; Automatically determine missing other remotes for archive packages.
             (when (eq .method 'archive)
               (setq .other-remotes (cl-set-difference (stp-archives pkg-name) (cons .remote .other-remotes))))
-            (let* ((chosen-remote (stp-choose-remote "Remote: " .remote .other-remotes))
+            (let* ((chosen-remote (stp-controller-get-remote controller "Remote: " .remote .other-remotes))
                    (extra-versions (and (eq .method 'git)
                                         (not new-version)
                                         (or stp-git-upgrade-always-offer-remote-heads
@@ -990,7 +998,8 @@ package and were installed as dependencies."))
       (stp-msg "Successfully completed %d operations" (length successful-operations))))))
 
 (cl-defgeneric stp-execute (controller)
-  (:documentation "Execute the operations for the controller."))
+  (:documentation
+   "Execute the operations for the controller."))
 
 (cl-defmethod stp-execute ((controller stp-controller))
   (with-slots (options operations)
