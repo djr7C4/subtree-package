@@ -486,7 +486,7 @@ are not satisfied to the user."
     (let-alist (stp-get-alist pkg-name)
       (unless (eq .method 'git)
         (user-error "Only packages that use the git method can be forked"))
-      (let* ((dir (or stp-fork-directory stp-source-directory))
+      (let* ((dir (or stp-fork-directory stp-development-directory))
              (remote (stp-choose-remote "Remote: " .remote .other-remotes)))
         (stp-fork pkg-name remote dir (stp-command-options :class 'stp-basic-operation-options))))))
 
@@ -499,7 +499,7 @@ are not satisfied to the user."
       (unless (executable-find "gh")
         (error "gh is required for forking"))
       (let ((default-directory dir))
-        (rem-run-command (-uniq (list "gh" "repo" "fork" "--clone" "--fork-name" pkg-name remote)))
+        (rem-run-command (list "gh" "repo" "fork" "--clone" "--fork-name" pkg-name remote))
         (let* ((default-directory (f-join dir pkg-name))
                (remotes (-uniq (cl-list* (map-elt (stp-git-remotes) "origin")
                                          remote
@@ -509,7 +509,8 @@ are not satisfied to the user."
           (stp-set-attribute pkg-name 'other-remotes (cdr remotes))
           (stp-with-package-source-directory
             (stp-write-info)
-            (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push)))))))
+            (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push))
+          (find-file default-directory))))))
 
 (cl-defun stp-reinstall-command ()
   "Uninstall and reinstall a package interactively as the same version."
