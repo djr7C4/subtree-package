@@ -1012,5 +1012,8 @@ package and were installed as dependencies."))
           (stp-update-lock-file))
         (stp-report-operations successful-operations skipped-operations failed-operations)))))
 
+(defun stp-execute-operations (operations options &rest args)
+  (stp-execute (apply #'stp-make-controller :operations operations :options options args)))
+
 (provide 'stp-controller)
 ;;; stp-controller.el ends here

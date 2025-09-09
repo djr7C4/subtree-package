@@ -217,8 +217,10 @@ occurred."
                       (when (and (not (stp-git-subtree-package-commit pkg-name))
                                  (yes-or-no-p (format "%s was not installed as a git subtree. Uninstall and reinstall? "
                                                       pkg-name)))
-                        (stp-execute (stp-make-controller :operations (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
-                                                          :options options)))))
+                        (stp-execute-operations
+                         (list (stp-reinstall-operation :pkg-name pkg-name
+                                                        :new-version version))
+                         options))))
                 (when (funcall callback 'ghost-package pkg-name)
                   (stp-delete-alist pkg-name)))
               (unless quiet
@@ -356,8 +358,9 @@ running the command."
                                         :existing-pkg nil
                                         :line-pkg nil)
                       (stp-command-options :class 'stp-install-operation-options))
-        (stp-execute (stp-make-controller :operations (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
-                                          :options options))
+        (stp-execute-operations
+         (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
+         options)
         (when refresh
           (stp-list-refresh :quiet t))))))
 
@@ -369,8 +372,8 @@ running the command."
       (stp-refresh-info)
       (db (pkg-name options)
           (rem-at-end (stp-command-args) (stp-command-options))
-        (stp-execute (stp-make-controller :operations (list (stp-uninstall-operation :pkg-name pkg-name))
-                                          :options options))
+        (stp-execute-operations (list (stp-uninstall-operation :pkg-name pkg-name))
+                                options)
         (when refresh
           (stp-list-refresh :quiet t))))))
 
@@ -383,8 +386,8 @@ running the command."
       (db (pkg-name options)
           (rem-at-end (stp-command-args)
                       (stp-command-options :class 'stp-upgrade-operation-options))
-        (stp-execute (stp-make-controller :operations (list (stp-upgrade-operation :pkg-name pkg-name))
-                                          :options options))
+        (stp-execute-operations (list (stp-upgrade-operation :pkg-name pkg-name))
+                                options)
         (when refresh
           (stp-list-refresh :quiet t))))))
 
@@ -450,8 +453,9 @@ are not satisfied to the user."
                                              (stp-archive-package-names))))
         (stp-package-group-command
          (lambda (pkg-names options)
-           (stp-execute (stp-make-controller :operations (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
-                                             :options options)))
+           (stp-execute-operations
+            (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
+            options))
          table
          :class 'stp-additive-operation-options)))))
 
@@ -464,8 +468,9 @@ are not satisfied to the user."
             (table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
         (stp-package-group-command
          (lambda (pkg-names options)
-           (stp-execute (stp-make-controller :operations (mapcar (fn (stp-uninstall-operation :pkg-name %)) pkg-names)
-                                             :options options)))
+           (stp-execute-operations
+            (mapcar (fn (stp-uninstall-operation :pkg-name %)) pkg-names)
+            options))
          table
          :class 'stp-uninstall-operation-options)))))
 
@@ -515,8 +520,9 @@ are not satisfied to the user."
       (db (pkg-name version options)
           (rem-at-end (stp-command-args :pkg-version t)
                       (stp-command-options :class 'stp-reinstall-operation-options))
-        (stp-execute (stp-make-controller :operations (stp-reinstall-operation :pkg-name pkg-name :new-version version)
-                                          :options options))))))
+        (stp-execute-operations
+         (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
+         options)))))
 
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group for easily upgrading multiple related
@@ -1601,9 +1607,10 @@ longer required by any other package."
   (stp-refresh-info)
   (stp-with-package-source-directory
     (stp-with-memoization
-      (stp-execute (stp-make-controller
-                    :operations (mapcar (fn (stp-uninstall-operation :pkg-name %)) (stp-find-unnecessary-dependencies))
-                    :options options)))))
+      (stp-execute-operations
+       (mapcar (fn (stp-uninstall-operation :pkg-name %))
+               (stp-find-unnecessary-dependencies))
+       options))))
 
 (cl-defun stp-bump-version (filename options)
   "Increase the version header for FILENAME. Interactively, this is
