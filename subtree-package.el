@@ -1639,8 +1639,6 @@ if no version header is found for the current file."
                      (stp-command-options :class 'stp-bump-operation-options)))
   (with-slots (do-commit do-push do-tag)
       options
-    ;; (when (stp-maybe-call do-commit)
-    ;;   (stp-maybe-ensure-clean))
     (let ((clean (stp-git-clean-p)))
       (save-excursion
         (find-file filename)
