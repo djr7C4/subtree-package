@@ -135,7 +135,6 @@ the minimum required by another package.")
    (do-dependencies :initarg :do-dependencies :initform (symbol-value 'stp-auto-dependencies))))
 
 (defclass stp-uninstall-operation-options (stp-package-operation-options) ())
-(defclass stp-reinstall-operation-options (stp-package-operation-options) ())
 
 (defclass stp-action-operation-options (stp-operation-options)
   ((do-actions :initarg :do-actions :initform (symbol-value 'stp-auto-post-actions))
@@ -152,6 +151,7 @@ the minimum required by another package.")
 
 (defclass stp-install-operation-options (stp-additive-operation-options) ())
 (defclass stp-upgrade-operation-options (stp-additive-operation-options) ())
+(defclass stp-reinstall-operation-options (stp-additive-operation-options) ())
 
 (defclass stp-bump-operation-options (stp-basic-operation-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
@@ -217,7 +217,9 @@ corresponds to that line."
       (save-excursion
         (forward-line offset)
         (when (= (line-number-at-pos) (+ line offset))
-          (when-let ((pkg-name (rem-plain-symbol-at-point)))
+          (when-let ((pkg-name (save-excursion
+                                 (beginning-of-line)
+                                 (rem-plain-symbol-at-point))))
             (and (not (save-excursion
                         (beginning-of-line)
                         (bobp)))
@@ -977,6 +979,9 @@ package and were installed as dependencies."))
         (pop-to-buffer stp-log-buffer-name)))
      (successful-operations
       (stp-msg "Successfully completed %d operations" (length successful-operations))))))
+
+(cl-defgeneric stp-execute (controller)
+  (:documentation "Execute the operations for the controller."))
 
 (cl-defmethod stp-execute ((controller stp-controller))
   (with-slots (options operations)

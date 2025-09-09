@@ -448,11 +448,12 @@ are not satisfied to the user."
       (let ((table (completion-table-in-turn (stp-get-info-group-names)
                                              (stp-info-names)
                                              (stp-archive-package-names))))
-        (stp-package-group-command (lambda (pkg-names options)
-                                     (stp-execute :operations (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
-                                                  :options options))
-                                   table
-                                   :class 'stp-additive-operation-options)))))
+        (stp-package-group-command
+         (lambda (pkg-names options)
+           (stp-execute :operations (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
+                        :options options))
+         table
+         :class 'stp-additive-operation-options)))))
 
 (defun stp-uninstall-package-group-command ()
   "Uninstall the package groups or packages."
@@ -461,11 +462,12 @@ are not satisfied to the user."
     (stp-with-memoization
       (let ((stp-requirements-toplevel nil)
             (table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
-        (stp-package-group-command (lambda (pkg-names options)
-                                     (stp-execute :operations (mapcar (fn (stp-uninstall-operation :pkg-name %))))
-                                     :options options)
-                                   table
-                                   :class 'stp-uninstall-operation-options)))))
+        (stp-package-group-command
+         (lambda (pkg-names options)
+           (stp-execute :operations (mapcar (fn (stp-uninstall-operation :pkg-name %)) pkg-names))
+           :options options)
+         table
+         :class 'stp-uninstall-operation-options)))))
 
 (defvar stp-fork-directory nil
   "The directory to use for forks. When this is nil,
@@ -510,9 +512,11 @@ are not satisfied to the user."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (apply #'stp-reinstall
-             (rem-at-end (stp-command-args :pkg-version t)
-                         (stp-command-options :class 'stp-reinstall-operation-options))))))
+      (db (pkg-name version options)
+          (rem-at-end (stp-command-args :pkg-version t)
+                      (stp-command-options :class 'stp-reinstall-operation-options))
+        (stp-execute (stp-make-controller :operations (stp-reinstall-operation :pkg-name pkg-name :new-version version)
+                                          :options options))))))
 
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group for easily upgrading multiple related
@@ -1589,13 +1593,13 @@ but are no longer required by any other package."
 (defun stp-delete-unnecessary-dependencies (options)
   "Uninstall packages that were installed as dependencies but are no
 longer required by any other package."
-  (interactive (list (stp-command-options)))
+  (interactive (list (stp-command-options :class 'stp-uninstall-operation-options)))
   (stp-refresh-info)
-  (with-slots (do-push)
-      options
-    (let ((pkgs (stp-find-unnecessary-dependencies)))
-      (stp-maybe-uninstall-requirements pkgs options)
-      (stp-git-push :do-push (stp-maybe-call do-push)))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-execute (stp-make-controller
+                    :operations (mapcar (fn (stp-uninstall-operation :pkg-name %)) (stp-find-unnecessary-dependencies))
+                    :options options)))))
 
 (cl-defun stp-bump-version (filename options)
   "Increase the version header for FILENAME. Interactively, this is
