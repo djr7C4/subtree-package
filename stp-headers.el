@@ -215,8 +215,8 @@ will not be detected."
           stp-headers-versions (stp-headers-compute-versions))))
 
 (defun stp-headers-recompute-features ()
-  "Recompute all features in the load path. This may be necessary if
-a package is installed outside of STP."
+  "Recompute features in the load path. This may be necessary if a
+package is installed outside of STP."
   (interactive)
   (stp-refresh-info)
   (setq stp-headers-installed-features nil

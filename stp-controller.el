@@ -94,7 +94,9 @@ for `stp-auto-commit'.")
    (options :initarg :options :initform nil)))
 
 (defclass stp-package-operation (stp-operation) ())
-(defclass stp-uninstall-operation (stp-package-operation) ())
+(defclass stp-package-change-operation (stp-package-operation) ())
+
+(defclass stp-uninstall-operation (stp-package-change-operation) ())
 (defclass stp-post-action-operation (stp-package-operation) ())
 
 (defclass stp-skippable-package-operation (stp-package-operation)
@@ -104,7 +106,7 @@ for `stp-auto-commit'.")
   "Determines if the user is allowed to select a version older than
 the minimum required by another package.")
 
-(defclass stp-additive-operation (stp-skippable-package-operation)
+(defclass stp-additive-operation (stp-package-change-operation stp-skippable-package-operation)
   ((min-version :initarg :min-version :initform nil)
    (enforce-min-version :initarg :enforce-min-version :initform (symbol-value 'stp-enforce-min-version))
    (prompt-prefix :initarg :prompt-prefix :initform "")))
@@ -680,6 +682,16 @@ operations to perform."))
 (cl-defmethod stp-operation-verb ((_operation stp-post-action-operation))
   "performing post actions on")
 
+(cl-defgeneric stp-ensure-prerequistites (controller operation)
+  (:documentation "Determine if the prerequisites for OPERATION are satisfied."))
+
+(cl-defmethod stp-ensure-prerequistites ((_controller stp-controller) (_operation stp-operation))
+  t)
+
+(cl-defmethod stp-ensure-prerequistites ((_controller stp-controller) (_operation stp-package-change-operation))
+  (stp-maybe-ensure-clean)
+  (cl-call-next-method))
+
 (cl-defgeneric stp-operate (controller operation)
   (:documentation
    "Perform OPERATION using CONTROLLER. This may result in additional
@@ -730,7 +742,6 @@ package and were installed as dependencies."))
                                   :options options))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
-  (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-dependencies)
         options
@@ -800,7 +811,6 @@ package and were installed as dependencies."))
     (stp-headers-update-features)))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-operation))
-  (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-audit do-dependencies do-actions)
         options
@@ -846,7 +856,6 @@ package and were installed as dependencies."))
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-upgrade-operation))
-  (stp-maybe-ensure-clean)
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-actions do-dependencies do-audit)
         options
@@ -995,9 +1004,11 @@ package and were installed as dependencies."))
             successful-operations)
         (while (setq operation (pop operations))
           (condition-case err
-              (if (eq (stp-operate controller operation) 'skip)
-                  (push operation skipped-operations)
-                (push operation successful-operations))
+              (progn
+                (stp-prerequistites-p controller operation)
+                (if (eq (stp-operate controller operation) 'skip)
+                    (push operation skipped-operations)
+                  (push operation successful-operations)))
             (error (push (cons operation err) failed-operations))))
         ;; Resetting should be done before pushing or locking if an error occurred.
         (let ((reset (stp-maybe-call do-reset)))
