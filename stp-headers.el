@@ -220,7 +220,7 @@ package is installed outside of STP. By default, features
 provided by files distributed with Emacs are not recomputed
 unless the installed version of Emacs hash changed. With a prefix
 argument, all features are recomputed unconditionally."
-  (interactive)
+  (interactive "P")
   (stp-refresh-info)
   (cl-flet ((emacs-feature-p (feature)
               (when (listp feature)
@@ -229,8 +229,7 @@ argument, all features are recomputed unconditionally."
     (if (or all (not (string= (cadar stp-headers-versions) emacs-version)))
         (setq stp-headers-installed-features nil
               stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal))
-      (setq stp-headers-installed-features (-filter #'emacs-feature-p
-                                                    stp-headers-installed-features))
+      (setq stp-headers-installed-features nil)
       (mapc (lambda (file)
               (unless (f-ancestor-of-p lisp-directory file)
                 (remhash file stp-headers-elisp-file-feature-cache)))
