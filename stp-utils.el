@@ -782,7 +782,11 @@ PKG-NAME."
   "Return a list of the names of all packages that are no longer
 required by another package but were installed as dependencies."
   (mapcar #'car
-          (-filter (fn (map-elt (cdr %) 'dependency))
+          (-filter (lambda (pkg)
+                     (db (pkg-name . pkg-alist)
+                         pkg
+                       (and (map-elt pkg-alist 'dependency)
+                            (not (stp-required-by pkg-name)))))
                    (stp-get-info-packages))))
 
 (defvar stp-version-regexp "^\\(?:\\(?:v\\|V\\|release\\|Release\\|version\\|Version\\)\\(?:[-_./]?\\)\\)?\\([0-9]+[a-zA-Z]?\\(\\([-_./]\\)[0-9]+[a-zA-Z]?\\)*\\)[-_./]?$")
