@@ -1005,7 +1005,7 @@ package and were installed as dependencies."))
         (while (setq operation (pop operations))
           (condition-case err
               (progn
-                (stp-prerequistites-p controller operation)
+                (stp-ensure-prerequistites controller operation)
                 (if (eq (stp-operate controller operation) 'skip)
                     (push operation skipped-operations)
                   (push operation successful-operations)))
