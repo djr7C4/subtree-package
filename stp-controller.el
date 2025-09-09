@@ -905,7 +905,10 @@ package and were installed as dependencies."))
                                           pkg-name)
                                   :do-commit do-commit)
                   (when (stp-maybe-call do-dependencies)
-                    (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options)))))))))))
+                    (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
+                  ;; Perform post actions for all packages after everything else.
+                  (when (stp-maybe-call do-actions)
+                    (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name))))))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-or-upgrade-operation))
   (let ((class (if (member (slot-value operation 'pkg-name) (stp-info-names))
