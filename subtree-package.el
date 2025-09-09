@@ -478,6 +478,10 @@ are not satisfied to the user."
   "The directory to use for forks. When this is nil,
 `stp-source-directory' is used.")
 
+(defvar stp-fork-action #'find-file-other-window
+  "The action to execute after a fork is created. The function is
+called with the local path to the fork.")
+
 (defun stp-fork-command ()
   "Fork the repository for a package."
   (interactive)
@@ -510,7 +514,7 @@ are not satisfied to the user."
           (stp-with-package-source-directory
             (stp-write-info)
             (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push))
-          (find-file default-directory))))))
+          (funcall stp-fork-action default-directory))))))
 
 (cl-defun stp-reinstall-command ()
   "Uninstall and reinstall a package interactively as the same version."
