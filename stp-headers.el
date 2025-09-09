@@ -62,7 +62,7 @@ of FILE is different from the last time BODY was evaluated."
 
 (defun stp-headers-get-header ()
   (save-match-data
-    (looking-back " \\([^ \t:]+\\):[ \t]*" nil)
+    (looking-back " \\([^ \t:]+:[ \t]*\\)" nil)
     (match-string 1)))
 
 ;; Without caching, checking all the requirements for the load path is slow
