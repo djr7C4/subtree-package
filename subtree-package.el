@@ -704,26 +704,28 @@ The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
     (with-slots (do-commit do-push do-lock)
         options
       (let-alist (stp-get-alist pkg-name)
-        (if (eq .method 'git)
-            (progn
-              (stp-set-attribute pkg-name 'update (stp-invert-update .update))
-              (if (eq .update 'stable)
-                  (progn
-                    (setq .branch (or .branch
-                                      (stp-git-read-branch "Branch: " .remote)))
-                    (stp-set-attribute pkg-name 'branch .branch))
-                (stp-delete-attribute pkg-name 'branch))
-              (stp-write-info)
-              (stp-git-commit-push (format "Changed update to %s for %s"
-                                           (stp-invert-update .update)
-                                           pkg-name)
-                                   :do-commit do-commit
-                                   :do-push do-push)
-              (when (stp-maybe-call do-lock pkg-name)
-                (stp-update-lock-file))
-              (when refresh
-                (stp-list-refresh :quiet t)))
-          (user-error "The update attribute can only be toggled for git packages."))))))
+        (let ((msg (format "Changed update to %s for %s"
+                           (stp-invert-update .update)
+                           pkg-name)))
+          (if (eq .method 'git)
+              (progn
+                (stp-set-attribute pkg-name 'update (stp-invert-update .update))
+                (if (eq .update 'stable)
+                    (progn
+                      (setq .branch (or .branch
+                                        (stp-git-read-branch "Branch: " .remote)))
+                      (stp-set-attribute pkg-name 'branch .branch))
+                  (stp-delete-attribute pkg-name 'branch))
+                (stp-write-info)
+                (stp-git-commit-push msg
+                                     :do-commit do-commit
+                                     :do-push do-push)
+                (when (stp-maybe-call do-lock pkg-name)
+                  (stp-update-lock-file))
+                (when refresh
+                  (stp-list-refresh :quiet t))
+                (stp-msg msg))
+            (user-error "The update attribute can only be toggled for git packages.")))))))
 
 (defun stp-toggle-dependency-command ()
   "Toggle the dependency attribute of a package interactively.
