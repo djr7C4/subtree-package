@@ -16,15 +16,12 @@
 
 (require 'cl-lib)
 (require 's)
+(require 'stp-options)
 (require 'stp-utils)
 (require 'stp-git-utils)
 
 (declare-function stp-reinstall-operation "stp-controller")
 (declare-function stp-controller-prepend-operations "stp-controller")
-
-;; Defined in stp.el.
-(defvar stp-auto-commit)
-(declare-function stp-reinstall "stp")
 
 (defun stp-git-subtree-package-commit (pkg-name)
   (let ((pkg-path (stp-canonical-path pkg-name)))
@@ -332,9 +329,7 @@ returned."
            ;; version instead.
            ((and stp-subtree-pull-fallback
                  (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
-                 ;; TODO: use the controller here instead and don't depend on
-                 ;; stp-auto-commit
-                 (or (stp-maybe-call stp-auto-commit)
+                 (or (stp-maybe-call (slot-value options 'do-commit))
                      (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
             (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
             nil
