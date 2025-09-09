@@ -122,7 +122,7 @@ the minimum required by another package.")
   ((new-version :initarg :new-version :initform nil)))
 
 (defclass stp-reinstall-operation (stp-additive-operation)
-  (new-version :initarg :new-version :initform nil))
+  ((new-version :initarg :new-version :initform nil)))
 
 ;; User options can be toggled interactively by the user when a command is run.
 (defclass stp-operation-options () ())
