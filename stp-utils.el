@@ -610,6 +610,12 @@ expression is active.")
           ;; Compare strings after removing leading zeros.
           (rem-shortlex-string< v1-nz v2-nz)))))
 
+(defun stp-version-list= (v1 v2)
+  ;; Add zeros for missing components.
+  (db (v1 v2)
+      (-pad "0" v1 v2)
+    (equal v1 v2)))
+
 (defun stp-version-list< (v1 v2)
   (and (not (and (null v1) (null v2)))
        ;; Missing elements default to 0 as in `version-to-list'.
@@ -619,6 +625,10 @@ expression is active.")
              (and (stp-version-component= v1-comp v2-comp)
                   (stp-version-list< (cdr v1) (cdr v2)))))))
 
+(defun stp-version-list<= (v1 v2)
+  (or (stp-version-list= v1 v2)
+      (stp-version-list< v1 v2)))
+
 (defun stp-version< (v1 v2)
   "Determine if v2 of the package is newer than v1."
   (stp-version-list< (stp-version-extract v1)
@@ -626,14 +636,15 @@ expression is active.")
 
 (defun stp-version= (v1 v2)
   "Determine if v1 of the package is equal to v2."
-  (equal (stp-version-extract v1) (stp-version-extract v2)))
+  (let ((v1e (stp-version-extract v1))
+        (v2e (stp-version-extract v2)))
+    (stp-verion-list= v1e v2e)))
 
 (defun stp-version<= (v1 v2)
   "Determine if v1 of the package is less than or equal to v2."
   (let ((v1e (stp-version-extract v1))
         (v2e (stp-version-extract v2)))
-    (or (equal v1e v2e)
-        (stp-version-list< v1e v2e))))
+    (stp-version-list<= v1e v2e)))
 
 (defun stp-filter-by-min-version (min-version versions)
   (-filter (lambda (version)
