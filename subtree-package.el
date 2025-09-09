@@ -450,8 +450,8 @@ are not satisfied to the user."
                                              (stp-archive-package-names))))
         (stp-package-group-command
          (lambda (pkg-names options)
-           (stp-execute :operations (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
-                        :options options))
+           (stp-execute (stp-make-controller :operations (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
+                                             :options options)))
          table
          :class 'stp-additive-operation-options)))))
 
@@ -464,8 +464,8 @@ are not satisfied to the user."
             (table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
         (stp-package-group-command
          (lambda (pkg-names options)
-           (stp-execute :operations (mapcar (fn (stp-uninstall-operation :pkg-name %)) pkg-names))
-           :options options)
+           (stp-execute (stp-make-controller :operations (mapcar (fn (stp-uninstall-operation :pkg-name %)) pkg-names)
+                                             :options options)))
          table
          :class 'stp-uninstall-operation-options)))))
 
