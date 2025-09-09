@@ -888,7 +888,7 @@ package and were installed as dependencies."))
                                  :extra-versions-position (if (eq .update 'unstable) 'first 'last)
                                  :extra-versions it
                                  :branch-to-hash nil
-                                 :min-version min-version))
+                                 :min-version (and enforce-min-version min-version)))
                             (stp-git-upgrade controller pkg-name chosen-remote it options)))
                   (elpa (--> (or new-version
                                  (stp-elpa-read-version
