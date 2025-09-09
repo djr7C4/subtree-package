@@ -15,7 +15,7 @@
 ;;   (memoize "1.2.0")
 ;;   (queue "0.2")
 ;;   (rem "0.7.12")
-;;   (s "1.12.0"))
+;;   (s "1.13.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
