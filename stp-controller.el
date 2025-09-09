@@ -905,7 +905,7 @@ package and were installed as dependencies."))
                                   chosen-remote
                                   :min-version min-version))
                              (stp-elpa-upgrade controller pkg-name chosen-remote it options)))
-                  (archive (stp-archive-upgrade controller pkg-name .remote options))
+                  (archive (stp-archive-upgrade controller pkg-name chosen-remote options))
                   (url (stp-url-upgrade controller pkg-name chosen-remote (or new-version (stp-url-read-version prompt)) options)))
                 (stp-maybe-audit-changes pkg-name 'upgrade last-hash do-audit)
                 ;; The call to `stp-get-attribute' can't be replaced with
