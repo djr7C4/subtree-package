@@ -544,7 +544,7 @@ file-local or directory-local variable.")
   (or stp-main-file
       (let* ((pkg-path (stp-full-path pkg-name))
              (pkg-file (funcall stp-main-package-name-transform (stp-name pkg-name)))
-             (paths (->> (concat (regexp-quote pkg-file) "\\(-pkg\\)\\.el")
+             (paths (->> (concat (regexp-quote pkg-file) "\\.el")
                          (directory-files-recursively pkg-path)
                          stp-sort-paths-top-down))
              (path (car paths))
