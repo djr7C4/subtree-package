@@ -72,7 +72,7 @@
       ;; Note that squashing is necessary because otherwise git will refuse to
       ;; merge unrelated histories.
       (if (eq action 'install)
-          (stp-git-install controller pkg-name repo branch 'unstable :squash t :set-pkg-info nil)
+          (stp-git-install controller pkg-name repo branch 'unstable options :squash t :set-pkg-info nil)
         ;; fallback-version is needed for when a package has to be reinstalled.
         (stp-git-upgrade controller pkg-name repo branch options :squash t :set-pkg-info nil :fallback-version version)))
     (when set-remote
