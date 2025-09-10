@@ -623,11 +623,11 @@ operations to perform."))
       controller
     (setf operations (append new-operations operations))))
 
-(cl-defgeneric stp-controller-get-package (controller &key pkg-name prompt-prefix min-version enforce-min-version)
+(cl-defgeneric stp-controller-get-package (controller pkg-name prompt-prefix min-version enforce-min-version)
   (:documentation
    "Query the controller for a package."))
 
-(cl-defmethod stp-controller-get-package ((_controller stp-interactive-controller) &key pkg-name (prompt-prefix "") min-version enforce-min-version)
+(cl-defmethod stp-controller-get-package ((_controller stp-interactive-controller) pkg-name prompt-prefix min-version enforce-min-version)
   (stp-read-package :pkg-name pkg-name
                     :prompt-prefix prompt-prefix
                     :min-version min-version
@@ -828,11 +828,7 @@ package and were installed as dependencies."))
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix dependency)
           operation
         (let* ((pkg-alist (or (slot-value operation 'pkg-alist)
-                              (stp-controller-get-package controller
-                                                          :pkg-name pkg-name
-                                                          :prompt-prefix prompt-prefix
-                                                          :min-version min-version
-                                                          :enforce-min-version enforce-min-version)))
+                              (stp-controller-get-package controller pkg-name prompt-prefix min-version enforce-min-version)))
                (last-hash (stp-git-head)))
           (let-alist pkg-alist
             ;; Guess the method if it isn't already known.
