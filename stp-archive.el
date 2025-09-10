@@ -137,8 +137,9 @@ methods."
        (-filter #'identity it)
        (cl-remove-duplicates it :test #'equal)
        (mapcar (lambda (remote)
-                 (when-let ((method (stp-remote-method remote)))
-                   (cons (stp-transform-remote remote) method)))
+                 (when (stp-valid-remote-p remote)
+                   (setq remote (stp-transform-remote remote))
+                   (cons remote (stp-remote-method remote))))
                it)
        (-filter #'identity it)))
 

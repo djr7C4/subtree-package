@@ -102,15 +102,6 @@
         (partial-url-package (handle-partial-elpa-url pkg-name))
         (unknown-package (stp-set-alist pkg-name (cdr (stp-read-package :pkg-name pkg-name :prompt-prefix (format "Package info is missing for %s; " pkg-name)))))))))
 
-(defun stp-valid-remote-p (remote &optional method)
-  "Check if REMOTE is a valid remote for some method.
-
-If METHOD is specified, ensure that REMOTE is valid for that
-specific METHOD."
-  (if method
-      (funcall (map-elt stp-remote-valid-alist method) remote)
-    (and (stp-remote-method remote :noerror t) t)))
-
 (defvar stp-repair-allow-abbreviated-hashes nil)
 
 (cl-defun stp-repair-info (options &key (quiet t) (pkg-names (stp-filesystem-names)) (callback #'stp-repair-default-callback))

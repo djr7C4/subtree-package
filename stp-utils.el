@@ -381,6 +381,15 @@ IGNORED-METHODS are not considered."
       (unless noerror
         (error "Invalid remote: %s" remote))))
 
+(defun stp-valid-remote-p (remote &optional method)
+  "Check if REMOTE is a valid remote for some method.
+
+If METHOD is specified, ensure that REMOTE is valid for that
+specific METHOD."
+  (if method
+      (funcall (map-elt stp-remote-valid-alist method) remote)
+    (and (stp-remote-method remote :noerror t) t)))
+
 (defvar stp-methods-order (mapcar #'car stp-remote-valid-alist)
   "Valid values for the METHOD attribute.")
 

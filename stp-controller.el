@@ -267,6 +267,18 @@ command should proceed.")
       (recursive-edit)
       (setq first nil))))
 
+(defun stp-find-remotes (pkg-name)
+  (let* ((archives (stp-archives pkg-name))
+         (archive-alist (mapcar (lambda (archive)
+                                  (cons (intern archive) (intern archive)))
+                                archives))
+         (remotes (append (stp-archive-find-remotes pkg-name)
+                          (mapcar (fn (cons % 'elpa))
+                                  (stp-elpa-package-urls pkg-name archives)))))
+    (->> (append remotes archive-alist)
+         stp-sort-remotes
+         (mapcar #'car))))
+
 (cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix ""))
   "Read a package name and remote of any type or a package archive.
 
