@@ -590,7 +590,7 @@ no errors."
 (defvar stp-default-make-controller-args nil)
 
 (defun stp-make-controller (&rest args)
-  (apply stp-default-controller (or args stp-default-make-controller-args)))
+  (apply stp-default-controller (map-merge 'plist stp-default-make-controller-args args)))
 
 (cl-defgeneric stp-controller-append-errors (controller pkg-name &rest errors)
   (:documentation
