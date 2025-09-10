@@ -639,6 +639,37 @@ operations to perform."))
 (cl-defmethod stp-controller-get-remote ((_controller stp-interactive-controller) prompt remote other-remotes)
   (stp-choose-remote prompt remote other-remotes))
 
+(defvar stp-git-upgrade-always-offer-remote-heads t)
+
+(cl-defgeneric stp-controller-get-git-version (controller prompt pkg-alist chosen-remote min-version enforce-min-version)
+  (:documentation
+   "Query the controller for a new version of a git package."))
+
+(cl-defmethod stp-controller-get-git-version ((_controller stp-interactive-controller) prompt pkg-alist chosen-remote min-version enforce-min-version)
+  (let-alist pkg-alist
+    (let ((extra-versions (and (eq .method 'git)
+                               (or stp-git-upgrade-always-offer-remote-heads
+                                   (eq .update 'unstable))
+                               (stp-git-remote-heads-sorted chosen-remote))))
+      (when (and .branch (member .branch extra-versions))
+        (setq extra-versions (cons .branch (remove .branch extra-versions))))
+      (stp-git-read-version prompt
+                            chosen-remote
+                            :extra-versions-position (if (eq .update 'unstable) 'first 'last)
+                            :extra-versions extra-versions
+                            :branch-to-hash nil
+                            :min-version (and enforce-min-version min-version)))))
+
+(cl-defgeneric stp-controller-get-elpa-version (controller prompt pkg-name chosen-remote min-version enforce-min-version)
+  (:documentation
+   "Query the controller for the new version of an ELPA package."))
+
+(cl-defmethod stp-controller-get-elpa-version ((_controller stp-interactive-controller) prompt pkg-name chosen-remote min-version enforce-min-version)
+  (stp-elpa-read-version prompt
+                         pkg-name
+                         chosen-remote
+                         :min-version (and enforce-min-version min-version)))
+
 (cl-defgeneric stp-operation-verb (operation)
   "Return a verb that describes the operation.")
 
@@ -832,50 +863,32 @@ package and were installed as dependencies."))
               (when (stp-maybe-call do-actions)
                 (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))))))
 
-(defvar stp-git-upgrade-always-offer-remote-heads t)
-
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-upgrade-operation))
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-actions do-dependencies do-audit)
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix new-version)
           operation
-        (let ((last-hash (stp-git-head)))
-          (let-alist (stp-get-alist pkg-name)
+        (let ((last-hash (stp-git-head))
+              (pkg-alist (stp-get-alist pkg-name)))
+          (let-alist pkg-alist
             ;; Automatically determine missing other remotes for archive packages.
             (when (eq .method 'archive)
               (setq .other-remotes (cl-set-difference (stp-archives pkg-name) (cons .remote .other-remotes))))
             (let* ((chosen-remote (stp-controller-get-remote controller "Remote: " .remote .other-remotes))
-                   (extra-versions (and (eq .method 'git)
-                                        (not new-version)
-                                        (or stp-git-upgrade-always-offer-remote-heads
-                                            (eq .update 'unstable))
-                                        (stp-git-remote-heads-sorted chosen-remote)))
                    (prompt (and (not new-version)
                                 (format "Upgrade from %s to version%s: "
                                         (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
                                         (stp-min-version-annotation min-version enforce-min-version)))))
               (when (stp-url-safe-remote-p chosen-remote)
-                (when (and .branch (member .branch extra-versions))
-                  (setq extra-versions (cons .branch (remove .branch extra-versions))))
+                (unless new-version
+                  (setq new-version
+                        (cl-case .method
+                          (git (stp-controller-get-git-version controller prompt pkg-alist chosen-remote min-version enforce-min-version))
+                          (elpa (stp-controller-get-elpa-version controller prompt pkg-name chosen-remote min-version enforce-min-version)))))
                 (cl-ecase .method
-                  (git (--> extra-versions
-                            (or new-version
-                                (stp-git-read-version
-                                 prompt
-                                 chosen-remote
-                                 :extra-versions-position (if (eq .update 'unstable) 'first 'last)
-                                 :extra-versions it
-                                 :branch-to-hash nil
-                                 :min-version (and enforce-min-version min-version)))
-                            (stp-git-upgrade controller pkg-name chosen-remote it options)))
-                  (elpa (--> (or new-version
-                                 (stp-elpa-read-version
-                                  prompt
-                                  pkg-name
-                                  chosen-remote
-                                  :min-version min-version))
-                             (stp-elpa-upgrade controller pkg-name chosen-remote it options)))
+                  (git (stp-git-upgrade controller pkg-name chosen-remote new-version options))
+                  (elpa (stp-elpa-upgrade controller pkg-name chosen-remote new-version options))
                   (archive (stp-archive-upgrade controller pkg-name chosen-remote options))
                   (url (stp-url-upgrade controller pkg-name chosen-remote (or new-version (stp-url-read-version prompt)) options)))
                 (stp-maybe-audit-changes pkg-name 'upgrade last-hash do-audit)
@@ -883,22 +896,22 @@ package and were installed as dependencies."))
                 ;; .version because the 'version attribute will have changed
                 ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
                 ;; `stp-url-upgrade'.
-                (let ((new-version (stp-get-attribute pkg-name 'version)))
-                  (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
-                  (stp-update-requirements pkg-name)
-                  (stp-write-info)
-                  ;; Don't commit, push or perform push actions until the user
-                  ;; resolves any merge conflicts.
-                  (stp-upgrade-handle-merge-conflicts)
-                  (stp-git-commit (format "Upgraded to version %s of %s"
-                                          (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
-                                          pkg-name)
-                                  :do-commit do-commit)
-                  (when (stp-maybe-call do-dependencies)
-                    (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
-                  ;; Perform post actions for all packages after everything else.
-                  (when (stp-maybe-call do-actions)
-                    (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))))))))
+                (setq new-version (stp-get-attribute pkg-name 'version))
+                (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
+                (stp-update-requirements pkg-name)
+                (stp-write-info)
+                ;; Don't commit, push or perform push actions until the user
+                ;; resolves any merge conflicts.
+                (stp-upgrade-handle-merge-conflicts)
+                (stp-git-commit (format "Upgraded to version %s of %s"
+                                        (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
+                                        pkg-name)
+                                :do-commit do-commit)
+                (when (stp-maybe-call do-dependencies)
+                  (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
+                ;; Perform post actions for all packages after everything else.
+                (when (stp-maybe-call do-actions)
+                  (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options)))))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-or-upgrade-operation))
   (let ((class (if (member (slot-value operation 'pkg-name) (stp-info-names))
