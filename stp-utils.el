@@ -289,32 +289,6 @@ never ends with a slash (nor does it contain any slashes)."
 
 (defvar stp-candidate-separator "  ")
 
-;; TODO: remove this once migration from the old command options system is
-;; complete
-(defun stp-toggle-plist (prompt plist)
-  (cl-labels ((make-cand (group width)
-                (format "%s%s%S"
-                        (string-pad (car group) width)
-                        stp-candidate-separator
-                        (cadr group)))
-              (read-toggle ()
-                (let* ((groups (mapcar (lambda (group)
-                                         (list (s-chop-prefix ":do-" (symbol-name (car group))) (cadr group)))
-                                       (-partition 2 plist)))
-                       (width (apply #'max (mapcar (-compose #'length #'car) groups)))
-                       (candidates (append (list "done")
-                                           (mapcar (-rpartial #'make-cand width) groups))))
-                  (rem-comp-read prompt
-                                 candidates
-                                 :require-match t
-                                 :sort-fun #'identity))))
-    (let (choice)
-      (setq plist (cl-copy-list plist))
-      (while (not (string= (setq choice (read-toggle)) "done"))
-        (let ((kwd (intern (format ":do-%s" (car (s-split " " choice))))))
-          (setf (plist-get plist kwd) (not (plist-get plist kwd)))))
-      plist)))
-
 (defun stp-toggle-object (prompt object)
   (cl-labels ((make-cand (slot value width)
                 (format "%s%s%S"
