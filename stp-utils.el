@@ -190,6 +190,12 @@ version is used.")
 
 (defun stp-sort-paths-top-down (paths)
   (-sort (lambda (path path2)
+           ;; Ignore .el suffixes when comparing paths. This is so that
+           ;; my-package.el will come before my-package-pkg.el which matters in
+           ;; `stp-main-package-file'.
+           (when (and (string= (f-ext path) "el") (string= (f-ext path2) "el"))
+             (setq path (f-no-ext path)
+                   path2 (f-no-ext path2)))
            (or (< (rem-path-length path)
                   (rem-path-length path2))
                (and (= (rem-path-length path)
