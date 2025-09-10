@@ -49,7 +49,10 @@
 
 (defvar stp-url-version-history nil)
 
-(cl-defun stp-url-read-version (prompt &optional (default (format-time-string "%m/%d/%Y")))
+(defun stp-url-default-version ()
+  (format-time-string "%m/%d/%Y-%R"))
+
+(cl-defun stp-url-read-version (prompt &optional (default (stp-url-default-version)))
   ;; Versions for URL packages are simply whatever the user chooses. Dates are
   ;; one possibility.
   (rem-read-from-mini prompt :default default :history stp-url-version-history))
