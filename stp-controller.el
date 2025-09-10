@@ -580,7 +580,6 @@ no errors."
    (options :initarg :options)
    (operations :initarg :operations :initform nil)))
 
-;; TODO: Add code to callback to the controller to get versions and such.
 (defclass stp-interactive-controller (stp-controller) ())
 
 (defclass stp-auto-controller (stp-controller)
@@ -588,8 +587,10 @@ no errors."
 
 (defvar stp-default-controller 'stp-interactive-controller)
 
+(defvar stp-default-make-controller-args nil)
+
 (defun stp-make-controller (&rest args)
-  (apply stp-default-controller args))
+  (apply stp-default-controller (or args stp-default-make-controller-args)))
 
 (cl-defgeneric stp-controller-append-errors (controller pkg-name &rest errors)
   (:documentation
