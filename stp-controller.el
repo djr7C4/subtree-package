@@ -1032,20 +1032,35 @@ package and were installed as dependencies."))
       (stp-post-actions pkg-name options))))
 
 (defun stp-report-operations (successful-operations skipped-operations failed-operations)
-  (let ((total (+ (length successful-operations)
-                  (length skipped-operations)
-                  (length failed-operations))))
-    (cond
-     (failed-operations
-      (progn
-        (stp-msg "%d/%d operations failed" (length failed-operations) total)
+  (cl-flet ((breakdown (operations word)
+              (let ((counts (make-hash-table :test #'equal))
+                    (verbs (mapcar #'stp-operation-verb operations)))
+                (cl-dolist (verb verbs)
+                  (cl-incf (gethash verb counts 0)))
+                (setq verbs (-sort #'string< (-uniq verbs)))
+                (s-join "\n" (mapcar (lambda (verb)
+                                       (format "%s %d packages %s"
+                                               (s-capitalize verb)
+                                               (gethash verb counts)
+                                               word))
+                                     verbs)))))
+    (let ((total (+ (length successful-operations)
+                    (length skipped-operations)
+                    (length failed-operations))))
+      (when successful-operations
+        (stp-msg "Successfully completed %d operations:\n%s"
+                 (length successful-operations)
+                 (breakdown successful-operations "succeeded")))
+      (when failed-operations
+        (stp-msg "%d/%d operations failed:\n%s"
+                 (length failed-operations)
+                 total
+                 (breakdown failed-operations "failed"))
         (cl-dolist (cell failed-operations)
           (db (operation . err)
               cell
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
-        (pop-to-buffer stp-log-buffer-name)))
-     (successful-operations
-      (stp-msg "Successfully completed %d operations" (length successful-operations))))))
+        (pop-to-buffer stp-log-buffer-name)))))
 
 (cl-defgeneric stp-execute (controller)
   (:documentation
