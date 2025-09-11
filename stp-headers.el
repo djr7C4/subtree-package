@@ -560,10 +560,7 @@ file-local or directory-local variable.")
         ;; doesn't exist, use the file with headers at the top-level if there is
         ;; only one such file. Otherwise, fall back on the package directory.
         (if relative
-            (->> (rem-relative-path result stp-source-directory)
-                 f-split
-                 cdr
-                 (apply #'f-join))
+            (rem-relative-path result pkg-path)
           result))))
 
 (provide 'stp-headers)
