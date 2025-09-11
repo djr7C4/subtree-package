@@ -16,6 +16,7 @@
 
 (require 'cl-lib)
 (require 'lisp-mnt)
+(require 'package)
 (require 'rem)
 (require 'rem-abbrev)
 (require 'stp-git)
@@ -241,16 +242,37 @@ argument, all features are recomputed unconditionally."
         (mapcar (fn (list (car %) (map-elt (cdr %) 'version)))
                 (stp-get-info-packages))))
 
+(defun stp-package-descriptor (pkg-name)
+  (let ((package-alist nil))
+    (package-load-descriptor (stp-full-path pkg-name))
+    (cadar package-alist)))
+
+(defvar stp-package-requirements-file-selector (-compose #'list #'car)
+  "The function takes a list of candidates files that can be used to
+find the requirements for the package. It should return the list
+of files that should be actually be used to compute the
+requirements. This can be set to #\\='identity to use all file to
+compute requirements.")
+
 (defun stp-package-requirements (pkg-name)
   (let* ((pkg-path (stp-full-path pkg-name))
-         (main-file (or (stp-main-package-file pkg-name :no-directory t)
-                        (read-file-name (format "Main elisp file for %s: " pkg-name)
-                                        pkg-path
-                                        nil
-                                        t
-                                        nil
-                                        (-compose (-partial #'string= "el") #'f-ext)))))
-    (stp-headers-elisp-file-requirements main-file)))
+         ;; Check if a pkg-desc can be loaded from a -pkg.el file using
+         ;; package.el.
+         (pkg-desc (stp-package-descriptor pkg-path)))
+    ;; If a descriptor is available, it will have the requirements so we are
+    ;; done.
+    (if pkg-desc
+        (mapcar (lambda (entry)
+                  (db (pkg-sym version-list)
+                      entry
+                    (list pkg-sym (s-join "." (mapcar #'number-to-string version-list)))))
+                (package-desc-reqs pkg-desc))
+      (let* ((requirements-files (->> (directory-files-recursively pkg-path ".*\\.el")
+                                      stp-sort-paths-top-down
+                                      (-filter #'stp-headers-elisp-file-requirements)
+                                      (funcall stp-package-requirements-file-selector)))
+             (requirements (mapcan #'stp-headers-elisp-file-requirements requirements-files)))
+        (stp-headers-merge-elisp-requirements requirements)))))
 
 (cl-defun stp-update-requirements (pkg-name &optional (requirements (stp-package-requirements pkg-name)))
   (if requirements
