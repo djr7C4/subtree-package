@@ -40,8 +40,10 @@ as for `stp-auto-commit'.")
   "A list that indicates when git reset should be used under
 exceptional circumstances. If the list contains :audit, reset
 when an audit fails. If it contains :error, reset when errors
-occur. t means to always reset and nil means to never reset. The
-value can also be a function as for `stp-auto-commit'.")
+occur. t means to always reset and nil means to never reset.
+Instead of a list, the value t is also allowed. This is
+equivalent to \\='(:audit :reset). The value can also be a
+function as for `stp-auto-commit'.")
 
 (defvar stp-auto-dependencies t
   "When non-nil, automatically install or upgrade dependencies as
