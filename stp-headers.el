@@ -248,11 +248,12 @@ argument, all features are recomputed unconditionally."
     (cadar package-alist)))
 
 (defvar stp-package-requirements-file-selector (-compose #'list #'car)
-  "The function takes a list of candidates files that can be used to
-find the requirements for the package. It should return the list
-of files that should be actually be used to compute the
-requirements. This can be set to #\\='identity to use all file to
-compute requirements.")
+  "This variable should be a function that takes a list of candidate
+files that can be used to find the requirements for the package.
+These are sorted with more promising candidates first. The
+function should return the list of files that should be actually
+be used to compute the requirements. This can be set to
+#\\='identity to use all file to compute requirements.")
 
 (defun stp-package-requirements (pkg-name)
   (let* ((pkg-path (stp-full-path pkg-name))
