@@ -655,7 +655,7 @@ operations to perform."))
 (cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) remote min-version)
   (let (latest-stable
         (branch (car (stp-git-remote-heads-sorted remote))))
-    (if (and (eq (slot-value controller 'preferred-update) 'stable)
+    (if (and (eq (oref controller preferred-update) 'stable)
              (setq latest-stable (stp-git-latest-stable-version remote))
              ;; If there's a minimum version and the
              ;; latest stable is not recent enough,
@@ -783,20 +783,20 @@ operations being added to the controller."))
 (cl-defmethod stp-operate :around ((_controller stp-controller) (operation stp-skippable-package-operation))
   ;; Sometimes, a single repository can contain multiple packages and so
   ;; installing the dependencies naively will result in multiple copies.
-  (if (slot-value operation 'allow-skip)
+  (if (oref operation allow-skip)
       (stp-allow-skip (stp-msg "Skipping %s %s"
                                (stp-operation-verb operation)
-                               (slot-value operation 'pkg-name))
+                               (oref operation pkg-name))
         (cl-call-next-method))
     (cl-call-next-method)))
 
 (cl-defgeneric stp-describe (operation))
 
 (cl-defmethod stp-describe ((operation stp-operation))
-  (format "%s %s" (stp-operation-verb operation) (slot-value operation 'pkg-name)))
+  (format "%s %s" (stp-operation-verb operation) (oref operation pkg-name)))
 
 (defun stp-options (controller operation)
-  (or (slot-value controller 'options) (slot-value operation 'options)))
+  (or (oref controller options) (oref operation options)))
 
 (cl-defgeneric stp-uninstall-requirements (controller requirements options)
   (:documentation
@@ -897,7 +897,7 @@ package and were installed as dependencies."))
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix dependency)
           operation
-        (let* ((pkg-alist (or (slot-value operation 'pkg-alist)
+        (let* ((pkg-alist (or (oref operation pkg-alist)
                               (stp-controller-get-package controller pkg-name prompt-prefix min-version enforce-min-version)))
                (last-hash (stp-git-head)))
           (let-alist pkg-alist
@@ -981,7 +981,7 @@ package and were installed as dependencies."))
                   (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options)))))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-or-upgrade-operation))
-  (let ((class (if (member (slot-value operation 'pkg-name) (stp-info-names))
+  (let ((class (if (member (oref operation pkg-name) (stp-info-names))
                    'stp-upgrade-operation
                  'stp-install-operation)))
     (stp-controller-prepend-operations controller (rem-change-class operation class))))

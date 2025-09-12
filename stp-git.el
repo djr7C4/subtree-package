@@ -329,7 +329,7 @@ returned."
            ;; version instead.
            ((and stp-subtree-pull-fallback
                  (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
-                 (or (stp-maybe-call (slot-value options 'do-commit))
+                 (or (stp-maybe-call (oref options do-commit))
                      (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
             (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
             nil
