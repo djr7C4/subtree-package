@@ -1085,7 +1085,7 @@ package and were installed as dependencies."))
         (stp-msg "%d/%d operations failed:\n%s"
                  (length failed-operations)
                  total
-                 (breakdown failed-operations "failed"))
+                 (breakdown (mapcar #'car failed-operations) "failed"))
         (cl-dolist (cell failed-operations)
           (db (operation . err)
               cell
