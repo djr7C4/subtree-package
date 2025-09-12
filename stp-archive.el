@@ -106,9 +106,6 @@ refresh even if the last refresh was less than
   "Return all names of packages in `package-archive-contents'.
 
 Names are strings and are sorted in alphabetical order."
-  ;; `package-archive-contents' needs to be initialized in order for this
-  ;; comment to work. Ideally, we would run `package-refresh-contents' but that
-  ;; would make everything very slow.
   (->> package-archive-contents
        (mapcar (-compose #'symbol-name #'car))
        (-sort #'string<)))
@@ -125,7 +122,7 @@ Names are strings and are sorted in alphabetical order."
                 (string= (package-desc-archive desc) archive))
               (stp-achive-get-descs pkg-name)))
 
-(cl-defun stp-archive-find-remotes (pkg-name)
+(defun stp-archive-find-remotes (pkg-name)
   "Find remotes for PKG-NAME in `package-archive-contents'.
 
 The result is returned as an alist that maps valid remotes to

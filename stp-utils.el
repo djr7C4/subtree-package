@@ -399,20 +399,6 @@ specific METHOD."
 (defvar stp-methods-order (mapcar #'car stp-remote-valid-alist)
   "Valid values for the METHOD attribute.")
 
-(defun stp-sort-remotes (remotes)
-  "Sort the alist REMOTES that maps remotes to methods by method
-according to the order in `stp-methods-order'. REMOTES may also
-contain strings that map to remotes symbols representing
-archives."
-  (seq-sort-by (lambda (remote)
-                 (let ((method-or-archive (cdr remote)))
-                   (cl-position (if (not (memq method-or-archive stp-methods-order))
-                                    'archive
-                                  method-or-archive)
-                                stp-methods-order)))
-               #'<
-               remotes))
-
 (defun stp-read-method (prompt &optional default)
   (when (and default (symbolp default))
     (setq default (symbol-name default)))

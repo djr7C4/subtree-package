@@ -8,6 +8,7 @@
 (require 'stp-git)
 (require 'stp-elpa)
 (require 'stp-archive)
+(require 'stp-emacsmirror)
 (require 'stp-url)
 
 (defvar stp-auto-commit t
@@ -153,6 +154,11 @@ appropriate error if they are not."))
       (user-error "Tagging without committing is not allowed"))
     (cl-call-next-method)))
 
+(defun stp-package-candidate-names ()
+  (->> (append (stp-archive-package-names) (stp-emacsmirror-package-names))
+       -uniq
+       (-sort #'string<)))
+
 (defvar stp-normalize-versions nil
   "Indicates if versions should be printed in a standardized format.
 
@@ -269,12 +275,33 @@ command should proceed.")
       (recursive-edit)
       (setq first nil))))
 
+(defun stp-sort-remotes (remotes)
+  "Sort the alist REMOTES that maps remotes to methods by method
+according to the order in `stp-methods-order'. REMOTES may also
+contain strings that map to remote symbols representing archives."
+  (seq-sort-by (lambda (remote)
+                 (let ((method-or-archive (cdr remote)))
+                   (list (cl-position (if (not (memq method-or-archive stp-methods-order))
+                                          'archive
+                                        method-or-archive)
+                                      stp-methods-order)
+                         (or (and (stringp method-or-archive)
+                                  (cl-position (stp-emacsmirror-remote-mirror method-or-archive)
+                                               stp-emacsmirrors
+                                               :test #'equal))
+                             -1))))
+               (fn (or (< (car %1) (car %2))
+                       (and (= (car %1) (car %2))
+                            (< (cadr %1) (cadr %2)))))
+               remotes))
+
 (defun stp-find-remotes (pkg-name)
   (let* ((archives (stp-archives pkg-name))
          (archive-alist (mapcar (lambda (archive)
                                   (cons (intern archive) (intern archive)))
                                 archives))
          (remotes (append (stp-archive-find-remotes pkg-name)
+                          (stp-emacsmirror-find-remotes pkg-name)
                           (mapcar (fn (cons % 'elpa))
                                   (stp-elpa-package-urls pkg-name archives)))))
     (->> (append remotes archive-alist)
@@ -304,6 +331,7 @@ remote or archive. Archives are represented as symbols."
                                                 (intern archive)))
                                         archives))
                  (remotes (append (stp-archive-find-remotes pkg-name)
+                                  (stp-emacsmirror-find-remotes pkg-name)
                                   (mapcar (fn (cons % 'elpa))
                                           (stp-elpa-package-urls pkg-name archives :annotate t))))
                  (remote-or-archive (stp-comp-read-remote
@@ -667,7 +695,7 @@ operations to perform."))
 
 (cl-defmethod stp-controller-get-package ((controller stp-auto-controller) pkg-name _prompt-prefix min-version enforce-min-version)
   (unless pkg-name
-    (setq pkg-name (rem-comp-read "Package name: " (stp-archive-package-names) :require-match t)))
+    (setq pkg-name (rem-comp-read "Package name: " (stp-package-candidate-names) :require-match t)))
   (let* ((remote (car (stp-find-remotes pkg-name)))
          (method (stp-remote-method remote)))
     (append `(,pkg-name

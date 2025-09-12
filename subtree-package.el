@@ -40,6 +40,7 @@
 (require 'stp-git)
 (require 'stp-elpa)
 (require 'stp-archive)
+(require 'stp-emacsmirror)
 (require 'stp-latest)
 (require 'stp-url)
 (require 'stp-controller)
@@ -81,7 +82,6 @@
                 (unless .requirements
                   (stp-update-requirements pkg-name)))
               (handle-partial-archive (pkg-name)
-                (stp-archive-ensure-loaded)
                 (unless .remote
                   (let ((prompt (format "[%s] archive: " pkg-name)))
                     (setq .remote (stp-comp-read-remote prompt (stp-archives pkg-name)))
@@ -342,6 +342,8 @@ running the command."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
+      (stp-archive-ensure-loaded)
+      (stp-emacsmirror-ensure-loaded)
       (db (pkg-name pkg-alist options)
           ;; This needs to be inside `stp-with-memoization' for efficiency
           ;; reasons so it is here instead of in the interactive spec.
@@ -441,7 +443,7 @@ are not satisfied to the user."
     (stp-with-memoization
       (let ((table (completion-table-in-turn (stp-get-info-group-names)
                                              (stp-info-names)
-                                             (stp-archive-package-names))))
+                                             (stp-package-candidate-names))))
         (stp-package-group-command
          (lambda (pkg-names options)
            (stp-execute-operations
@@ -1361,7 +1363,8 @@ is ignored when the STP list buffer is not selected in a window.
 When QUIET is non-nil, do not print any status messages. When
 FULL is non-nil (with a prefix argument interactively), also
 update the latest versions, delete stale cached repositories and
-refresh `package-archive-contents' asynchronously."
+refresh `package-archive-contents' and `stp-emacsmirror-alist'
+asynchronously."
   (interactive (list :full current-prefix-arg))
   (stp-refresh-info)
   (when full
@@ -1369,7 +1372,9 @@ refresh `package-archive-contents' asynchronously."
       (stp-list-update-latest-versions :quiet quiet :async t))
     (stp-git-delete-stale-cached-repos)
     (unless stp-archive-async-refresh-running
-      (stp-archive-async-refresh :quiet quiet)))
+      (stp-archive-async-refresh :quiet quiet))
+    (unless stp-emacsmirror-async-refresh-running
+      (stp-emacsmirror-async-refresh :quiet quiet)))
   (when-let ((buf (get-buffer stp-list-buffer-name)))
     (let ((win (get-buffer-window buf)))
       (with-current-buffer buf
@@ -1438,6 +1443,7 @@ refresh `package-archive-contents' asynchronously."
 (defvar stp-list-auto-update-latest-versions nil)
 (defvar stp-list-auto-delete-stale-cached-repos t)
 (defvar stp-list-auto-refresh-package-archives t)
+(defvar stp-list-auto-refresh-emacsmirror t)
 
 (defun stp-list (&optional arg)
   "List the packages installed in `stp-source-directory'.
@@ -1465,6 +1471,10 @@ the package archives asynchronously."
                  (not stp-archive-async-refresh-running)
                  (xor stp-list-auto-refresh-package-archives arg))
         (stp-archive-async-refresh :quiet t))
+      (when (and (featurep 'async)
+                 (not stp-archive-async-refresh-running)
+                 (xor stp-list-auto-refresh-emacsmirror arg))
+        (stp-emacsmirror-async-refresh :quiet t))
       (stp-list-refresh :quiet t))))
 
 (cl-defun stp-delete-ghosts (&optional (ghost-type 'both) (confirm t))
@@ -1670,6 +1680,8 @@ if no version header is found for the current file."
 
 (defun stp-setup ()
   (stp-headers-update-features)
+  (stp-archive-ensure-loaded)
+  (stp-emacsmirror-ensure-loaded)
   (stp-savehist-setup))
 
 (provide 'subtree-package)
