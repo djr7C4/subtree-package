@@ -471,8 +471,13 @@ installed as a git subtree."
     (pop-to-buffer buf)))
 
 (defun stp-git-bury-diff-buffer ()
-  (awhen (get-buffer stp-git-diff-buffer-name)
-    (bury-buffer it))
+  (when-let ((buf (get-buffer stp-git-diff-buffer-name))
+             (win (get-buffer-window buf t)))
+    (with-selected-window win
+      ;; Due to the quirks of `bury-buffer', it doesn't stop displaying the
+      ;; buffer in the window unless the window is selected and the buffer is
+      ;; *not* passed as an argument.
+      (bury-buffer)))
   (redisplay))
 
 (defun stp-git-remote-hash-alist-basic (remote)
