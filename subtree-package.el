@@ -4,7 +4,7 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: convenience elisp git tools vc
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.9.10
+;; Version: 0.9.11
 ;; Package-Requires: (
 ;;   (anaphora "1.0.4")
 ;;   (async "1.9.9")
@@ -14,7 +14,7 @@
 ;;   (llama "1.0.0")
 ;;   (memoize "1.2.0")
 ;;   (queue "0.2")
-;;   (rem "0.7.12")
+;;   (rem "0.7.13")
 ;;   (s "1.13.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
