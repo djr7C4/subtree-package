@@ -79,8 +79,9 @@ unusual version strings if a package uses a scheme that is not supported by the
 defaults. Contributions of missing version extractors are very welcome!
 ** Automatically discover git repositories
 STP can automatically discover the git repository of a package if it is
-specified by an archive configured in =package-archive-contents=. Alternatively,
-the user can enter a different repository if desired.
+specified by an archive configured in =package-archive-contents= or is on the
+[[https://github.com/emacsmirror][Emacs mirror]]. Alternatively, the user can enter a different repository if
+desired.
 ** Install any commit by branch or hash
 Git repositories are automatically fetched before packages are installed or
 upgraded when =stp-subtree-fetch= is non-nil. This allows a hash to be specified
@@ -382,6 +383,8 @@ Some differences include
   cannot. This is because Emacs package archives do not have a field for the git
   repository. Most authors specify the repository in the =:url= field but this
   is only a convention. STP has heuristics that allow it to infer the git
-  repository in some cases even when it is not directly specified.
+  repository in some cases even when it is not directly specified. Additionally,
+  STP can find the git repositories for packages that are hosted on the
+  [[https://github.com/emacsmirror][Emacs mirror]].
 - There is no mechanism for interactively choosing a stable version tag to
   install.
