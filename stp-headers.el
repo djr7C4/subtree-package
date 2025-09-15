@@ -247,7 +247,10 @@ argument, all features are recomputed unconditionally."
     (package-load-descriptor (stp-full-path pkg-name))
     (cadar package-alist)))
 
-(defvar stp-package-requirements-file-selector (-compose #'list #'car)
+(defun stp-requirements-default-file-selector (files)
+  (and files (list (car files))))
+
+(defvar stp-requirements-file-selector #'stp-requirements-default-file-selector
   "This variable should be a function that takes a list of candidate
 files that can be used to find the requirements for the package.
 These are sorted with more promising candidates first. The
@@ -271,7 +274,7 @@ be used to compute the requirements. This can be set to
       (let* ((requirements-files (->> (directory-files-recursively pkg-path ".*\\.el")
                                       stp-sort-paths-top-down
                                       (-filter #'stp-headers-elisp-file-requirements)
-                                      (funcall stp-package-requirements-file-selector)))
+                                      (funcall stp-requirements-file-selector)))
              (requirements (mapcan #'stp-headers-elisp-file-requirements requirements-files)))
         (stp-headers-merge-elisp-requirements requirements)))))
 
