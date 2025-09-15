@@ -180,20 +180,25 @@ occurred."
                          (if .update
                              (progn
                                (stp-set-attribute pkg-name 'update .update)
-                               (when (eq .update 'unstable)
+                               (cond
+                                ((eq .update 'unstable)
                                  ;; If the 'update attribute is 'unstable, there
                                  ;; should be a 'branch attribute. If it is
                                  ;; missing, we try to get it from the callback
-                                 ;; function. If that doesn't work, we assume that
-                                 ;; it should be the master branch.
+                                 ;; function.
                                  (setq .branch
                                        (or .branch
                                            (funcall callback 'unknown-git-branch pkg-name)))
                                  (if .branch
-                                     (progn
-                                       (stp-set-attribute pkg-name 'branch .branch))
+                                     (stp-set-attribute pkg-name 'branch .branch)
                                    (unless quiet
-                                     (stp-msg "Failed to determine the update mechanism for %s" pkg-name)))))))
+                                     (stp-msg "Failed to determine the branch for %s" pkg-name))))
+                                ((eq .update 'stable)
+                                 ;; When the update attribute is stable there
+                                 ;; shouldn't be a branch.
+                                 (stp-delete-attribute pkg-name 'branch))))
+                           (unless quiet
+                             (stp-msg "Failed to determine the update mechanism for %s" pkg-name))))
                         (elpa
                          (funcall callback 'partial-elpa-package pkg-name))
                         (archive
