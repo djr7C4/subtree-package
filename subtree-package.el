@@ -364,7 +364,7 @@ running the command."
     (stp-with-memoization
       (stp-refresh-info)
       (db (pkg-name options)
-          (rem-at-end (stp-command-args) (stp-command-options))
+          (rem-at-end (stp-command-args) (stp-command-options :class 'stp-uninstall-operation-options))
         (stp-execute-operations (list (stp-uninstall-operation :pkg-name pkg-name))
                                 options)
         (when refresh
@@ -537,7 +537,7 @@ packages at the same time."
                                        (stp-read-existing-name "Package name: "
                                                                :multiple t
                                                                :table table)
-                                       (stp-command-options :class 'stp-package-operation-options))))))
+                                       (stp-command-options))))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names options)
   (with-slots (do-commit do-push do-lock)
@@ -562,7 +562,7 @@ packages at the same time."
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (stp-delete-package-group (stp-read-group-name "Group: ") (stp-command-options :class 'stp-package-operation-options))))
+    (stp-delete-package-group (stp-read-group-name "Group: ") (stp-command-options))))
 
 (cl-defun stp-delete-package-group (group-name options)
   (with-slots (do-commit do-push do-lock)
@@ -589,8 +589,7 @@ negative, repair all packages."
           (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
         (apply #'stp-repair
                (rem-at-end (stp-command-args)
-                           (stp-command-options :class 'stp-package-operation-options
-                                                :toggle-p (fn (consp current-prefix-arg)))))))))
+                           (stp-command-options :toggle-p (fn (consp current-prefix-arg)))))))))
 
 (cl-defun stp-repair (pkg-name options &key (refresh t))
   "Repair the package named pkg-name.
@@ -618,7 +617,6 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
     (stp-with-memoization
       (stp-refresh-info)
       (stp-repair-all (apply #'stp-command-options
-                             'stp-package-operation-options
                              (rem-maybe-kwd-args toggle-p toggle-p-provided-p))))))
 
 (cl-defun stp-repair-all (options &key (refresh t))
@@ -642,8 +640,7 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (apply #'stp-edit-remotes (rem-at-end (stp-command-args)
-                                          (stp-command-options)))))
+    (apply #'stp-edit-remotes (rem-at-end (stp-command-args) (stp-command-options)))))
 
 (defvar stp-edit-remotes-long-commit-msg nil)
 
