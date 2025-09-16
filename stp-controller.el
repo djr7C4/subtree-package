@@ -241,7 +241,7 @@ command should proceed.")
              (user-error "Aborted: the repository is unclean"))
         (yes-or-no-p "The git repo is unclean. Proceed anyway?"))))
 
-(cl-defun stp-audit-changes (pkg-name type last-hash &key do-reset)
+(defun stp-audit-changes (pkg-name type last-hash do-reset)
   (unless (memq type '(install upgrade))
     (error "type must be either 'install or 'upgrade"))
   (stp-git-show-diff (list last-hash))
@@ -261,9 +261,11 @@ command should proceed.")
                                 ""
                               ": use git reset to undo the suspicious commits")))))))
 
-(defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
-  (when (stp-maybe-call do-audit pkg-name)
-    (stp-audit-changes pkg-name type last-hash)))
+(defun stp-maybe-audit-changes (pkg-name type last-hash options)
+  (with-slots (do-reset do-audit)
+      options
+      (when (stp-maybe-call do-audit pkg-name)
+        (stp-audit-changes pkg-name type last-hash do-reset))))
 
 (defun stp-upgrade-handle-merge-conflicts ()
   (let ((first t))
@@ -939,7 +941,7 @@ package and were installed as dependencies."))
                 (elpa (stp-elpa-install controller pkg-name .remote .version options))
                 (archive (stp-archive-install controller pkg-name .remote options))
                 (url (stp-url-install controller pkg-name .remote .version options)))
-              (stp-maybe-audit-changes pkg-name 'install last-hash do-audit)
+              (stp-maybe-audit-changes pkg-name 'install last-hash options)
               (stp-update-remotes pkg-name .remote .remote .other-remotes)
               (stp-update-requirements pkg-name)
               (when dependency
@@ -986,7 +988,7 @@ package and were installed as dependencies."))
                   (elpa (stp-elpa-upgrade controller pkg-name chosen-remote new-version options))
                   (archive (stp-archive-upgrade controller pkg-name chosen-remote options))
                   (url (stp-url-upgrade controller pkg-name chosen-remote (or new-version (stp-url-read-version prompt)) options)))
-                (stp-maybe-audit-changes pkg-name 'upgrade last-hash do-audit)
+                (stp-maybe-audit-changes pkg-name 'upgrade last-hash options)
                 ;; The call to `stp-get-attribute' can't be replaced with
                 ;; .version because the 'version attribute will have changed
                 ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or

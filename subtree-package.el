@@ -304,10 +304,6 @@ ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
               (when read-pkg-alist
                 (list pkg-alist))))))
 
-(defun stp-maybe-audit-changes (pkg-name type last-hash do-audit)
-  (when (stp-maybe-call do-audit pkg-name)
-    (stp-audit-changes pkg-name type last-hash)))
-
 (defvar stp-requirements-toplevel t)
 
 (cl-defun stp-install-command (&key (refresh t))
