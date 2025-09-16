@@ -359,6 +359,7 @@ running the command."
         (stp-execute-operations
          (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
          options)
+        (stp-update-cached-latest pkg-name)
         (when refresh
           (stp-list-refresh :quiet t))))))
 
@@ -386,6 +387,7 @@ running the command."
                       (stp-command-options :class 'stp-upgrade-operation-options))
         (stp-execute-operations (list (stp-upgrade-operation :pkg-name pkg-name))
                                 options)
+        (stp-update-cached-latest pkg-name)
         (when refresh
           (stp-list-refresh :quiet t))))))
 
@@ -441,7 +443,7 @@ are not satisfied to the user."
       (when refresh
         (stp-list-refresh :quiet t)))))
 
-(defun stp-install-or-upgrade-package-group-command ()
+(cl-defun stp-install-or-upgrade-package-group-command (&key (refresh t))
   "Install or upgrade the package groups or packages."
   (interactive)
   (stp-with-package-source-directory
@@ -453,7 +455,10 @@ are not satisfied to the user."
          (lambda (pkg-names options)
            (stp-execute-operations
             (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
-            options))
+            options)
+           (mapc #'stp-update-cached-latest pkg-names)
+           (when refresh
+             (stp-list-refresh :quiet t)))
          table
          :class 'stp-additive-operation-options)))))
 
@@ -514,7 +519,7 @@ called with the local path to the fork.")
             (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push))
           (funcall stp-fork-action default-directory))))))
 
-(cl-defun stp-reinstall-command ()
+(cl-defun stp-reinstall-command (&key (refresh t))
   "Uninstall and reinstall a package interactively as the same version."
   (interactive)
   (stp-with-package-source-directory
@@ -525,7 +530,10 @@ called with the local path to the fork.")
                       (stp-command-options :class 'stp-reinstall-operation-options))
         (stp-execute-operations
          (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
-         options)))))
+         options)
+        (stp-update-cached-latest pkg-name)
+        (when refresh
+          (stp-list-refresh :quiet t))))))
 
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group for easily upgrading multiple related
