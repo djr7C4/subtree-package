@@ -440,7 +440,7 @@ was inserted."
                                               it
                                             requirement))
                                         (stp-headers-elisp-requirements))
-                                (-sort (fn (string< (car %1) (car %2))))))
+                                stp-sort-requirements))
          (requirements-string (stp-headers-package-requirements-multiline new-requirements)))
     (if (save-excursion (lm-header "Package-Requires"))
         (save-excursion
@@ -493,7 +493,10 @@ was inserted."
 (defvar stp-headers-bootstrap-requirements-file "bootstrap-requirements")
 
 (defun stp-headers-write-bootstrap-requirements ()
-  (let ((requirements (stp-headers-elisp-requirements)))
+  (let ((requirements (--> (locate-library "rem")
+                           (append (stp-headers-elisp-requirements)
+                                   (stp-headers-elisp-file-requirements it))
+                           stp-sort-requirements)))
     (with-temp-buffer
       (cl-dolist (requirement requirements)
         (db (pkg-sym version)

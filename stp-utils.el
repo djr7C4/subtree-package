@@ -632,6 +632,9 @@ expression is active.")
   (let ((extracted-version (stp-version-extract version)))
     (and extracted-version (s-join "." extracted-version))))
 
+(defun stp-sort-requirements (requirements)
+  (-sort (fn (string< (car %1) (car %2))) requirements))
+
 (defvar stp-info-file (f-join user-emacs-directory "stp-pkg-info.eld")
   "The name of the file that stores the package information.
 
