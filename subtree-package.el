@@ -13,7 +13,7 @@
 ;;   (f "0.21.0")
 ;;   (memoize "1.2.0")
 ;;   (queue "0.2")
-;;   (rem "0.7.13")
+;;   (rem "0.8.0")
 ;;   (s "1.13.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
