@@ -11,7 +11,6 @@
 ;;   (dash "2.20.0")
 ;;   (emacs "29.1")
 ;;   (f "0.21.0")
-;;   (llama "1.0.0")
 ;;   (memoize "1.2.0")
 ;;   (queue "0.2")
 ;;   (rem "0.7.13")
@@ -1691,8 +1690,8 @@ if no version header is found for the current file."
   (stp-savehist-setup))
 
 (provide 'subtree-package)
-;;; subtree-package.el ends here
 
 ;; Local Variables:
 ;; eval: (add-hook 'stp-headers-update-hook #'stp-headers-write-bootstrap-requirements nil t)
 ;; End:
+;;; subtree-package.el ends here
