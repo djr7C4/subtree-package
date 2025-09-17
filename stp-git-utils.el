@@ -471,8 +471,8 @@ installed as a git subtree."
     (pop-to-buffer buf)))
 
 (defun stp-git-bury-diff-buffer ()
-  (when-let ((buf (get-buffer stp-git-diff-buffer-name))
-             (win (get-buffer-window buf t)))
+  (when-let* ((buf (get-buffer stp-git-diff-buffer-name))
+              (win (get-buffer-window buf t)))
     (with-selected-window win
       ;; Due to the quirks of `bury-buffer', it doesn't stop displaying the
       ;; buffer in the window unless the window is selected and the buffer is
