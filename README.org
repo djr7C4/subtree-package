@@ -83,7 +83,9 @@ the following to your =~/.emacs.d/init.el=.
 #+end_src
 
 Replacing ='(:preferred-update stable)= with ='(:preferred-update unstable)=
-will cause the tip of the upstream branch to be chosen.
+will cause the tip of the upstream branch to be chosen. It is also possible to
+define your own custom policy of when the user should be prompted by defining a
+subclass of =stp-controller=.
 ** Freely edit installed packages
 Packages installed in =stp-source-directory= can be freely modified. If you
 later upgrade the package to a newer version, any conflicts that arise due to
@@ -330,17 +332,20 @@ database from the git repository. This will cause the packages installed by the
 bootstrap script to be recognized as STP packages.
 * Comparison with other package managers
 The main strengths of STP are
-- It is highly interactive and works hard to avoid forcing you to leave Emacs
-  during the installation process (for example to find repositories and releases
-  on github).
+- It is highly interactive by default and works hard to avoid forcing you to
+  leave Emacs during the installation process (for example to find repositories
+  and releases on github).
+- There are many configuration options possible. By setting a few variables, you
+  can reconfigure STP to automatically resolve user prompts whenever possible or
+  prompt according to a custom policy.
 - Your configuration is completely reproducible without depending on any
   external git repositories. Even if all external repositories were deleted, you
   would still be able to immediately reproduce your configuration simply by
   cloning it.
 ** Elpaca
-Elpaca is similar to STP in some ways in that both are highly interactive and
-both are able to install packages from their git repositories and can determine
-the repository URL automatically from ELPA/MELPA.
+Elpaca is similar to STP in some ways in that both are able to install packages
+from their git repositories and can determine the repository URL automatically
+from ELPA/MELPA.
 
 Some differences include
 - Elpaca lacks a method for interactively installing stable versions of packages
