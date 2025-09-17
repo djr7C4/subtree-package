@@ -261,7 +261,7 @@ occurred."
 (cl-defun stp-command-options (&key (class 'stp-package-operation-options) (toggle-p (fn current-prefix-arg)))
   (let ((options (make-instance class)))
     (when (stp-maybe-call toggle-p)
-        (stp-toggle-options options))
+      (stp-toggle-options options))
     (stp-validate-options options)
     options))
 
@@ -341,19 +341,20 @@ running the command."
       (stp-refresh-info)
       (stp-archive-ensure-loaded)
       (stp-emacsmirror-ensure-loaded)
-      (db (pkg-name pkg-alist options)
-          ;; This needs to be inside `stp-with-memoization' for efficiency
-          ;; reasons so it is here instead of in the interactive spec.
-          (rem-at-end (stp-command-args :read-pkg-alist t
-                                        :existing-pkg nil
-                                        :line-pkg nil)
-                      (stp-command-options :class 'stp-install-operation-options))
-        (stp-execute-operations
-         (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
-         options)
-        (stp-update-cached-latest pkg-name)
-        (when refresh
-          (stp-list-refresh :quiet t))))))
+      ;; Allow the user to toggle options before reading the package.
+      (let ((options (stp-command-options :class 'stp-install-operation-options)))
+        (db (pkg-name pkg-alist)
+            ;; This needs to be inside `stp-with-memoization' for efficiency
+            ;; reasons so it is here instead of in the interactive spec.
+            (stp-command-args :read-pkg-alist t
+                              :existing-pkg nil
+                              :line-pkg nil)
+          (stp-execute-operations
+           (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
+           options)
+          (stp-update-cached-latest pkg-name)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (cl-defun stp-uninstall-command (&key (refresh t))
   "Uninstall a package interactively."
@@ -361,12 +362,13 @@ running the command."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (db (pkg-name options)
-          (rem-at-end (stp-command-args) (stp-command-options :class 'stp-uninstall-operation-options))
-        (stp-execute-operations (list (stp-uninstall-operation :pkg-name pkg-name))
-                                options)
-        (when refresh
-          (stp-list-refresh :quiet t))))))
+      (let ((options (stp-command-options :class 'stp-uninstall-operation-options)))
+        (db (pkg-name)
+            (stp-command-args)
+          (stp-execute-operations (list (stp-uninstall-operation :pkg-name pkg-name))
+                                  options)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (cl-defun stp-upgrade-command (&key (refresh t))
   "Upgrade a package interactively."
@@ -374,14 +376,14 @@ running the command."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (db (pkg-name options)
-          (rem-at-end (stp-command-args)
-                      (stp-command-options :class 'stp-upgrade-operation-options))
-        (stp-execute-operations (list (stp-upgrade-operation :pkg-name pkg-name))
-                                options)
-        (stp-update-cached-latest pkg-name)
-        (when refresh
-          (stp-list-refresh :quiet t))))))
+      (let ((options (stp-command-options :class 'stp-upgrade-operation-options)))
+        (db (pkg-name)
+            (stp-command-args)
+          (stp-execute-operations (list (stp-upgrade-operation :pkg-name pkg-name))
+                                  options)
+          (stp-update-cached-latest pkg-name)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (defun stp-check-requirements ()
   "Check the requirements of all STP packages and report any that
@@ -421,11 +423,11 @@ are not satisfied to the user."
 
 (cl-defun stp-package-group-command (fun table &key (class nil class-provided-p) (refresh t))
   (stp-refresh-info)
-  (let* ((pkg-names (-> (stp-read-existing-name "Group or package name: "
+  (let* ((options (apply #'stp-command-options (rem-maybe-kwd-args class class-provided-p)))
+         (pkg-names (-> (stp-read-existing-name "Group or package name: "
                                                 :table table
                                                 :multiple t)
-                        stp-expand-groups))
-         (options (apply #'stp-command-options (rem-maybe-kwd-args class class-provided-p))))
+                        stp-expand-groups)))
     (funcall fun pkg-names (clone options :do-commit t :do-push nil :do-lock nil))
     (with-slots (do-push do-lock)
         options
@@ -485,9 +487,10 @@ called with the local path to the fork.")
     (let-alist (stp-get-alist pkg-name)
       (unless (eq .method 'git)
         (user-error "Only packages that use the git method can be forked"))
-      (let* ((dir (or stp-fork-directory stp-development-directory))
+      (let* ((options (stp-command-options :class 'stp-basic-operation-options))
+             (dir (or stp-fork-directory stp-development-directory))
              (remote (stp-choose-remote "Remote: " .remote .other-remotes)))
-        (stp-fork pkg-name remote dir (stp-command-options :class 'stp-basic-operation-options))))))
+        (stp-fork pkg-name remote dir options)))))
 
 (cl-defun stp-fork (pkg-name remote dir options)
   (with-slots (do-commit do-push)
@@ -517,15 +520,15 @@ called with the local path to the fork.")
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (db (pkg-name version options)
-          (rem-at-end (stp-command-args :pkg-version t)
-                      (stp-command-options :class 'stp-reinstall-operation-options))
-        (stp-execute-operations
-         (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
-         options)
-        (stp-update-cached-latest pkg-name)
-        (when refresh
-          (stp-list-refresh :quiet t))))))
+      (let ((options (stp-command-options :class 'stp-reinstall-operation-options)))
+        (db (pkg-name version)
+            (stp-command-args :pkg-version t)
+          (stp-execute-operations
+           (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
+           options)
+          (stp-update-cached-latest pkg-name)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group for easily upgrading multiple related
@@ -535,14 +538,15 @@ packages at the same time."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (let* ((group-name (stp-read-group-name "Group: "))
+      (let* ((options (stp-command-options))
+             (group-name (stp-read-group-name "Group: "))
              (pkg-names (stp-get-info-group group-name))
              (table (completion-table-in-turn pkg-names (stp-info-names))))
         (stp-add-or-edit-package-group group-name
                                        (stp-read-existing-name "Package name: "
                                                                :multiple t
                                                                :table table)
-                                       (stp-command-options))))))
+                                       options)))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names options)
   (with-slots (do-commit do-push do-lock)
@@ -567,7 +571,8 @@ packages at the same time."
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (stp-delete-package-group (stp-read-group-name "Group: ") (stp-command-options))))
+    (let ((options (stp-command-options)))
+      (stp-delete-package-group (stp-read-group-name "Group: ") options))))
 
 (cl-defun stp-delete-package-group (group-name options)
   (with-slots (do-commit do-push do-lock)
@@ -592,9 +597,9 @@ negative, repair all packages."
       (stp-refresh-info)
       (if (< (prefix-numeric-value current-prefix-arg) 0)
           (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
-        (apply #'stp-repair
-               (rem-at-end (stp-command-args)
-                           (stp-command-options :toggle-p (fn (consp current-prefix-arg)))))))))
+        (let ((options (stp-command-options :toggle-p (fn (consp current-prefix-arg)))))
+          (apply #'stp-repair
+                 (rem-at-end (stp-command-args) options)))))))
 
 (cl-defun stp-repair (pkg-name options &key (refresh t))
   "Repair the package named pkg-name.
@@ -645,7 +650,8 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
   (stp-ensure-no-merge-conflicts)
   (stp-with-memoization
     (stp-refresh-info)
-    (apply #'stp-edit-remotes (rem-at-end (stp-command-args) (stp-command-options)))))
+    (let ((options (stp-command-options)))
+      (apply #'stp-edit-remotes (rem-at-end (stp-command-args) options)))))
 
 (defvar stp-edit-remotes-long-commit-msg nil)
 
@@ -699,7 +705,8 @@ DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
   (interactive)
   (stp-with-memoization
     (stp-refresh-info)
-    (apply #'stp-toggle-update (rem-at-end (stp-command-args) (stp-command-options)))))
+    (let ((options (stp-command-options)))
+      (apply #'stp-toggle-update (rem-at-end (stp-command-args) options)))))
 
 (cl-defun stp-toggle-update (pkg-name options &key (refresh t))
   "Toggle the update attribute for the package named PKG-NAME.
@@ -739,7 +746,8 @@ The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
 This indicates that the packages was installed because another
 package requires it rather than explicitly by the user."
   (interactive)
-  (apply #'stp-toggle-dependency (rem-at-end (stp-command-args) (stp-command-options))))
+  (let ((options (stp-command-options)))
+    (apply #'stp-toggle-dependency (rem-at-end (stp-command-args) options))))
 
 (cl-defun stp-toggle-dependency (pkg-name options)
   (when pkg-name
@@ -768,8 +776,8 @@ package and updating the load path."
   (interactive)
   (stp-with-memoization
     (stp-refresh-info)
-    (stp-post-actions (stp-list-read-name "Package name: ")
-                      (stp-command-options :class 'stp-action-operation-options))))
+    (let ((options (stp-command-options :class 'stp-action-operation-options)))
+      (stp-post-actions (stp-list-read-name "Package name: ") options))))
 
 (defun stp-lock-file-watcher (event)
   (let ((action (cadr event)))
@@ -1624,22 +1632,23 @@ longer required by any other package."
   "Increase the version header for FILENAME. Interactively, this is
 the file for the current buffer or the main file for the package
 if no version header is found for the current file."
-  (interactive (list (cl-flet ((has-version-header-p (filename)
-                                 (when filename
-                                   (when (functionp filename)
-                                     (setq filename (funcall filename)))
-                                   (with-temp-buffer
-                                     (insert-file-contents filename)
-                                     (and (stp-headers-version) filename)))))
-                       (cl-some #'has-version-header-p
-                                (list (buffer-file-name (buffer-base-buffer))
-                                      ;; `stp-main-package-file' can prompt the
-                                      ;; user so we don't want to actually call
-                                      ;; it unless it's really necessary.
-                                      (fn (aand (stp-git-root)
-                                                (stp-main-package-file it)))
-                                      (fn (user-error "No Version header was found")))))
-                     (stp-command-options :class 'stp-bump-operation-options)))
+  (interactive (let ((options (stp-command-options :class 'stp-bump-operation-options)))
+                 (list (cl-flet ((has-version-header-p (filename)
+                                   (when filename
+                                     (when (functionp filename)
+                                       (setq filename (funcall filename)))
+                                     (with-temp-buffer
+                                       (insert-file-contents filename)
+                                       (and (stp-headers-version) filename)))))
+                         (cl-some #'has-version-header-p
+                                  (list (buffer-file-name (buffer-base-buffer))
+                                        ;; `stp-main-package-file' can prompt the
+                                        ;; user so we don't want to actually call
+                                        ;; it unless it's really necessary.
+                                        (fn (aand (stp-git-root)
+                                                  (stp-main-package-file it)))
+                                        (fn (user-error "No Version header was found")))))
+                       options)))
   (with-slots (do-commit do-push do-tag)
       options
     (let ((clean (stp-git-clean-p)))
