@@ -112,9 +112,9 @@
                                                (do-update-info-directories :key "I"))
                                              :action t)]]
           ["Commands"
-           ("x" "execute" (lambda ()
-                            (interactive)
-                            (setf (caadr (transient-scope)) t)))]
+           ("RET" "execute" (lambda ()
+                              (interactive)
+                              (setf (caadr (transient-scope)) t)))]
           (interactive (error "This transient should be called as a function rather than interactively"))
           (transient-setup 'stp-toggle-options-transient nil nil :scope (list options normal-exit)))))
   (make-transient))
