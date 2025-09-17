@@ -198,9 +198,9 @@ corresponds to that line."
       (save-excursion
         (forward-line offset)
         (when (= (line-number-at-pos) (+ line offset))
-          (when-let* ((pkg-name (save-excursion
-                                  (beginning-of-line)
-                                  (rem-plain-symbol-at-point))))
+          (when-let ((pkg-name (save-excursion
+                                 (beginning-of-line)
+                                 (rem-plain-symbol-at-point))))
             (and (not (save-excursion
                         (beginning-of-line)
                         (bobp)))

@@ -1377,7 +1377,7 @@ asynchronously."
       (stp-archive-async-refresh :quiet quiet))
     (unless stp-emacsmirror-async-refresh-running
       (stp-emacsmirror-async-refresh :quiet quiet)))
-  (when-let* ((buf (get-buffer stp-list-buffer-name)))
+  (when-let ((buf (get-buffer stp-list-buffer-name)))
     (let ((win (get-buffer-window buf)))
       (with-current-buffer buf
         (let ((column (current-column))
