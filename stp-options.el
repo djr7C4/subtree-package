@@ -39,16 +39,26 @@
 (defclass stp-bump-operation-options (stp-basic-operation-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
 
-(cl-defun stp-transient-slot-toggler (slot &key &allow-other-keys)
+(defun stp-option-slot-base-name (slot)
+  (s-replace "-" " " (s-chop-prefix "do-" (symbol-name slot))))
+
+(cl-defun stp-transient-slot-toggler (slot &key choices (require-match t) (sort-fun #'identity) &allow-other-keys)
   `(lambda ()
      (interactive)
      (let* ((scope (transient-scope))
-            (options (car scope)))
-       (oset options ,slot (not (slot-value options ',slot)))
+            (options (car scope))
+            (new-value
+             (if ',choices
+                 (--> ,(format "Set %s: " (stp-option-slot-base-name slot))
+                      (rem-comp-read it
+                                     ',choices
+                                     :require-match ,require-match
+                                     :sort-fun #',sort-fun)
+                      read-from-string
+                      car)
+               (not (oref options ,slot)))))
+       (oset options ,slot new-value)
        (transient-setup transient-current-command nil nil :scope scope))))
-
-(defun stp-option-slot-base-name (slot)
-  (s-replace "-" " " (s-chop-prefix "do-" (symbol-name slot))))
 
 (cl-defun stp-transient-slot-description (slot &key action &allow-other-keys)
   `(lambda ()
@@ -61,7 +71,7 @@
                           ((t)
                            "enabled")
                           (t
-                           (s-truncate 12 (prin1-to-string value)))))
+                           (s-truncate 20 (prin1-to-string value)))))
             (base-name ,(stp-option-slot-base-name slot)))
        (if (and ,action (not (slot-value options 'do-actions)))
          (setq base-name (propertize base-name 'face 'transient-inactive-argument)
@@ -93,7 +103,7 @@
             ,@(stp-transient-toggle-bindings '(do-commit
                                                do-push
                                                do-lock
-                                               do-reset
+                                               (do-reset :choices ("nil" "(:audit)" "(:error)" "(:audit :error)" "t"))
                                                do-dependencies
                                                (do-audit :key "A")
                                                do-tag))]
