@@ -64,8 +64,26 @@ and has convenience bindings for
 
 Most complex commands such as =stp-install-command= and =stp-upgrade-command=
 allow their default options (automatically committing, pushing and so forth) to
-be modified via an interactive menu when the command is run with a prefix
-argument.
+be modified via a transient menu when the command is run with a prefix argument.
+** Specify the level control you want over packages
+By default, STP prompts the user quite a bit which allows for full control over
+installation and upgrading packages. For example, when you install a new
+package, you will be prompted for the package name, the remote, the update policy
+(stable or unstable) and the version. Some users may wish to eliminate as many of
+these prompts as possible.
+
+In order to always choose the latest stable version when one is available, add
+the following to your =~/.emacs.d/init.el=.
+
+#+begin_src emacs-lisp
+  (require 'stp)
+
+  (setq stp-default-controller 'stp-auto-controller
+      stp-default-make-controller-args '(:preferred-update stable))
+#+end_src
+
+Replacing ='(:preferred-update stable)= with ='(:preferred-update unstable)=
+will cause the tip of the upstream branch to be chosen.
 ** Freely edit installed packages
 Packages installed in =stp-source-directory= can be freely modified. If you
 later upgrade the package to a newer version, any conflicts that arise due to
@@ -204,8 +222,8 @@ instead of what was current when that version of ~/.emacs.d was committed.
 STP supports updating a lock file for the version of the package git repository
 when changes are made to the packages. This will cause the version of the
 package git repository stored in =stp-lock-file= to be used. To enable this
-feature, put the following code in =early-init.el=. It should go before the
-bootstrap code mentioned below.
+feature, put the following code in =~/.emacs.d/early-init.el=. It should go
+before the bootstrap code mentioned below.
 
 #+begin_src emacs-lisp
   (require 'stp-locked (expand-file-name "path/to/package-source/subtree-package/stp-locked.el"))
@@ -213,8 +231,8 @@ bootstrap code mentioned below.
   (stp-checkout-locked-revision)
 #+end_src
 
-In your =~/.emacs= or =~/.emacs.d/init.el=, enable automatically updating the
-=stp-lock-file= as follows.
+In your =~/.emacs.d/init.el=, enable automatically updating the =stp-lock-file=
+as follows.
 
 #+begin_src emacs-lisp
   (setq stp-auto-lock t
@@ -285,8 +303,7 @@ git repository for your configuration.
     (stp-update-load-paths)
 #+end_src
 
-In your =~/.emacs.el=, =~/.emacs= or =~/.emacs.d/init.el=, add the following
-code.
+In your =~/.emacs.d/init.el=, add the following code.
 
 #+begin_src emacs-lisp
   (require 'stp)
