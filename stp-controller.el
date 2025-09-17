@@ -159,12 +159,6 @@ appropriate error if they are not."))
        -uniq
        (-sort #'string<)))
 
-(defvar stp-normalize-versions nil
-  "Indicates if versions should be printed in a standardized format.
-
-This overrides the specific format used for versions by the
-project.")
-
 (defun stp-abbreviate-remote-version (pkg-name method remote version)
   "Abbreviate long hashes to make them more readable.
 
@@ -172,10 +166,8 @@ Other versions are not abbreviated."
   (cond
    ((and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
     (stp-git-abbreviate-hash version))
-   (stp-normalize-versions
-    (stp-normalize-version pkg-name remote version))
    (t
-    version)))
+    (stp-git-normalize-version remote version))))
 
 (cl-defun stp-list-read-name (prompt)
   "In `stp-list-mode', return the package on the current line if there
@@ -681,6 +673,10 @@ operations to perform."))
     (error "The newest version for %s is %s but at least %s is required" pkg-name version min-version)))
 
 (cl-defgeneric stp-controller-preferred-git-version (controller remote min-version))
+
+(cl-defmethod stp-controller-preferred-git-version :around ((_controller stp-controller) remote _min-version)
+  (let ((version (cl-call-next-method)))
+    (stp-git-normalize-version remote version)))
 
 (cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) remote min-version)
   (let (latest-stable

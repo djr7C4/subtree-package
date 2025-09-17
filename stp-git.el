@@ -47,13 +47,13 @@
   "Determine if there is a git subtree for this package."
   (and (stp-git-subtree-package-commit pkg-name) t))
 
-(defun stp-normalize-version (pkg-name remote version)
+(defun stp-git-normalize-version (remote version)
   ;; If version is a hash, it might be shortened if the user entered it
   ;; manually. In this case, we replace it with the full hash from the installed
   ;; subtree.
-  (if (stp-git-valid-remote-ref-p remote version)
-      (stp-git-remote-rev-to-tag remote version)
-    (stp-git-subtree-package-commit pkg-name)))
+  (->> version
+       (stp-git-remote-head-to-hash remote)
+       (stp-git-remote-rev-to-tag remote)))
 
 (defun stp-git-subtree-version (pkg-name)
   "Determine the version and the update type of PKG-NAME.
@@ -258,7 +258,7 @@ returned."
         (rem-run-command cmd :error t)
         ;; If installation was successful, add the information for the package
         (when set-pkg-info
-          (setq version (stp-normalize-version pkg-name remote version))
+          (setq version (stp-git-normalize-version remote version))
           (stp-set-alist pkg-name
                          `((method . git)
                            (remote . ,remote)
@@ -353,7 +353,7 @@ returned."
                   (stp-set-attribute pkg-name 'branch version)
                   (stp-set-attribute pkg-name 'update 'unstable))
               ;; For tags or hashes, use the tag or hash.
-              (setq version (stp-normalize-version pkg-name remote version))
+              (setq version (stp-git-normalize-version remote version))
               (stp-set-attribute pkg-name 'version version)
               (if (stp-git-remote-tag-p remote version)
                   ;; Tags do not have a branch to update from and are considered

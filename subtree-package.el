@@ -265,7 +265,7 @@ occurred."
     (stp-validate-options options)
     options))
 
-(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version read-pkg-alist (existing-pkg t) (line-pkg t) min-version enforce-min-version)
+(cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version controller read-pkg-alist (existing-pkg t) (line-pkg t) min-version enforce-min-version)
   "Prepare an argument list for an interactive command.
 
 The first argument included in the list is the name of the
@@ -281,10 +281,16 @@ ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
   (stp-with-package-source-directory
     (plet* ((`(,pkg-name . ,pkg-alist)
              (or (and read-pkg-alist
-                      (stp-read-package :pkg-name pkg-name
-                                        :prompt-prefix prompt-prefix
-                                        :min-version min-version
-                                        :enforce-min-version enforce-min-version))
+                      (if controller
+                          (stp-controller-get-package controller
+                                                      pkg-name
+                                                      prompt-prefix
+                                                      min-version
+                                                      enforce-min-version)
+                        (stp-read-package :pkg-name pkg-name
+                                          :prompt-prefix prompt-prefix
+                                          :min-version min-version
+                                          :enforce-min-version enforce-min-version)))
                  `(,pkg-name)))
             (pkg-name (or pkg-name
                           (cond
@@ -342,16 +348,19 @@ running the command."
       (stp-archive-ensure-loaded)
       (stp-emacsmirror-ensure-loaded)
       ;; Allow the user to toggle options before reading the package.
-      (let ((options (stp-command-options :class 'stp-install-operation-options)))
+      (let* ((options (stp-command-options :class 'stp-install-operation-options))
+             (controller (stp-make-controller :options options)))
         (db (pkg-name pkg-alist)
             ;; This needs to be inside `stp-with-memoization' for efficiency
             ;; reasons so it is here instead of in the interactive spec.
-            (stp-command-args :read-pkg-alist t
+            (stp-command-args :controller controller
+                              :read-pkg-alist t
                               :existing-pkg nil
                               :line-pkg nil)
-          (stp-execute-operations
-           (list (stp-install-operation :pkg-name pkg-name :pkg-alist pkg-alist))
-           options)
+          (stp-controller-append-operations controller
+                                            (stp-install-operation :pkg-name pkg-name
+                                                                   :pkg-alist pkg-alist))
+          (stp-execute controller)
           (stp-update-cached-latest pkg-name)
           (when refresh
             (stp-list-refresh :quiet t)))))))
