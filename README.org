@@ -79,7 +79,7 @@ the following to your =~/.emacs.d/init.el=.
   (require 'stp)
 
   (setq stp-default-controller 'stp-auto-controller
-      stp-default-make-controller-args '(:preferred-update stable))
+        stp-default-make-controller-args '(:preferred-update stable))
 #+end_src
 
 Replacing ='(:preferred-update stable)= with ='(:preferred-update unstable)=
@@ -309,6 +309,12 @@ In your =~/.emacs.d/init.el=, add the following code.
 
 #+begin_src emacs-lisp
   (require 'stp)
+
+  ;; By default, STP is highly interactive and prompts the user quite a bit for
+  ;; maximum control. The following enables the auto controller which keeps
+  ;; prompts to a minimum.
+  (setq stp-default-controller 'stp-auto-controller
+        stp-default-make-controller-args '(:preferred-update stable))
 
   (keymap-global-set "C-c P" #'stp-list)
 
