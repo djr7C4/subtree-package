@@ -284,6 +284,8 @@ never ends with a slash (nor does it contain any slashes)."
                          (stp-get-info-packages)))
         #'string<))
 
+(defvar stp-candidate-separator "  ")
+
 (defvar stp-read-name-history nil)
 
 (defun stp-default-name (remote)
