@@ -258,9 +258,6 @@ occurred."
   (or (stp-list-package-on-previous-line)
       (stp-list-package-on-next-line)))
 
-(defun stp-toggle-options (options)
-  (stp-toggle-object "Toggle options: " options))
-
 (cl-defun stp-command-options (&key (class 'stp-package-operation-options) (toggle-p (fn current-prefix-arg)))
   (let ((options (make-instance class)))
     (when (stp-maybe-call toggle-p)

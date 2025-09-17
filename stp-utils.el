@@ -291,33 +291,6 @@ never ends with a slash (nor does it contain any slashes)."
   ;; repository like "abc.el.git" to be "abc".
   (f-no-ext (s-chop-suffix ".git" (f-filename remote))))
 
-(defvar stp-candidate-separator "  ")
-
-(defun stp-toggle-object (prompt object)
-  (cl-labels ((make-cand (slot value width)
-                (format "%s%s%S"
-                        (string-pad (symbol-name slot) width)
-                        stp-candidate-separator
-                        value))
-              (read-toggle ()
-                (let* ((slots (rem-object-slots object))
-                       (width (apply #'max (mapcar (-compose #'length #'symbol-name) slots)))
-                       (candidates (append (list "done")
-                                           (mapcar (lambda (slot)
-                                                     (make-cand slot
-                                                                (slot-value object slot)
-                                                                width))
-                                                   slots))))
-                  (rem-comp-read prompt
-                                 candidates
-                                 :require-match t
-                                 :sort-fun #'identity))))
-    (let (choice)
-      (while (not (string= (setq choice (read-toggle)) "done"))
-        (let ((slot (intern (car (s-split stp-candidate-separator choice)))))
-          (setf (slot-value object slot) (not (slot-value object slot)))))
-      object)))
-
 (defun stp-skip-package ()
   "Skip installing or upgrading this package."
   (interactive)
