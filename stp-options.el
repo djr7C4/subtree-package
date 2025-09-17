@@ -120,8 +120,7 @@
   (make-transient))
 
 (defun stp-toggle-options (options)
-  (let ((options (stp-install-operation-options))
-        (normal-exit (list nil)))
+  (let ((normal-exit (list nil)))
     (rem-call-transient-synchronously #'stp-toggle-options-transient options normal-exit)
     (if (car normal-exit)
         options
