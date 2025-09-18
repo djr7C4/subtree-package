@@ -686,9 +686,9 @@ operations to perform."))
   (when (and min-version enforce-min-version (not (stp-version<= min-version version)))
     (error "The newest version for %s is %s but at least %s is required" pkg-name version min-version)))
 
-(cl-defgeneric stp-controller-preferred-git-version (controller remote min-version))
+(cl-defgeneric stp-controller-preferred-git-version (controller remote update min-version))
 
-(cl-defmethod stp-controller-preferred-git-version :around ((_controller stp-controller) remote _min-version)
+(cl-defmethod stp-controller-preferred-git-version :around ((_controller stp-controller) remote _update _min-version)
   (let ((version (cl-call-next-method)))
     (stp-git-normalize-version remote version)))
 
@@ -723,7 +723,7 @@ operations to perform."))
             (cl-ecase method
               (git
                (let* ((branch (car (stp-git-remote-heads-sorted remote)))
-                      (version (stp-controller-preferred-git-version controller remote update min-version))
+                      (version (stp-controller-preferred-git-version controller remote nil min-version))
                       (update (if (string= version branch) 'unstable 'stable)))
                  (stp-enforce-min-version pkg-name version min-version enforce-min-version)
                  `((version . ,version)
