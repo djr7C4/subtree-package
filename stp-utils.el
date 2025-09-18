@@ -127,7 +127,7 @@ Otherwise, return VALUE."
             (setq seconds (abs seconds))
             (cond
              ((= seconds 0)
-              "now")
+              "0s")
              ((< seconds 60)
               (format-seconds "%ss" seconds))
              ((< seconds (* 24 60 60))
@@ -145,13 +145,15 @@ When it is \\='timestamp, the timestamp for the version is used.
 When it is \\='time-delta, the amount of time from the installed
 version is used.")
 
-(defun stp-latest-version-annotation (count version-timestamp latest-timestamp)
+(cl-defun stp-latest-version-annotation (count version-timestamp latest-timestamp &key keep-zero)
   (let* ((count-string (cond
                         ((consp count)
                          (db (m n)
                              count
                            (format "%+d%d" m (- n))))
-                        ((and (integerp count) (/= count 0))
+                        ((and (integerp count)
+                              (or keep-zero
+                                  (/= count 0)))
                          (format "%d" count))
                         (t
                          "")))
@@ -159,7 +161,7 @@ version is used.")
                           (cl-ecase stp-annotated-version-type
                             (time-delta
                              (let ((seconds (- latest-timestamp version-timestamp)))
-                               (if (/= (round seconds) 0)
+                               (if (or keep-zero (/= (round seconds) 0))
                                    (stp-short-format-seconds seconds)
                                  "")))
                             (timestamp
@@ -284,7 +286,8 @@ never ends with a slash (nor does it contain any slashes)."
                          (stp-get-info-packages)))
         #'string<))
 
-(defvar stp-candidate-separator "  ")
+(defvar stp-separator "  ")
+(defvar stp-candidate-separator stp-candidate-separator)
 
 (defvar stp-read-name-history nil)
 

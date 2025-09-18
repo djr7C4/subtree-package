@@ -139,7 +139,7 @@ returned."
          (commits-to-stable (and latest-stable (stp-git-count-remote-commits remotes "HEAD" latest-stable)))
          (latest-timestamp (and latest-stable (stp-git-remote-timestamp remotes "HEAD")))
          (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable))))
-    (format "%s %s" latest-stable (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp))))
+    (format "%s %s" latest-stable (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp :keep-zero t))))
 
 (cl-defun stp-git-read-update (prompt &key default remote other-remotes)
   "Read the update attribute."
@@ -151,7 +151,7 @@ returned."
                         ;; handle symbols as expected when a default is
                         ;; specified.
                         (list (format "stable%s" (if stable-annotation
-                                                     (format " (%s)" (s-trim stable-annotation))
+                                                     (format "%s%s" stp-separator (s-trim stable-annotation))
                                                    ""))
                               "unstable")
                         :require-match t
