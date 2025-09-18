@@ -889,11 +889,6 @@ package and were installed as dependencies."))
          (stp-uninstall-operation :pkg-name pkg-name
                                   :options options))))))
 
-;; Update the installed features after each operation that installs, uninstalls
-;; or upgrades a package.
-(cl-defmethod stp-operate :after ((_controller stp-controller) (_operation stp-package-change-operation))
-  (stp-headers-update-features))
-
 ;; Skip additive operations that were added due to a dependency that is now
 ;; satisfied. This can happen when multiple packages that were installed have
 ;; the same dependency.
@@ -1009,6 +1004,10 @@ package and were installed as dependencies."))
                                       (stp-abbreviate-remote-version .method .remote .version)
                                       pkg-name)
                               :do-commit do-commit)
+              ;; Features need to be updated before resolving dependencies. For
+              ;; this reason, handling feature updates in a `stp-operate' :after
+              ;; method doesn't work well.
+              (stp-headers-update-features)
               (when (stp-maybe-call do-dependencies)
                 (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
               ;; Perform post actions for all packages after everything else.
@@ -1059,6 +1058,7 @@ package and were installed as dependencies."))
                                         (stp-abbreviate-remote-version .method chosen-remote new-version)
                                         pkg-name)
                                 :do-commit do-commit)
+                (stp-headers-update-features)
                 (when (stp-maybe-call do-dependencies)
                   (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
                 ;; Perform post actions for all packages after everything else.
