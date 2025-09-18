@@ -116,7 +116,7 @@
                              args)))
           slots))
 
-(cl-defun stp-transient-hide-group (slots &key (invert t))
+(cl-defun stp-transient-hide-group-p (slots &key (invert t))
   (setq slots (mapcar (fn (if (consp %) (car %) %)) slots))
   `(lambda ()
      (let* ((scope (transient-scope))
@@ -168,13 +168,13 @@
     ((make-transient ()
        `(transient-define-prefix stp-toggle-options-transient (options normal-exit)
           ["Controller"
-           :hide ,(stp-transient-hide-group stp-transient-controller-specs)
+           :hide ,(stp-transient-hide-group-p stp-transient-controller-specs)
            ,@(stp-transient-toggle-bindings stp-transient-controller-specs)]
           [["Options"
-            :if ,(stp-transient-hide-group stp-transient-option-specs :invert nil)
+            :if ,(stp-transient-hide-group-p stp-transient-option-specs :invert nil)
             ,@(stp-transient-toggle-bindings stp-transient-option-specs)]
            ["Actions"
-            :if ,(stp-transient-hide-group stp-transient-action-specs :invert nil)
+            :if ,(stp-transient-hide-group-p stp-transient-action-specs :invert nil)
             ,@(stp-transient-toggle-bindings (cdr stp-transient-action-specs))]]
           ["Commands"
            ("RET" "execute" (lambda ()
