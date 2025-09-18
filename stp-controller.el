@@ -856,7 +856,7 @@ package and were installed as dependencies."))
 ;; Skip additive operations that were added due to a dependency that is now
 ;; satisfied. This can happen when multiple packages that were installed have
 ;; the same dependency.
-(cl-defmethod stp-operate :around ((_controller stp-controller) (operation stp-package-additive-operation))
+(cl-defmethod stp-operate :around ((_controller stp-controller) (operation stp-additive-operation))
   (with-slots (pkg-name dependency min-version)
       operation
     (unless (and dependency
