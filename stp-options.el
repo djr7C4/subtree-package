@@ -13,7 +13,11 @@
 (defclass stp-package-operation-options (stp-basic-operation-options)
   ((do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))))
 
-(defclass stp-package-change-operation-options (stp-package-operation-options)
+(defclass stp-controlled-operation-options (stp-operation-options)
+  ((controller-class :initarg :controller-class :initform (symbol-value stp-default-controller-class))
+   (make-controller-args :initarg :make-controller-args :initform (symbol-value stp-default-controller-args))))
+
+(defclass stp-package-change-operation-options (stp-package-operation-options stp-controlled-operation-options)
   ((do-reset :initarg :do-reset :initform (symbol-value 'stp-auto-reset))
    (do-dependencies :initarg :do-dependencies :initform (symbol-value 'stp-auto-dependencies))))
 

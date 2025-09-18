@@ -348,7 +348,7 @@ running the command."
       (stp-emacsmirror-ensure-loaded)
       ;; Allow the user to toggle options before reading the package.
       (let* ((options (stp-command-options :class 'stp-install-operation-options))
-             (controller (stp-make-controller :options options)))
+             (controller (stp-make-controller options)))
         (db (pkg-name pkg-alist)
             ;; This needs to be inside `stp-with-memoization' for efficiency
             ;; reasons so it is here instead of in the interactive spec.

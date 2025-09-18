@@ -621,12 +621,16 @@ no errors."
   ((preferred-update :initarg :preferred-update :initform 'stable)
    (respect-update :initarg :respect-update :initform t)))
 
-(defvar stp-default-controller 'stp-interactive-controller)
+(defvar stp-default-controller-class 'stp-interactive-controller)
 
-(defvar stp-default-make-controller-args nil)
+(defvar stp-default-controller-args nil)
 
-(defun stp-make-controller (&rest args)
-  (apply stp-default-controller (map-merge 'plist stp-default-make-controller-args args)))
+(cl-defgeneric stp-make-controller (options &rest args)
+  "Make a new controller of class `stp-default-controller-class' by
+merging `stp-default-controller-args' with ARGS.")
+
+(cl-defmethod stp-make-controller ((options stp-operation-options) &rest args)
+  (apply stp-default-controller-class :options options (map-merge 'plist stp-default-controller-args args)))
 
 (cl-defgeneric stp-controller-append-errors (controller pkg-name &rest errors)
   (:documentation
@@ -1153,7 +1157,7 @@ package and were installed as dependencies."))
         (stp-report-operations successful-operations skipped-operations failed-operations)))))
 
 (defun stp-execute-operations (operations options &rest args)
-  (stp-execute (apply #'stp-make-controller :operations operations :options options args)))
+  (stp-execute (apply #'stp-make-controller options :operations operations args)))
 
 (provide 'stp-controller)
 
