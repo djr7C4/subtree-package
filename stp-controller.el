@@ -621,7 +621,7 @@ no errors."
   ((preferred-update :initarg :preferred-update :initform 'stable)
    (respect-update :initarg :respect-update :initform t)))
 
-(defvar stp-default-controller-class 'stp-interactive-controller)
+(defvar stp-default-controller-class 'stp-auto-controller)
 
 (defvar stp-default-controller-args nil)
 
