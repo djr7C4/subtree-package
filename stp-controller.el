@@ -850,8 +850,7 @@ package and were installed as dependencies."))
 
 ;; Update the installed features after each operation that installs, uninstalls
 ;; or upgrades a package.
-(cl-defmethod stp-operate ((controller stp-controller) (operation stp-package-change-operation))
-  (cl-call-next-method)
+(cl-defmethod stp-operate :after ((_controller stp-controller) (_operation stp-package-change-operation))
   (stp-headers-update-features))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
