@@ -287,7 +287,7 @@ never ends with a slash (nor does it contain any slashes)."
         #'string<))
 
 (defvar stp-separator "  ")
-(defvar stp-candidate-separator stp-candidate-separator)
+(defvar stp-candidate-separator stp-separator)
 
 (defvar stp-read-name-history nil)
 
