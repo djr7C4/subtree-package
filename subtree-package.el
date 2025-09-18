@@ -784,8 +784,9 @@ package and updating the load path."
   (interactive)
   (stp-with-memoization
     (stp-refresh-info)
-    (let ((options (stp-command-options :class 'stp-action-operation-options)))
-      (stp-post-actions (stp-list-read-name "Package name: ") options))))
+    (let ((options (stp-command-options :class 'stp-action-operation-options))
+          (pkg-name (stp-list-read-name "Package name: ")))
+      (stp-execute-operations (list (stp-post-action-operation :pkg-name pkg-name)) options))))
 
 (defun stp-lock-file-watcher (event)
   (let ((action (cadr event)))
