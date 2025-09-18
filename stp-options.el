@@ -46,21 +46,32 @@
 (cl-defun stp-option-slot-base-name (slot &key name &allow-other-keys)
   (or name (s-replace "-" " " (s-chop-prefix "do-" (symbol-name slot)))))
 
-(cl-defun stp-transient-slot-toggler (slot &rest args &key choices (require-match t) (sort-fun #'identity) &allow-other-keys)
+(cl-defun stp-transient-slot-toggler (slot &rest args &key choices (require-match t) (sort-fun #'identity) (allow-toggle t) &allow-other-keys)
   `(lambda ()
      (interactive)
      (let* ((scope (transient-scope))
             (options (car scope))
+            (choices (->> (if (functionp ',choices)
+                              (funcall ',choices)
+                            ',choices)
+                          (mapcar #'prin1-to-string)))
+            (value (prin1-to-string (oref options ,slot)))
             (new-value
-             (if ',choices
-                 (--> ,(format "Set %s: " (apply #'stp-option-slot-base-name slot args))
-                      (rem-comp-read it
-                                     ',choices
-                                     :require-match ,require-match
-                                     :sort-fun #',sort-fun)
-                      read-from-string
-                      car)
-               (not (oref options ,slot)))))
+             (cond
+              ((and ,allow-toggle
+                    (not current-prefix-arg)
+                    (= (length choices) 2)
+                    (member value choices))
+               (read (car (remove value choices))))
+              (choices
+               (--> choices
+                    (rem-comp-read ,(format "Set %s: " (apply #'stp-option-slot-base-name slot args))
+                                   it
+                                   :require-match ,require-match
+                                   :sort-fun #',sort-fun)
+                    read))
+              (t
+               (not (oref options ,slot))))))
        (oset options ,slot new-value)
        (transient-setup transient-current-command nil nil :scope scope))))
 
@@ -105,23 +116,38 @@
                              args)))
           slots))
 
+(defvar stp-transient-reset-choices '(nil (:audit) (:error) (:audit :error) t))
+(defvar stp-transient-controller-choices '(stp-auto-controller stp-interactive-controller))
+
+(defvar stp-transient-controller-args-choices-alist
+  '((stp-auto-controller nil (:preferred-update stable) (:preferred-update unstable))
+    (stp-interactive-controller nil)))
+
 (cl-macrolet
     ((make-transient ()
        `(transient-define-prefix stp-toggle-options-transient (options normal-exit)
           ["Controller"
            ,@(stp-transient-toggle-bindings
-              '((controller-class :name "controller"
+              `((controller-class :name "controller"
                                   :key "C"
+                                  :choices ,stp-transient-controller-choices
+                                  :require-match nil
                                   :value-desc-fun prin1-to-string)
                 (make-controller-args :name "controller-args"
                                       :key "M"
+                                      :choices (lambda ()
+                                                 (let* ((scope (transient-scope))
+                                                        (options (car scope)))
+                                                   (map-elt ',stp-transient-controller-args-choices-alist
+                                                            (oref options controller-class))))
+                                      :require-match nil
                                       :value-desc-fun prin1-to-string)))]
           [["Options"
             ,@(stp-transient-toggle-bindings
-               '(do-commit
+               `(do-commit
                  do-push
                  do-lock
-                 (do-reset :choices ("nil" "(:audit)" "(:error)" "(:audit :error)" "t"))
+                 (do-reset :choices ,stp-transient-reset-choices)
                  do-dependencies
                  (do-audit :key "A")
                  do-tag))]
