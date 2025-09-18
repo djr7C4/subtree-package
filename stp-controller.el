@@ -618,7 +618,8 @@ no errors."
 (defclass stp-interactive-controller (stp-controller) ())
 
 (defclass stp-auto-controller (stp-controller)
-  ((preferred-update :initarg :preferred-update :initform 'stable)))
+  ((preferred-update :initarg :preferred-update :initform 'stable)
+   (respect-update :initarg :respect-update :initform t)))
 
 (defvar stp-default-controller 'stp-interactive-controller)
 
@@ -678,18 +679,25 @@ operations to perform."))
   (let ((version (cl-call-next-method)))
     (stp-git-normalize-version remote version)))
 
-(cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) remote min-version)
-  (let (latest-stable
-        (branch (car (stp-git-remote-heads-sorted remote))))
-    (if (and (eq (oref controller preferred-update) 'stable)
-             (setq latest-stable (stp-git-latest-stable-version remote))
-             ;; If there's a minimum version and the
-             ;; latest stable is not recent enough,
-             ;; use the development version.
-             (or (not min-version)
-                 (stp-version<= min-version latest-stable)))
-        latest-stable
-      branch)))
+(cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) remote update min-version)
+  (with-slots (preferred-update respect-update)
+      controller
+    (let (latest-stable
+          (branch (car (stp-git-remote-heads-sorted remote)))
+          ;; Respect the package's update attribute if it is set and the
+          ;; controller is set to do respect package's update attributes.
+          (actual-update (if (and respect-update update)
+                             update
+                           preferred-update)))
+      (if (and (eq actual-update 'stable)
+               (setq latest-stable (stp-git-latest-stable-version remote))
+               ;; If there's a minimum version and the
+               ;; latest stable is not recent enough,
+               ;; use the development version.
+               (or (not min-version)
+                   (stp-version<= min-version latest-stable)))
+          latest-stable
+        branch))))
 
 (cl-defmethod stp-controller-get-package ((controller stp-auto-controller) pkg-name _prompt-prefix min-version enforce-min-version)
   (unless pkg-name
@@ -702,7 +710,7 @@ operations to perform."))
             (cl-ecase method
               (git
                (let* ((branch (car (stp-git-remote-heads-sorted remote)))
-                      (version (stp-controller-preferred-git-version controller remote min-version))
+                      (version (stp-controller-preferred-git-version controller remote update min-version))
                       (update (if (string= version branch) 'unstable 'stable)))
                  (stp-enforce-min-version pkg-name version min-version enforce-min-version)
                  `((version . ,version)
@@ -748,7 +756,7 @@ operations to perform."))
                             :min-version (and enforce-min-version min-version)))))
 
 (cl-defmethod stp-controller-get-git-version ((controller stp-auto-controller) _prompt pkg-name _pkg-alist chosen-remote min-version enforce-min-version)
-  (let ((version (stp-controller-preferred-git-version controller chosen-remote min-version)))
+  (let ((version (stp-controller-preferred-git-version controller chosen-remote update min-version)))
     (stp-enforce-min-version pkg-name version min-version enforce-min-version)
     version))
 
