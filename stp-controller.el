@@ -115,13 +115,13 @@ for `stp-auto-commit'.")
 the minimum required by another package.")
 
 (defclass stp-additive-operation (stp-package-change-operation stp-skippable-package-operation)
-  ((min-version :initarg :min-version :initform nil)
+  ((dependency :initarg :dependency :initform nil)
+   (min-version :initarg :min-version :initform nil)
    (enforce-min-version :initarg :enforce-min-version :initform (symbol-value 'stp-enforce-min-version))
    (prompt-prefix :initarg :prompt-prefix :initform "")))
 
 (defclass stp-install-operation (stp-additive-operation)
-  ((dependency :initarg :dependency :initform nil)
-   (pkg-alist :initarg :pkg-alist :initform nil)))
+  ((pkg-alist :initarg :pkg-alist :initform nil)))
 
 (defclass stp-upgrade-operation (stp-additive-operation)
   ((new-version :initarg :new-version :initform nil)))
@@ -853,6 +853,19 @@ package and were installed as dependencies."))
 (cl-defmethod stp-operate :after ((_controller stp-controller) (_operation stp-package-change-operation))
   (stp-headers-update-features))
 
+;; Skip additive operations that were added due to a dependency that is now
+;; satisfied. This can happen when multiple packages that were installed have
+;; the same dependency.
+(cl-defmethod stp-operate :around ((_controller stp-controller) (operation stp-package-additive-operation))
+  (with-slots (pkg-name dependency min-version)
+      operation
+    (unless (and dependency
+                 ;; It isn't necessary to search the load path because we just
+                 ;; want to know if the package was already installed or
+                 ;; upgraded within STP.
+                 (stp-package-requirement-satisfied-p pkg-name min-version))
+      (cl-call-next-method))))
+
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-dependencies)
@@ -918,7 +931,8 @@ package and were installed as dependencies."))
            (stp-upgrade-operation :pkg-name pkg-name
                                   :options options
                                   :prompt-prefix prefix
-                                  :min-version version))))))))
+                                  :min-version version
+                                  :dependency t))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-operation))
   (let ((options (stp-options controller operation)))
