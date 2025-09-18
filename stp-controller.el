@@ -686,13 +686,13 @@ operations to perform."))
   (when (and min-version enforce-min-version (not (stp-version<= min-version version)))
     (error "The newest version for %s is %s but at least %s is required" pkg-name version min-version)))
 
-(cl-defgeneric stp-controller-preferred-git-version (controller remote update min-version))
+(cl-defgeneric stp-controller-preferred-git-version (controller remote min-version update))
 
-(cl-defmethod stp-controller-preferred-git-version :around ((_controller stp-controller) remote _update _min-version)
+(cl-defmethod stp-controller-preferred-git-version :around ((_controller stp-controller) remote _min-version _update)
   (let ((version (cl-call-next-method)))
     (stp-git-normalize-version remote version)))
 
-(cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) remote update min-version)
+(cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) remote min-version update)
   (with-slots (preferred-update respect-update)
       controller
     (let (latest-stable
@@ -723,7 +723,7 @@ operations to perform."))
             (cl-ecase method
               (git
                (let* ((branch (car (stp-git-remote-heads-sorted remote)))
-                      (version (stp-controller-preferred-git-version controller remote nil min-version))
+                      (version (stp-controller-preferred-git-version controller remote min-version nil))
                       (update (if (string= version branch) 'unstable 'stable)))
                  (stp-enforce-min-version pkg-name version min-version enforce-min-version)
                  `((version . ,version)
@@ -749,11 +749,11 @@ operations to perform."))
 
 (defvar stp-git-upgrade-always-offer-remote-heads t)
 
-(cl-defgeneric stp-controller-get-git-version (controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version)
+(cl-defgeneric stp-controller-get-git-version (controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version update)
   (:documentation
    "Query the controller for a new version of a git package."))
 
-(cl-defmethod stp-controller-get-git-version ((_controller stp-interactive-controller) prompt _pkg-name pkg-alist chosen-remote min-version enforce-min-version)
+(cl-defmethod stp-controller-get-git-version ((_controller stp-interactive-controller) prompt _pkg-name pkg-alist chosen-remote min-version enforce-min-version _update)
   (let-alist pkg-alist
     (let ((extra-versions (and (eq .method 'git)
                                (or stp-git-upgrade-always-offer-remote-heads
@@ -768,8 +768,8 @@ operations to perform."))
                             :branch-to-hash nil
                             :min-version (and enforce-min-version min-version)))))
 
-(cl-defmethod stp-controller-get-git-version ((controller stp-auto-controller) _prompt pkg-name _pkg-alist chosen-remote min-version enforce-min-version)
-  (let ((version (stp-controller-preferred-git-version controller chosen-remote update min-version)))
+(cl-defmethod stp-controller-get-git-version ((controller stp-auto-controller) _prompt pkg-name _pkg-alist chosen-remote min-version enforce-min-version update)
+  (let ((version (stp-controller-preferred-git-version controller chosen-remote min-version update)))
     (stp-enforce-min-version pkg-name version min-version enforce-min-version)
     version))
 
@@ -1036,7 +1036,7 @@ package and were installed as dependencies."))
                 (unless new-version
                   (setq new-version
                         (cl-case .method
-                          (git (stp-controller-get-git-version controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version))
+                          (git (stp-controller-get-git-version controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version .update))
                           (elpa (stp-controller-get-elpa-version controller prompt pkg-name chosen-remote min-version enforce-min-version)))))
                 (cl-ecase .method
                   (git (stp-git-upgrade controller pkg-name chosen-remote new-version options))
