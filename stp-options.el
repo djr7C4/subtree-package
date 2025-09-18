@@ -43,17 +43,17 @@
 (defclass stp-bump-operation-options (stp-basic-operation-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
 
-(defun stp-option-slot-base-name (slot)
-  (s-replace "-" " " (s-chop-prefix "do-" (symbol-name slot))))
+(cl-defun stp-option-slot-base-name (slot &key name &allow-other-keys)
+  (or name (s-replace "-" " " (s-chop-prefix "do-" (symbol-name slot)))))
 
-(cl-defun stp-transient-slot-toggler (slot &key choices (require-match t) (sort-fun #'identity) &allow-other-keys)
+(cl-defun stp-transient-slot-toggler (slot &rest args &key choices (require-match t) (sort-fun #'identity) &allow-other-keys)
   `(lambda ()
      (interactive)
      (let* ((scope (transient-scope))
             (options (car scope))
             (new-value
              (if ',choices
-                 (--> ,(format "Set %s: " (stp-option-slot-base-name slot))
+                 (--> ,(format "Set %s: " (apply #'stp-option-slot-base-name slot args))
                       (rem-comp-read it
                                      ',choices
                                      :require-match ,require-match
@@ -64,26 +64,31 @@
        (oset options ,slot new-value)
        (transient-setup transient-current-command nil nil :scope scope))))
 
-(cl-defun stp-transient-slot-description (slot &key action &allow-other-keys)
+(defvar stp-transient-truncation-length 30)
+
+(defun stp-transient-describe-value (value)
+  (cl-case value
+    ((nil)
+     "disabled")
+    ((t)
+     "enabled")
+    (t
+     (s-truncate stp-transient-truncation-length (prin1-to-string value)))))
+
+(cl-defun stp-transient-slot-description (slot &rest args &key action (value-desc-fun #'stp-transient-describe-value) &allow-other-keys)
   `(lambda ()
      (let* ((scope (transient-scope))
             (options (car scope))
             (value (slot-value options ',slot))
-            (value-desc (cl-case value
-                          ((nil)
-                           "disabled")
-                          ((t)
-                           "enabled")
-                          (t
-                           (s-truncate 20 (prin1-to-string value)))))
-            (base-name ,(stp-option-slot-base-name slot)))
+            (value-desc (funcall #'prin1-to-string value))
+            (base-name ,(apply #'stp-option-slot-base-name slot args)))
        (if (and ,action (not (slot-value options 'do-actions)))
-         (setq base-name (propertize base-name 'face 'transient-inactive-argument)
-               value-desc (propertize value-desc 'face 'transient-inactive-value))
+           (setq base-name (propertize base-name 'face 'transient-inactive-argument)
+                 value-desc (propertize value-desc 'face 'transient-inactive-value))
          (setq value-desc (propertize value-desc 'face 'transient-value)))
        (concat base-name " " value-desc))))
 
-(cl-defun stp-transient-toggle-binding (slot &rest args &key (key (substring (stp-option-slot-base-name slot) 0 1)) &allow-other-keys)
+(cl-defun stp-transient-toggle-binding (slot &rest args &key (key (substring (apply #'stp-option-slot-base-name slot args) 0 1)) &allow-other-keys)
   `(,key
     ,(apply #'stp-transient-slot-description slot args)
     ,(apply #'stp-transient-slot-toggler slot args)
@@ -103,14 +108,23 @@
 (cl-macrolet
     ((make-transient ()
        `(transient-define-prefix stp-toggle-options-transient (options normal-exit)
+          ["Controller"
+           ,@(stp-transient-toggle-bindings
+              '((controller-class :name "controller"
+                                  :key "C"
+                                  :value-desc-fun prin1-to-string)
+                (make-controller-args :name "controller-args"
+                                      :key "M"
+                                      :value-desc-fun prin1-to-string)))]
           [["Options"
-            ,@(stp-transient-toggle-bindings '(do-commit
-                                               do-push
-                                               do-lock
-                                               (do-reset :choices ("nil" "(:audit)" "(:error)" "(:audit :error)" "t"))
-                                               do-dependencies
-                                               (do-audit :key "A")
-                                               do-tag))]
+            ,@(stp-transient-toggle-bindings
+               '(do-commit
+                 do-push
+                 do-lock
+                 (do-reset :choices ("nil" "(:audit)" "(:error)" "(:audit :error)" "t"))
+                 do-dependencies
+                 (do-audit :key "A")
+                 do-tag))]
            [:description
             (lambda ()
               (let* ((scope (transient-scope))
@@ -119,12 +133,13 @@
                     "Actions"
                   "")))
             ,(stp-transient-toggle-binding 'do-actions)
-            ,@(stp-transient-toggle-bindings '(do-update-load-path
-                                               (do-load :key "g")
-                                               do-build
-                                               (do-build-info :key "m")
-                                               (do-update-info-directories :key "I"))
-                                             :action t)]]
+            ,@(stp-transient-toggle-bindings
+               '(do-update-load-path
+                 (do-load :key "g")
+                 do-build
+                 (do-build-info :key "m")
+                 (do-update-info-directories :key "I"))
+               :action t)]]
           ["Commands"
            ("RET" "execute" (lambda ()
                               (interactive)
