@@ -625,12 +625,22 @@ no errors."
 
 (defvar stp-default-controller-args nil)
 
+(cl-defgeneric stp-make-controller-get-class-args (options))
+
+(cl-defmethod stp-make-controller-get-class-args ((options stp-operation-options))
+  (list stp-default-controller-class stp-default-controller-args))
+
+(cl-defmethod stp-make-controller-get-class-args ((options stp-controlled-operation-options))
+  (list (oref options controller-class) (oref options make-controller-args)))
+
 (cl-defgeneric stp-make-controller (options &rest args)
   "Make a new controller of class `stp-default-controller-class' by
 merging `stp-default-controller-args' with ARGS.")
 
 (cl-defmethod stp-make-controller ((options stp-operation-options) &rest args)
-  (apply stp-default-controller-class :options options (map-merge 'plist stp-default-controller-args args)))
+  (db (class default-args)
+      (stp-make-controller-get-class-args options)
+    (apply class :options options (map-merge 'plist default-args args))))
 
 (cl-defgeneric stp-controller-append-errors (controller pkg-name &rest errors)
   (:documentation
