@@ -179,12 +179,12 @@ managers.")
 `stp-development-directory'.")
 
 (defun stp-headers-update-features (&optional suppress-first)
-  "Update `stp-headers-installed-features'. Add the new features from
-packages that were installed or upgraded since this function was
-last invoked. This is much faster than recomputing all features
-which can take several seconds or more if many packages are
-installed. The downside is that packages installed outside of STP
-will not be detected."
+  "Update `stp-headers-installed-features'. Add the new features
+from packages that were installed or upgraded since this function
+was last invoked. This is much faster than recomputing all
+features which can take several seconds or more if many packages
+are installed. The downside is that modifications made to
+packages from outside of STP will not be detected."
   (when stp-headers-always-recompute-features
     (setq stp-headers-elisp-file-feature-cache (make-hash-table :test #'equal)))
   (if (and (not stp-headers-always-recompute-features)

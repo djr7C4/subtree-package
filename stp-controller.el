@@ -848,6 +848,12 @@ package and were installed as dependencies."))
          (stp-uninstall-operation :pkg-name pkg-name
                                   :options options))))))
 
+;; Update the installed features after each operation that installs, uninstalls
+;; or upgrades a package.
+(cl-defmethod stp-operate ((controller stp-controller) (operation stp-package-change-operation))
+  (cl-call-next-method)
+  (stp-headers-update-features))
+
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-dependencies)
@@ -880,7 +886,6 @@ package and were installed as dependencies."))
 
 (cl-defmethod stp-ensure-requirements ((controller stp-controller) requirements options)
   (stp-msg "Analyzing the load path for installed packages...")
-  (stp-headers-update-features)
   (cl-dolist (requirement requirements)
     ;; Also allow a list of package names.
     (db (pkg-sym &optional version)
@@ -914,8 +919,7 @@ package and were installed as dependencies."))
            (stp-upgrade-operation :pkg-name pkg-name
                                   :options options
                                   :prompt-prefix prefix
-                                  :min-version version))))))
-    (stp-headers-update-features)))
+                                  :min-version version))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-operation))
   (let ((options (stp-options controller operation)))
