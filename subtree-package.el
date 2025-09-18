@@ -258,12 +258,11 @@ occurred."
   (or (stp-list-package-on-previous-line)
       (stp-list-package-on-next-line)))
 
-(cl-defun stp-command-options (&key (class 'stp-package-operation-options) (toggle-p (fn current-prefix-arg)))
-  (let ((options (make-instance class)))
-    (when (stp-maybe-call toggle-p)
-      (stp-toggle-options options))
-    (stp-validate-options options)
-    options))
+(cl-defun stp-command-options (&key (class 'stp-package-operation-options) (options (make-instance class)) (toggle-p (fn current-prefix-arg)))
+  (when (stp-maybe-call toggle-p)
+    (stp-toggle-options options))
+  (stp-validate-options options)
+  options)
 
 (cl-defun stp-command-args (&key pkg-name (prompt-prefix "") pkg-version controller read-pkg-alist (existing-pkg t) (line-pkg t) min-version enforce-min-version)
   "Prepare an argument list for an interactive command.
