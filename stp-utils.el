@@ -676,7 +676,9 @@ according to `stp-attribute-order'."
 (defun stp-write-info ()
   (with-temp-buffer
     (insert ";;; -*- buffer-read-only: t; no-byte-compile: t; -*-\n\n")
-    (pp (stp-sort-info stp-package-info) (current-buffer))
+    (let ((print-length nil)
+          (print-level nil))
+      (pp (stp-sort-info stp-package-info) (current-buffer)))
     (f-write (buffer-string) 'utf-8 stp-info-file)))
 
 (defun stp-get-attribute (pkg-name attr)
