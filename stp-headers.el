@@ -196,7 +196,6 @@ will not be detected."
              (modified-packages (mapcar #'car (cl-set-difference new-versions stp-headers-versions :test #'equal)))
              (new-paths (mapcan (-compose #'stp-compute-load-path #'stp-canonical-path)
                                 modified-packages))
-             ;; stp-headers-update-recompute-development-directory
              (dev-paths (and stp-headers-update-recompute-development-directory
                              (stp-compute-load-paths stp-development-directory)))
              (new-features (stp-headers-paths-features (append new-paths dev-paths))))
@@ -234,7 +233,8 @@ argument, all features are recomputed unconditionally."
               (unless (f-ancestor-of-p lisp-directory file)
                 (remhash file stp-headers-elisp-file-feature-cache)))
             (hash-table-keys stp-headers-elisp-file-feature-cache)))
-    (stp-headers-update-features t)))
+    (stp-headers-update-features t)
+    (stp-msg "Recomputed features")))
 
 (defun stp-headers-compute-versions ()
   (cons `(emacs ,emacs-version)
@@ -556,7 +556,7 @@ inserted."
           (setq inserted t)
           (insert ";; Package-Requires: ()")))
       (run-hooks 'stp-headers-update-hook)
-      (message "Update headers in %s" (or buffer-file-name (buffer-name)))
+      (stp-msg "Updated headers in %s" (or buffer-file-name (buffer-name)))
       inserted)))
 
 (defvar stp-main-package-name-transform (fn (s-chop-suffix ".el" (s-chop-prefix "emacs-" %)))
