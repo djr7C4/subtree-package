@@ -91,7 +91,7 @@
      (let* ((scope (transient-scope))
             (options (car scope))
             (value (slot-value options ',slot))
-            (value-desc (funcall #'prin1-to-string value))
+            (value-desc (funcall #',value-desc-fun value))
             (base-name ,(apply #'stp-option-slot-base-name slot args)))
        (if (and ,action (not (slot-value options 'do-actions)))
            (setq base-name (propertize base-name 'face 'transient-inactive-argument)
