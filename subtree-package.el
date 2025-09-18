@@ -1268,6 +1268,7 @@ not slow down Emacs while the fields are being updated."
               "e" #'stp-edit-remotes-command
               "E" #'stp-add-or-edit-package-group-command
               "f" #'stp-fork-command
+              "F" #'stp-headers-recompute-features
               "g" #'stp-list-refresh
               "G" #'stp-reload
               "i" #'stp-install-command
