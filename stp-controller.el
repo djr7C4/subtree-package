@@ -159,7 +159,7 @@ appropriate error if they are not."))
        -uniq
        (-sort #'string<)))
 
-(defun stp-abbreviate-remote-version (pkg-name method remote version)
+(defun stp-abbreviate-remote-version (method remote version)
   "Abbreviate long hashes to make them more readable.
 
 Other versions are not abbreviated."
@@ -884,7 +884,7 @@ package and were installed as dependencies."))
                     (push feature stp-headers-uninstalled-features))
                   (stp-delete-load-path pkg-name)
                   (stp-git-commit (format "Uninstalled version %s of %s"
-                                          (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                          (stp-abbreviate-remote-version .method .remote .version)
                                           pkg-name)
                                   :do-commit do-commit)
                   (when (stp-maybe-call do-dependencies)
@@ -964,7 +964,7 @@ package and were installed as dependencies."))
               ;; being read and so .version will be nil here.
               (setq .version (stp-get-attribute pkg-name 'version))
               (stp-git-commit (format "Installed version %s of %s"
-                                      (stp-abbreviate-remote-version pkg-name .method .remote .version)
+                                      (stp-abbreviate-remote-version .method .remote .version)
                                       pkg-name)
                               :do-commit do-commit)
               (when (stp-maybe-call do-dependencies)
@@ -988,7 +988,7 @@ package and were installed as dependencies."))
             (let* ((chosen-remote (stp-controller-get-remote controller "Remote: " .remote .other-remotes))
                    (prompt (and (not new-version)
                                 (format "Upgrade from %s to version%s: "
-                                        (stp-abbreviate-remote-version pkg-name .method chosen-remote .version)
+                                        (stp-abbreviate-remote-version .method chosen-remote .version)
                                         (stp-min-version-annotation min-version enforce-min-version)))))
               (when (stp-url-safe-remote-p chosen-remote)
                 (unless new-version
@@ -1014,7 +1014,7 @@ package and were installed as dependencies."))
                 ;; resolves any merge conflicts.
                 (stp-upgrade-handle-merge-conflicts)
                 (stp-git-commit (format "Upgraded to version %s of %s"
-                                        (stp-abbreviate-remote-version pkg-name .method chosen-remote new-version)
+                                        (stp-abbreviate-remote-version .method chosen-remote new-version)
                                         pkg-name)
                                 :do-commit do-commit)
                 (when (stp-maybe-call do-dependencies)
