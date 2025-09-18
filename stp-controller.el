@@ -166,8 +166,10 @@ Other versions are not abbreviated."
   (cond
    ((and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
     (stp-git-abbreviate-hash version))
+   ((eq method 'git)
+    (stp-git-normalize-version remote version))
    (t
-    (stp-git-normalize-version remote version))))
+    version)))
 
 (cl-defun stp-list-read-name (prompt)
   "In `stp-list-mode', return the package on the current line if there
