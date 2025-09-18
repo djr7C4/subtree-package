@@ -116,6 +116,13 @@
                              args)))
           slots))
 
+(cl-defun stp-transient-hide-group (slots &key (invert t))
+  (setq slots (mapcar (fn (if (consp %) (car %) %)) slots))
+  `(lambda ()
+     (let* ((scope (transient-scope))
+            (options (car scope)))
+       (xor (stp-some-slot-exists-p ',slots options) ,invert))))
+
 (defvar stp-transient-reset-choices '(nil (:audit) (:error) (:audit :error) t))
 (defvar stp-transient-controller-choices '(stp-auto-controller stp-interactive-controller))
 
@@ -123,49 +130,52 @@
   '((stp-auto-controller nil (:preferred-update stable) (:preferred-update unstable))
     (stp-interactive-controller nil)))
 
+(defvar stp-transient-controller-specs
+  `((controller-class :name "controller"
+                      :key "C"
+                      :choices ,stp-transient-controller-choices
+                      :require-match nil
+                      :value-desc-fun prin1-to-string)
+    (make-controller-args :name "controller-args"
+                          :key "M"
+                          :choices (lambda ()
+                                     (let* ((scope (transient-scope))
+                                            (options (car scope)))
+                                       (map-elt ',stp-transient-controller-args-choices-alist
+                                                (oref options controller-class))))
+                          :require-match nil
+                          :value-desc-fun prin1-to-string)))
+
+(defvar stp-transient-option-specs
+  `(do-commit
+    do-push
+    do-lock
+    (do-reset :choices ,stp-transient-reset-choices)
+    do-dependencies
+    (do-audit :key "A")
+    do-tag))
+
+(defvar stp-transient-action-specs
+  (cons 'do-actions
+        (mapcar (fn (rem-at-end % :action t))
+                '(do-update-load-path
+                  (do-load :key "g")
+                  do-build
+                  (do-build-info :key "m")
+                  (do-update-info-directories :key "I")))))
+
 (cl-macrolet
     ((make-transient ()
        `(transient-define-prefix stp-toggle-options-transient (options normal-exit)
           ["Controller"
-           ,@(stp-transient-toggle-bindings
-              `((controller-class :name "controller"
-                                  :key "C"
-                                  :choices ,stp-transient-controller-choices
-                                  :require-match nil
-                                  :value-desc-fun prin1-to-string)
-                (make-controller-args :name "controller-args"
-                                      :key "M"
-                                      :choices (lambda ()
-                                                 (let* ((scope (transient-scope))
-                                                        (options (car scope)))
-                                                   (map-elt ',stp-transient-controller-args-choices-alist
-                                                            (oref options controller-class))))
-                                      :require-match nil
-                                      :value-desc-fun prin1-to-string)))]
+           :hide ,(stp-transient-hide-group stp-transient-controller-specs)
+           ,@(stp-transient-toggle-bindings stp-transient-controller-specs)]
           [["Options"
-            ,@(stp-transient-toggle-bindings
-               `(do-commit
-                 do-push
-                 do-lock
-                 (do-reset :choices ,stp-transient-reset-choices)
-                 do-dependencies
-                 (do-audit :key "A")
-                 do-tag))]
-           [:description
-            (lambda ()
-              (let* ((scope (transient-scope))
-                     (options (car scope)))
-                (if (slot-exists-p options 'do-actions)
-                    "Actions"
-                  "")))
-            ,(stp-transient-toggle-binding 'do-actions)
-            ,@(stp-transient-toggle-bindings
-               '(do-update-load-path
-                 (do-load :key "g")
-                 do-build
-                 (do-build-info :key "m")
-                 (do-update-info-directories :key "I"))
-               :action t)]]
+            :if ,(stp-transient-hide-group stp-transient-option-specs :invert nil)
+            ,@(stp-transient-toggle-bindings stp-transient-option-specs)]
+           ["Actions"
+            :if ,(stp-transient-hide-group stp-transient-action-specs :invert nil)
+            ,@(stp-transient-toggle-bindings (cdr stp-transient-action-specs))]]
           ["Commands"
            ("RET" "execute" (lambda ()
                               (interactive)

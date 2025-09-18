@@ -121,6 +121,9 @@ Otherwise, return VALUE."
       (apply value args)
     value))
 
+(defun stp-some-slot-exists-p (slots object)
+  (cl-some (-partial #'slot-exists-p object) slots))
+
 (defun stp-short-format-seconds (seconds)
   (concat (if (< seconds 0) "-" "")
           (progn
@@ -295,26 +298,6 @@ never ends with a slash (nor does it contain any slashes)."
   ;; Remove .git and then the extension. This causes the default name for a
   ;; repository like "abc.el.git" to be "abc".
   (f-no-ext (s-chop-suffix ".git" (f-filename remote))))
-
-(defun stp-skip-package ()
-  "Skip installing or upgrading this package."
-  (interactive)
-  (throw 'stp-skip 'skip))
-
-(defvar-keymap stp-skip-map
-  "C-c C-k" #'stp-skip-package)
-
-(defmacro stp-allow-skip (skip-form &rest body)
-  (declare (indent 1))
-  (with-gensyms (result)
-    `(cl-flet ((setup-keymap ()
-                 (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map)))))
-       (let ((,result (minibuffer-with-setup-hook (:append #'setup-keymap)
-                        (catch 'stp-skip
-                          ,@body))))
-         (when (eq ,result 'skip)
-           ,skip-form)
-         ,result))))
 
 (def-edebug-spec stp-allow-skip (form body))
 

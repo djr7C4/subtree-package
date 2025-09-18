@@ -622,7 +622,6 @@ no errors."
    (respect-update :initarg :respect-update :initform t)))
 
 (defvar stp-default-controller-class 'stp-auto-controller)
-
 (defvar stp-default-controller-args nil)
 
 (cl-defgeneric stp-make-controller-get-class-args (options))
@@ -820,6 +819,26 @@ operations to perform."))
 (cl-defmethod stp-ensure-prerequistites ((_controller stp-controller) (_operation stp-package-change-operation))
   (stp-maybe-ensure-clean)
   (cl-call-next-method))
+
+(defun stp-skip-package ()
+  "Skip installing or upgrading this package."
+  (interactive)
+  (throw 'stp-skip 'skip))
+
+(defvar-keymap stp-skip-map
+  "C-c C-k" #'stp-skip-package)
+
+(defmacro stp-allow-skip (skip-form &rest body)
+  (declare (indent 1))
+  (with-gensyms (result)
+    `(cl-flet ((setup-keymap ()
+                 (use-local-map (make-composed-keymap (list stp-skip-map) (current-local-map)))))
+       (let ((,result (minibuffer-with-setup-hook (:append #'setup-keymap)
+                        (catch 'stp-skip
+                          ,@body))))
+         (when (eq ,result 'skip)
+           ,skip-form)
+         ,result))))
 
 (cl-defgeneric stp-operate (controller operation)
   (:documentation
