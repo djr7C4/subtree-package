@@ -460,9 +460,13 @@ was inserted."
   (and (string= pkg-name "emacs")
        (version< version (format "%d.%d" emacs-major-version emacs-minor-version))))
 
+(defun stp-installed-p (pkg-name)
+  (f-dir-p (stp-full-path pkg-name)))
+
 (defun stp-installed-version (pkg-name)
-  (cadr (cl-find-if (fn (eq (car %) (intern pkg-name)))
-                    (stp-headers-directory-features (stp-full-path pkg-name) :recursive t))))
+  (and (stp-installed-p pkg-name)
+       (cadr (cl-find-if (fn (eq (car %) (intern pkg-name)))
+                         (stp-headers-directory-features (stp-full-path pkg-name) :recursive t)))))
 
 (defun stp-package-requirement-satisfied-p (pkg-name &optional version search-load-path)
   (let ((pkg-sym (intern pkg-name)))

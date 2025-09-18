@@ -859,11 +859,12 @@ package and were installed as dependencies."))
 (cl-defmethod stp-operate :around ((_controller stp-controller) (operation stp-additive-operation))
   (with-slots (pkg-name dependency min-version)
       operation
-    (unless (and dependency
-                 ;; It isn't necessary to search the load path because we just
-                 ;; want to know if the package was already installed or
-                 ;; upgraded within STP.
-                 (stp-package-requirement-satisfied-p pkg-name min-version))
+    (if (and dependency
+             ;; It isn't necessary to search the load path because we just
+             ;; want to know if the package was already installed or
+             ;; upgraded within STP.
+             (stp-package-requirement-satisfied-p pkg-name min-version))
+        'ignore
       (cl-call-next-method))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
@@ -1125,9 +1126,10 @@ package and were installed as dependencies."))
           (condition-case err
               (progn
                 (stp-ensure-prerequistites controller operation)
-                (if (eq (stp-operate controller operation) 'skip)
-                    (push operation skipped-operations)
-                  (push operation successful-operations)))
+                (cl-case (stp-operate controller operation)
+                  (skip (push operation skipped-operations))
+                  (ignore)
+                  (t (push operation successful-operations))))
             (error (push (cons operation err) failed-operations))))
         ;; Resetting should be done before pushing or locking if an error occurred.
         (let ((reset (stp-maybe-call do-reset)))
