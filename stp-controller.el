@@ -552,9 +552,11 @@ no errors."
           (stp-msg "Updated the lock file at %s" stp-lock-file))))))
 
 (cl-defun stp-read-package (&key pkg-name pkg-alist (prompt-prefix "") min-version enforce-min-version)
-  (plet* ((`(,pkg-name . ,remote) (stp-read-remote-or-archive (stp-prefix-prompt prompt-prefix "Package name or remote: ")
-                                                              :pkg-name pkg-name
-                                                              :default-remote (map-elt pkg-alist 'remote)))
+  (plet* ((`(,pkg-name . ,remote)
+           (-> (stp-prefix-prompt prompt-prefix "Package name or remote: ")
+               (stp-read-remote-or-archive
+                :pkg-name pkg-name
+                :default-remote (map-elt pkg-alist 'remote))))
           (method (stp-remote-method remote)))
     (let (version update branch)
       (cl-ecase method
@@ -628,7 +630,7 @@ no errors."
 
 (cl-defgeneric stp-make-controller-get-class-args (options))
 
-(cl-defmethod stp-make-controller-get-class-args ((options stp-operation-options))
+(cl-defmethod stp-make-controller-get-class-args ((_options stp-operation-options))
   (list stp-default-controller-class stp-default-controller-args))
 
 (cl-defmethod stp-make-controller-get-class-args ((options stp-controlled-operation-options))
@@ -714,11 +716,12 @@ operations to perform."))
           latest-stable
         branch))))
 
-(cl-defmethod stp-controller-get-package ((controller stp-auto-controller) pkg-name _prompt-prefix min-version enforce-min-version)
-  (unless pkg-name
-    (setq pkg-name (rem-comp-read "Package name: " (stp-package-candidate-names) :require-match t)))
-  (let* ((remote (car (stp-find-remotes pkg-name)))
-         (method (stp-remote-method remote)))
+(cl-defmethod stp-controller-get-package ((controller stp-auto-controller) pkg-name prompt-prefix min-version enforce-min-version)
+  (plet* ((`(,pkg-name . ,remote)
+           (-> (stp-prefix-prompt prompt-prefix "Package name or remote: ")
+               (stp-read-remote-or-archive :pkg-name pkg-name)))
+          (remote (or remote (car (stp-find-remotes pkg-name))))
+          (method (stp-remote-method remote)))
     (append `(,pkg-name
               (method . ,method)
               (remote . ,remote))
