@@ -31,9 +31,9 @@ also be done using manual git commands but several common tasks are tedious.
 STP addresses all of these issues and much more.
 1. Package repositories are automatically determined from the package name using
    package archives enabled in =package-archives=.
-2. The version to install or upgrade to can be selected using completion. STP
-   automatically detects the suitable tags and branches to provide as completion
-   candidates.
+2. The version to install or upgrade to can be selected automatically or using
+   completion. STP detects the suitable tags and branches to provide as
+   completion candidates.
 3. Dependencies of packages are detected automatically when a package is
    installed or upgraded and are automatically upgraded or installed as
    necessary.
@@ -66,26 +66,31 @@ Most complex commands such as =stp-install-command= and =stp-upgrade-command=
 allow their default options (automatically committing, pushing and so forth) to
 be modified via a transient menu when the command is run with a prefix argument.
 ** Specify the level control you want over packages
-By default, STP prompts the user quite a bit which allows for full control over
-installation and upgrading packages. For example, when you install a new
-package, you will be prompted for the package name, the remote, the update policy
-(stable or unstable) and the version. Some users may wish to eliminate as many of
-these prompts as possible.
-
-In order to always choose the latest stable version when one is available, add
-the following to your =~/.emacs.d/init.el=.
+By default, when you select a package to install, STP determines the details
+(e.g. the remote, the update policy (stable or unstable) and the version)
+automatically. By default, stable versions are preferred. To prefer the tip of
+the upstream branch instead, add the following to your =~/.emacs.d/init.el=.
 
 #+begin_src emacs-lisp
   (require 'stp)
 
-  (setq stp-default-controller-class 'stp-auto-controller
-        stp-default-controller-args '(:preferred-update stable))
+  (setq stp-default-controller-args '(:preferred-update unstable))
 #+end_src
 
-Replacing ='(:preferred-update stable)= with ='(:preferred-update unstable)=
-will cause the tip of the upstream branch to be chosen. It is also possible to
-define your own custom policy of when the user should be prompted by defining a
-subclass of =stp-controller=.
+To instruct STP to prompt you for package details, use a universal prefix
+argument with the install or upgrade command and use =C= from the transient menu
+to enable the interactive controller.
+
+If you want STP to always prompt you by default for maximum control, add the
+following to your =~/.emacs.d/init.el=.
+
+#+begin_src emacs-lisp
+  (require 'stp)
+
+  (setq stp-default-controller-class 'stp-interative-controller)
+#+end_src
+It is also possible to define your own custom policy by defining a subclass of
+=stp-controller=.
 ** Freely edit installed packages
 Packages installed in =stp-source-directory= can be freely modified. If you
 later upgrade the package to a newer version, any conflicts that arise due to
@@ -338,12 +343,12 @@ database from the git repository. This will cause the packages installed by the
 bootstrap script to be recognized as STP packages.
 * Comparison with other package managers
 The main strengths of STP are
-- It is highly interactive by default and works hard to avoid forcing you to
-  leave Emacs during the installation process (for example to find repositories
-  and releases on github).
+- It is highly interactive and works hard to avoid forcing you to leave Emacs
+  during the installation process (for example to find repositories and releases
+  on github).
 - There are many configuration options possible. By setting a few variables, you
-  can reconfigure STP to automatically resolve user prompts whenever possible or
-  prompt according to a custom policy.
+  can configure STP to prompt the user for every detail or automatically resolve
+  user prompts whenever possible or prompt according to a custom policy.
 - Your configuration is completely reproducible without depending on any
   external git repositories. Even if all external repositories were deleted, you
   would still be able to immediately reproduce your configuration simply by
