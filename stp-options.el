@@ -157,7 +157,7 @@
 
 (defvar stp-transient-action-specs
   (cons 'do-actions
-        (mapcar (fn (rem-at-end % :action t))
+        (mapcar (fn (rem-at-end (ensure-list %) :action t))
                 '(do-update-load-path
                   (do-load :key "g")
                   do-build
