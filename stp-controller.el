@@ -304,7 +304,7 @@ contain strings that map to remote symbols representing archives."
          stp-sort-remotes
          (mapcar #'car))))
 
-(cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix ""))
+(cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix "") (read-remote t))
   "Read a package name and remote of any type or a package archive.
 
 When the input is ambiguous and could be package name or a local
@@ -330,14 +330,16 @@ remote or archive. Archives are represented as symbols."
                                   (stp-emacsmirror-find-remotes pkg-name)
                                   (mapcar (fn (cons % 'elpa))
                                           (stp-elpa-package-urls pkg-name archives :annotate t))))
-                 (remote-or-archive (stp-comp-read-remote
-                                     "Remote or archive: "
-                                     (->> (append remotes archive-alist)
-                                          stp-sort-remotes
-                                          (mapcar #'car))
-                                     :default (car remotes))))
-            (cons pkg-name (or (map-elt archive-alist remote-or-archive)
-                               (car (s-split " " remote-or-archive))))))
+                 (remote-or-archive (and read-remote
+                                         (stp-comp-read-remote
+                                          "Remote or archive: "
+                                          (->> (append remotes archive-alist)
+                                               stp-sort-remotes
+                                               (mapcar #'car))
+                                          :default (car remotes)))))
+            (cons pkg-name (and remote-or-archive
+                                (or (map-elt archive-alist remote-or-archive)
+                                    (car (s-split " " remote-or-archive)))))))
       ;; Otherwise the user chose a remote so prompt for its package name.
       (let ((remote (stp-normalize-remote name-or-remote)))
         (cons (or pkg-name (stp-read-name (stp-prefix-prompt prompt-prefix "Package name: ") :default (stp-default-name remote)))
@@ -738,8 +740,10 @@ operations to perform."))
 
 (cl-defmethod stp-controller-get-package ((controller stp-auto-controller) pkg-name prompt-prefix min-version enforce-min-version)
   (plet* ((`(,pkg-name . ,remote)
-           (-> (stp-prefix-prompt prompt-prefix "Package name or remote: ")
-               (stp-read-remote-or-archive :pkg-name pkg-name)))
+           (or (and pkg-name
+                    (cons pkg-name nil))
+               (-> (stp-prefix-prompt prompt-prefix "Package name or remote: ")
+               (stp-read-remote-or-archive :pkg-name pkg-name :read-remote nil))))
           (remote (or remote (car (stp-find-remotes pkg-name))))
           (method (stp-remote-method remote)))
     (append `(,pkg-name
