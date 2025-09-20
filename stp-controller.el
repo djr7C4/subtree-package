@@ -623,7 +623,8 @@ no errors."
 
 (defclass stp-auto-controller (stp-controller)
   ((preferred-update :initarg :preferred-update :initform 'stable)
-   (respect-update :initarg :respect-update :initform t)))
+   (respect-update :initarg :respect-update :initform t)
+   (development-directory-override :initarg :development-directory-override :initform 'unstable)))
 
 (defvar stp-default-controller-class 'stp-auto-controller)
 (defvar stp-default-controller-args nil)
@@ -695,7 +696,7 @@ operations to perform."))
 
 (cl-defmethod stp-controller-actual-update ((controller stp-auto-controller) remote update)
   "Determine the update parameter to use."
-  (with-slots (preferred-update respect-update)
+  (with-slots (preferred-update respect-update development-directory-override)
       controller
     ;; Respect the package's update attribute if it is set and the controller is
     ;; set to do respect package's update attributes.
@@ -704,7 +705,8 @@ operations to perform."))
       update)
      ;; Always prefer the unstable version when the remote is in the development
      ;; directory.
-     ((and (not (symbolp remote))
+     ((and development-directory-override
+           (not (symbolp remote))
            (f-dir-p remote)
            (rem-ancestor-of-inclusive-p (f-canonical stp-development-directory)
                                         (f-canonical remote)))
