@@ -690,6 +690,28 @@ operations to perform."))
   (when (and min-version enforce-min-version (not (stp-version<= min-version version)))
     (error "The newest version for %s is %s but at least %s is required" pkg-name version min-version)))
 
+(cl-defgeneric stp-controller-actual-update (controller remote update)
+  "Determine the update parameter to use.")
+
+(cl-defmethod stp-controller-actual-update ((controller stp-auto-controller) remote update)
+  "Determine the update parameter to use."
+  (with-slots (preferred-update respect-update)
+      controller
+    ;; Respect the package's update attribute if it is set and the controller is
+    ;; set to do respect package's update attributes.
+    (cond
+     ((and respect-update update)
+      update)
+     ;; Always prefer the unstable version when the remote is in the development
+     ;; directory.
+     ((and (not (symbolp remote))
+           (f-dir-p remote)
+           (rem-ancestor-of-inclusive-p (f-canonical stp-development-directory)
+                                        (f-canonical remote)))
+      'unstable)
+     (t
+      preferred-update))))
+
 (cl-defgeneric stp-controller-preferred-git-version (controller remote min-version update))
 
 (cl-defmethod stp-controller-preferred-git-version :around ((_controller stp-controller) remote _min-version _update)
@@ -697,15 +719,11 @@ operations to perform."))
     (stp-git-normalize-version remote version)))
 
 (cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) remote min-version update)
-  (with-slots (preferred-update respect-update)
+  (with-slots (preferred-update)
       controller
     (let (latest-stable
           (branch (car (stp-git-remote-heads-sorted remote)))
-          ;; Respect the package's update attribute if it is set and the
-          ;; controller is set to do respect package's update attributes.
-          (actual-update (if (and respect-update update)
-                             update
-                           preferred-update)))
+          (actual-update (stp-controller-actual-update controller remote update)))
       (if (and (eq actual-update 'stable)
                (setq latest-stable (stp-git-latest-stable-version remote))
                ;; If there's a minimum version and the
