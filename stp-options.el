@@ -72,8 +72,7 @@
                     read))
               (t
                (not (oref options ,slot))))))
-       (oset options ,slot new-value)
-       (transient-setup transient-current-command nil nil :scope scope))))
+       (oset options ,slot new-value))))
 
 (defvar stp-transient-truncation-length 30)
 
@@ -103,6 +102,7 @@
   `(,key
     ,(apply #'stp-transient-slot-description slot args)
     ,(apply #'stp-transient-slot-toggler slot args)
+    :transient t
     :if (lambda ()
           (let* ((scope (transient-scope))
                  (options (car scope)))
