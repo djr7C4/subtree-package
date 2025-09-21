@@ -177,9 +177,11 @@
             :if ,(stp-transient-hide-group-p stp-transient-action-specs :invert nil)
             ,@(stp-transient-toggle-bindings (cdr stp-transient-action-specs))]]
           ["Commands"
-           ("RET" "execute" (lambda ()
-                              (interactive)
-                              (setf (caadr (transient-scope)) t)))]
+           ("RET"
+            "execute"
+            (lambda ()
+              (interactive)
+              (setf (caadr (transient-scope)) t)))]
           (interactive (error "This transient should be called as a function rather than interactively"))
           (transient-setup 'stp-toggle-options-transient nil nil :scope (list options normal-exit)))))
   (make-transient))
