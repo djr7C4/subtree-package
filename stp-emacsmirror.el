@@ -95,7 +95,7 @@ Emacs packages.")
 (defun stp-emacsmirror-package-repositories ()
   (->> stp-emacsmirror-alist
        (mapcar (lambda (cell)
-                 (db (mirror . pkg-names)
+                 (dsb (mirror . pkg-names)
                      cell
                    (mapcar (lambda (pkg-name)
                              (cons pkg-name (format "https://github.com/%s/%s/" mirror pkg-name)))
@@ -123,7 +123,7 @@ is an alist that maps remotes to methods."
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")

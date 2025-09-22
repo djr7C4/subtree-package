@@ -151,7 +151,7 @@ version is used.")
 (cl-defun stp-latest-version-annotation (count version-timestamp latest-timestamp &key keep-zero)
   (let* ((count-string (cond
                         ((consp count)
-                         (db (m n)
+                         (dsb (m n)
                              count
                            (format "%+d%d" m (- n))))
                         ((and (integerp count)
@@ -485,7 +485,7 @@ expression is active.")
   ;; `cl-dolist' is used because of the use of `cl-return'. `dolist' only works
   ;; with `cl-return' when the deprecated `cl' library is loaded.
   (or (cl-dolist (cell stp-remote-transformers)
-        (db (regexp . transformer)
+        (dsb (regexp . transformer)
             cell
           (when (string-match regexp remote)
             (cl-return (funcall transformer remote)))))
@@ -506,7 +506,7 @@ expression is active.")
   (let ((pkg-sym (intern pkg-name)))
     (mapcar #'car
             (-filter (lambda (cell)
-                       (db (_pkg-name2 . pkg-alist2)
+                       (dsb (_pkg-name2 . pkg-alist2)
                            cell
                          (let-alist pkg-alist2
                            (cl-find-if (lambda (requirement)
@@ -546,7 +546,7 @@ expression is active.")
 
 (defun stp-version-list= (v1 v2)
   ;; Add zeros for missing components.
-  (db (v1 v2)
+  (dsb (v1 v2)
       (-pad "0" v1 v2)
     (equal v1 v2)))
 
@@ -733,7 +733,7 @@ PKG-NAME."
 required by another package but were installed as dependencies."
   (mapcar #'car
           (-filter (lambda (pkg)
-                     (db (pkg-name . pkg-alist)
+                     (dsb (pkg-name . pkg-alist)
                          pkg
                        (and (map-elt pkg-alist 'dependency)
                             (not (stp-required-by pkg-name)))))
@@ -809,7 +809,7 @@ an argument.")
 (defun stp-version-extract (version)
   (save-match-data
     (cl-dolist (cell stp-version-extractor-alist)
-      (db (regexp . extractor)
+      (dsb (regexp . extractor)
           cell
         (let (version-suffix-alist
               (main-version version))
@@ -925,7 +925,7 @@ string or a list of the form (NAME VERSION)."
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")

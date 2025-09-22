@@ -117,7 +117,7 @@ to TRIES times."
            ;; put the package information back into the queue if there was an
            ;; error.
            (when data
-             (db (pkg-name tries latest-version-data error-message)
+             (dsb (pkg-name tries latest-version-data error-message)
                  data
                (cond
                 (latest-version-data
@@ -140,7 +140,7 @@ to TRIES times."
            (if (queue-empty queue)
                (when (and final-callback (= running 0))
                  (funcall final-callback latest-versions))
-             (db (pkg-name tries)
+             (dsb (pkg-name tries)
                  (queue-dequeue queue)
                (cl-incf running)
                (if async
@@ -190,7 +190,7 @@ to TRIES times."
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")

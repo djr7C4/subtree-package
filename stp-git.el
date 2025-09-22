@@ -313,7 +313,7 @@ returned."
                           (stp-git-abbreviate-hash version-hash)
                         (format "%s (%s)" (stp-git-abbreviate-hash version-hash) version))
                       pkg-name))
-        (db (exit-code output)
+        (dsb (exit-code output)
             (rem-run-command cmd :return 'both)
           (cond
            ;; Check for merge conflicts. These have to be dealt with manually by
@@ -369,7 +369,7 @@ returned."
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")

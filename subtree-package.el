@@ -148,7 +148,7 @@ occurred."
                     (unless .requirements
                       (setq .requirements (funcall callback 'requirements pkg-name))
                       (stp-update-requirements pkg-name .requirements))
-                    (db (version update)
+                    (dsb (version update)
                         (stp-git-subtree-version pkg-name)
                       (cl-case .method
                         (git
@@ -349,7 +349,7 @@ running the command."
       ;; Allow the user to toggle options before reading the package.
       (let* ((options (stp-command-options :class 'stp-install-operation-options))
              (controller (stp-make-controller options)))
-        (db (pkg-name pkg-alist)
+        (dsb (pkg-name pkg-alist)
             ;; This needs to be inside `stp-with-memoization' for efficiency
             ;; reasons so it is here instead of in the interactive spec.
             (stp-command-args :controller controller
@@ -371,7 +371,7 @@ running the command."
     (stp-with-memoization
       (stp-refresh-info)
       (let ((options (stp-command-options :class 'stp-uninstall-operation-options)))
-        (db (pkg-name)
+        (dsb (pkg-name)
             (stp-command-args)
           (stp-execute-operations (list (stp-uninstall-operation :pkg-name pkg-name))
                                   options)
@@ -385,7 +385,7 @@ running the command."
     (stp-with-memoization
       (stp-refresh-info)
       (let ((options (stp-command-options :class 'stp-upgrade-operation-options)))
-        (db (pkg-name)
+        (dsb (pkg-name)
             (stp-command-args)
           (stp-execute-operations (list (stp-upgrade-operation :pkg-name pkg-name))
                                   options)
@@ -402,13 +402,13 @@ are not satisfied to the user."
                             (mapcan (fn (cl-copy-list (map-elt (cdr %) 'requirements))))
                             stp-headers-merge-elisp-requirements))
          (unsatisfied-requirements (-filter (lambda (requirement)
-                                              (db (pkg-sym &optional version)
+                                              (dsb (pkg-sym &optional version)
                                                   requirement
                                                 (let ((pkg-name (symbol-name pkg-sym)))
                                                   (not (stp-requirement-satisfied-p pkg-name version t)))))
                                             requirements))
          (msgs (mapcar (lambda (requirement)
-                         (db (pkg-sym &optional version)
+                         (dsb (pkg-sym &optional version)
                              requirement
                            (let ((pkg-name (symbol-name pkg-sym)))
                              (format "%s%s: required by %s"
@@ -529,7 +529,7 @@ called with the local path to the fork.")
     (stp-with-memoization
       (stp-refresh-info)
       (let ((options (stp-command-options :class 'stp-reinstall-operation-options)))
-        (db (pkg-name version)
+        (dsb (pkg-name version)
             (stp-command-args :pkg-version t)
           (stp-execute-operations
            (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
@@ -1143,7 +1143,7 @@ not slow down Emacs while the fields are being updated."
     (error "Synchronous batch updates are not allowed"))
   (stp-refresh-info)
   (stp-prune-cached-latest-versions)
-  (db (quiet-toplevel quiet-packages)
+  (dsb (quiet-toplevel quiet-packages)
       (cl-case quiet
         ((nil)
          (list nil nil))
@@ -1173,7 +1173,7 @@ not slow down Emacs while the fields are being updated."
           (setq stp-list-update-latest-versions-running t)))
       (if pkg-names
           (cl-flet ((process-package (latest-version-data)
-                      (db (pkg-name . version-alist)
+                      (dsb (pkg-name . version-alist)
                           latest-version-data
                         (push pkg-name updated-pkgs)
                         (setf (map-elt stp-latest-versions-cache pkg-name) version-alist)
@@ -1709,7 +1709,7 @@ if no version header is found for the current file."
 ;; Local Variables:
 ;; eval: (add-hook 'stp-headers-update-hook #'stp-headers-write-bootstrap-requirements nil t)
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")

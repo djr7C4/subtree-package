@@ -62,7 +62,7 @@ file and the relative path to the current file or directory
 within that package."
   (stp-refresh-info)
   (let ((path (or buffer-file-name default-directory)))
-    (db (pkg-name k)
+    (dsb (pkg-name k)
         (->> (stp-info-names)
              (mapcar (lambda (pkg-name)
                        (list pkg-name
@@ -127,7 +127,7 @@ within that package."
 (cl-defun stp-git-add (path &key update)
   "Run \"git add\" on path. When UPDATE is non-nil, only add changes
 to tracked files."
-  (db (dir target)
+  (dsb (dir target)
       (if (f-dir-p path)
           ;; This allows path to be the top-level of a git repository.
           (list path ".")
@@ -255,7 +255,7 @@ renamed or copied, there is also a fourth element that indicates
 the new name."
   (let ((output (rem-run-command '("git" "status" "--porcelain") :error t)))
     (cl-remove-if (lambda (status)
-                    (db (index-status worktree-status &rest args)
+                    (dsb (index-status worktree-status &rest args)
                         status
                       (and (string= index-status worktree-status)
                            (member index-status
@@ -285,7 +285,7 @@ the new name."
   "Return the list of files with merge conflicts."
   (->> (stp-git-status)
        (-filter (lambda (status)
-                  (db (index-status worktree-status &rest args)
+                  (dsb (index-status worktree-status &rest args)
                       status
                     ;; See the description of porcelain format version 1 in
                     ;; manual for git-status.
@@ -503,7 +503,7 @@ not be memoized even within an `stp-with-memoization' form."
                   (stp-git-remote-hash-alist-basic remote))))
     (unless (equal output "")
       (mapcar (lambda (list)
-                (db (hash ref)
+                (dsb (hash ref)
                     list
                   (cons hash
                         (s-chop-prefixes prefixes
@@ -511,7 +511,7 @@ not be memoized even within an `stp-with-memoization' form."
               (-filter (lambda (list)
                          (if prefixes-supplied-p
                              (-any (lambda (prefix)
-                                     (db (_hash ref)
+                                     (dsb (_hash ref)
                                          list
                                        (s-starts-with-p prefix ref)))
                                    prefixes)
@@ -866,7 +866,7 @@ remote repositories."
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")

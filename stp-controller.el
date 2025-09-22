@@ -644,7 +644,7 @@ no errors."
 merging `stp-default-controller-args' with ARGS.")
 
 (cl-defmethod stp-make-controller ((options stp-operation-options) &rest args)
-  (db (class default-args)
+  (dsb (class default-args)
       (stp-make-controller-get-class-args options)
     (apply class :options options (map-merge 'plist default-args args))))
 
@@ -967,7 +967,7 @@ package and were installed as dependencies."))
   (stp-msg "Analyzing the load path for installed packages...")
   (cl-dolist (requirement requirements)
     ;; Also allow a list of package names.
-    (db (pkg-sym &optional version)
+    (dsb (pkg-sym &optional version)
         (ensure-list requirement)
       (let* ((pkg-name (stp-symbol-package-name pkg-sym))
              (prefix (format "[%s] " pkg-name)))
@@ -1126,7 +1126,7 @@ package and were installed as dependencies."))
                            ;; the subtree (which may include user modifications).
                            ;; last-hash is the hash of the last subtree that was
                            ;; merged (e.g. by installing or upgrading the package).
-                           (and (db (curr-hash last-hash)
+                           (and (dsb (curr-hash last-hash)
                                     tree-hashes
                                   (stp-git-show-diff (list last-hash curr-hash))
                                   t)
@@ -1174,7 +1174,7 @@ package and were installed as dependencies."))
                  total
                  (breakdown (mapcar #'car failed-operations) "failed"))
         (cl-dolist (cell failed-operations)
-          (db (operation . err)
+          (dsb (operation . err)
               cell
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
         (pop-to-buffer stp-log-buffer-name)))))
@@ -1222,7 +1222,7 @@ package and were installed as dependencies."))
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")

@@ -32,7 +32,7 @@
 These are determined according to the Package-Requires field."
   (let ((text (apply #'concat (lm-header-multiline "Package-Requires"))))
     (unless (string= (s-trim text) "")
-      (db (reqs . index)
+      (dsb (reqs . index)
           (read-from-string text)
         (when (>= index (length text))
           (mapcar (lambda (entry)
@@ -112,7 +112,7 @@ The result is an alist unless hash-table is provided."
                       hash-table
                     (make-hash-table :test #'eq))))
     (cl-dolist (requirement requirements)
-      (db (pkg-sym version)
+      (dsb (pkg-sym version)
           requirement
         ;; Keep the newest version of each package.
         (let ((curr-version (gethash pkg-sym versions)))
@@ -266,7 +266,7 @@ be used to compute the requirements. This can be set to
     ;; done.
     (if pkg-desc
         (mapcar (lambda (entry)
-                  (db (pkg-sym version-list)
+                  (dsb (pkg-sym version-list)
                       entry
                     (list pkg-sym (s-join "." (mapcar #'number-to-string version-list)))))
                 (package-desc-reqs pkg-desc))
@@ -311,7 +311,7 @@ headers did not exist and was inserted."
     (acond
      ((stp-headers-bounds-of-bob-header)
       (save-excursion
-        (db (bobh-beg . bobh-end)
+        (dsb (bobh-beg . bobh-end)
             it
           (rem-replace-region bobh-beg bobh-end filename 'after)
           ;; Fix spacing after the filename. The rest of the line after --- is
@@ -344,7 +344,7 @@ headers did not exist and was inserted."
     (acond
      ((stp-headers-bounds-of-eob-header)
       (save-excursion
-        (db (eobh-beg . eobh-end)
+        (dsb (eobh-beg . eobh-end)
             it
           (goto-char eobh-beg)
           (beginning-of-line)
@@ -502,7 +502,7 @@ was inserted."
                            stp-sort-requirements)))
     (with-temp-buffer
       (cl-dolist (requirement requirements)
-        (db (pkg-sym version)
+        (dsb (pkg-sym version)
             requirement
           (insert (format "%s %s\n" pkg-sym version))))
       (write-file stp-headers-bootstrap-requirements-file))))
@@ -599,7 +599,7 @@ file-local or directory-local variable.")
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")

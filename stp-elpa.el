@@ -39,7 +39,7 @@
 (cl-defun stp-elpa-package-urls (pkg-name archives &key annotate)
   (-filter #'identity
            (mapcar (lambda (cell)
-                     (db (archive . url-format)
+                     (dsb (archive . url-format)
                          cell
                        (when (member archive archives)
                          (concat (format url-format pkg-name)
@@ -152,7 +152,7 @@ operation should be performed."
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (
-;;   ("db" . "cl-destructuring-bind")
+;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")
