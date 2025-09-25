@@ -693,41 +693,42 @@ operations to perform."))
   (when (and min-version enforce-min-version (not (stp-version<= min-version version)))
     (error "The newest version for %s is %s but at least %s is required" pkg-name version min-version)))
 
-(cl-defgeneric stp-controller-actual-update (controller remote update)
+(cl-defgeneric stp-controller-actual-update (controller pkg-name pkg-alist remote)
   "Determine the update parameter to use.")
 
-(cl-defmethod stp-controller-actual-update ((controller stp-auto-controller) remote update)
+(cl-defmethod stp-controller-actual-update ((controller stp-auto-controller) _pkg-name pkg-alist remote)
   "Determine the update parameter to use."
-  (with-slots (preferred-update respect-update development-directory-override)
-      controller
-    ;; Respect the package's update attribute if it is set and the controller is
-    ;; set to do respect package's update attributes.
-    (cond
-     ((and respect-update update)
-      update)
-     ;; Always prefer the unstable version when the remote is in the development
-     ;; directory.
-     ((and development-directory-override
-           (not (symbolp remote))
-           (f-dir-p remote)
-           (rem-ancestor-of-inclusive-p (f-canonical stp-development-directory)
-                                        (f-canonical remote)))
-      'unstable)
-     (t
-      preferred-update))))
+  (let-alist pkg-alist
+    (with-slots (preferred-update respect-update development-directory-override)
+        controller
+      ;; Respect the package's update attribute if it is set and the controller is
+      ;; set to do respect package's update attributes.
+      (cond
+       ((and respect-update .update)
+        .update)
+       ;; Always prefer the unstable version when the remote is in the development
+       ;; directory.
+       ((and development-directory-override
+             (not (symbolp remote))
+             (f-dir-p remote)
+             (rem-ancestor-of-inclusive-p (f-canonical stp-development-directory)
+                                          (f-canonical remote)))
+        'unstable)
+       (t
+        preferred-update)))))
 
-(cl-defgeneric stp-controller-preferred-git-version (controller remote min-version update))
+(cl-defgeneric stp-controller-preferred-git-version (controller pkg-name pkg-alist remote min-version))
 
-(cl-defmethod stp-controller-preferred-git-version :around ((_controller stp-controller) remote _min-version _update)
+(cl-defmethod stp-controller-preferred-git-version :around ((_controller stp-controller) _pkg-name _pkg-alist remote _min-version)
   (let ((version (cl-call-next-method)))
     (stp-git-normalize-version remote version)))
 
-(cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) remote min-version update)
+(cl-defmethod stp-controller-preferred-git-version ((controller stp-auto-controller) pkg-name pkg-alist remote min-version)
   (with-slots (preferred-update)
       controller
     (let (latest-stable
           (branch (car (stp-git-remote-heads-sorted remote)))
-          (actual-update (stp-controller-actual-update controller remote update)))
+          (actual-update (stp-controller-actual-update controller pkg-name pkg-alist remote)))
       (if (and (eq actual-update 'stable)
                (setq latest-stable (stp-git-latest-stable-version remote))
                ;; If there's a minimum version and the
@@ -752,7 +753,7 @@ operations to perform."))
             (cl-ecase method
               (git
                (let* ((branch (car (stp-git-remote-heads-sorted remote)))
-                      (version (stp-controller-preferred-git-version controller remote min-version nil))
+                      (version (stp-controller-preferred-git-version controller pkg-name nil remote min-version))
                       (update (if (string= version branch) 'unstable 'stable)))
                  (stp-enforce-min-version pkg-name version min-version enforce-min-version)
                  `((version . ,version)
@@ -797,8 +798,8 @@ operations to perform."))
                             :branch-to-hash nil
                             :min-version (and enforce-min-version min-version)))))
 
-(cl-defmethod stp-controller-get-git-version ((controller stp-auto-controller) _prompt pkg-name _pkg-alist chosen-remote min-version enforce-min-version)
-  (let ((version (stp-controller-preferred-git-version controller chosen-remote min-version (map-elt pkg-alist 'update))))
+(cl-defmethod stp-controller-get-git-version ((controller stp-auto-controller) _prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version)
+  (let ((version (stp-controller-preferred-git-version controller pkg-name pkg-alist chosen-remote min-version)))
     (stp-enforce-min-version pkg-name version min-version enforce-min-version)
     version))
 
