@@ -698,9 +698,9 @@ operations to perform."))
 
 (cl-defmethod stp-controller-actual-update ((controller stp-auto-controller) _pkg-name pkg-alist remote)
   "Determine the update parameter to use."
-  (let-alist pkg-alist
-    (with-slots (preferred-update respect-update development-directory-override)
-        controller
+  (with-slots (preferred-update respect-update development-directory-override)
+      controller
+    (let-alist pkg-alist
       ;; Respect the package's update attribute if it is set and the controller is
       ;; set to do respect package's update attributes.
       (cond
