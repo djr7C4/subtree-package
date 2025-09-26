@@ -803,17 +803,17 @@ operations to perform."))
     (stp-enforce-min-version pkg-name version min-version enforce-min-version)
     version))
 
-(cl-defgeneric stp-controller-get-elpa-version (controller prompt pkg-name chosen-remote min-version enforce-min-version)
+(cl-defgeneric stp-controller-get-elpa-version (controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version)
   (:documentation
    "Query the controller for the new version of an ELPA package."))
 
-(cl-defmethod stp-controller-get-elpa-version ((_controller stp-interactive-controller) prompt pkg-name chosen-remote min-version enforce-min-version)
+(cl-defmethod stp-controller-get-elpa-version ((_controller stp-interactive-controller) prompt pkg-name _pkg-alist chosen-remote min-version enforce-min-version)
   (stp-elpa-read-version prompt
                          pkg-name
                          chosen-remote
                          :min-version (and enforce-min-version min-version)))
 
-(cl-defmethod stp-controller-get-elpa-version ((_controller stp-auto-controller) _prompt pkg-name chosen-remote min-version enforce-min-version)
+(cl-defmethod stp-controller-get-elpa-version ((_controller stp-auto-controller) _prompt pkg-name _pkg-alist chosen-remote min-version enforce-min-version)
   (let ((version (car (stp-elpa-versions-sorted pkg-name chosen-remote))))
     (stp-enforce-min-version pkg-name version min-version enforce-min-version)
     version))
@@ -1067,7 +1067,7 @@ package and were installed as dependencies."))
                   (setq new-version
                         (cl-case .method
                           (git (stp-controller-get-git-version controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version))
-                          (elpa (stp-controller-get-elpa-version controller prompt pkg-name chosen-remote min-version enforce-min-version)))))
+                          (elpa (stp-controller-get-elpa-version controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version)))))
                 (cl-ecase .method
                   (git (stp-git-upgrade controller pkg-name chosen-remote new-version options))
                   (elpa (stp-elpa-upgrade controller pkg-name chosen-remote new-version options))
