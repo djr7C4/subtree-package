@@ -77,7 +77,9 @@ Emacs packages.")
 (defun stp-emacsmirror-read-all ()
   (setq stp-emacsmirror-alist
         (mapcar (lambda (mirror)
-                  (cons mirror (s-split "\n" (f-read (f-join stp-emacsmirror-directory mirror)) t)))
+                  (let ((target (f-join stp-emacsmirror-directory mirror)))
+                    (cons mirror (when (f-exists-p target)
+                                   (s-split "\n" (f-read target) t)))))
                 stp-emacsmirrors)))
 
 (defun stp-emacsmirror-ensure-loaded ()
