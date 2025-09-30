@@ -3,7 +3,7 @@
 ** Installing STP with the bootstrap script
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/stp-bootstrap.gif" width="80%" />
 ** Installing packages
-*** With the auto controller
+*** Using transient to select the auto controller
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/transient-auto-controller.gif" width="80%" />
 *** With the interactive controller
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/install-vertico-orderless.gif" width="80%" />
