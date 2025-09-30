@@ -31,10 +31,14 @@ also be done using manual git commands but several common tasks are tedious.
 STP addresses all of these issues and much more.
 1. Package repositories are automatically determined from the package name using
    package archives enabled in =package-archives=.
-2. The version to install or upgrade to can be selected automatically or using
-   completion. STP detects the suitable tags and branches to provide as
+2. The version to install or upgrade to defaults to the latest stable version
+   and can also be selected using completion when the command is run with a
+   prefix argument. STP detects the suitable tags and branches to provide as
    completion candidates.
-3. Dependencies of packages are detected automatically when a package is
+3. The policy for choosing new versions and many other details of the package
+   installation process such as security audits, updating the lock file and
+   resetting when errors occur can be toggled via a convenient transient menu.
+4. Dependencies of packages are detected automatically when a package is
    installed or upgraded and are automatically upgraded or installed as
    necessary.
 * Features
