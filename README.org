@@ -34,7 +34,7 @@ STP addresses all of these issues and much more.
 2. The version to install or upgrade to defaults to the latest stable version
    and can also be selected using completion when the command is run with a
    prefix argument. STP detects the suitable tags and branches to provide as
-   completion candidates.
+   completion candidates and shows how recent the latest stable version is.
 3. The policy for choosing new versions and many other details of the package
    installation process such as security audits, updating the lock file and
    resetting when errors occur can be toggled via a convenient transient menu.
