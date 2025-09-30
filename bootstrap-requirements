@@ -5,8 +5,8 @@ dash 2.20.0
 emacs 29.1
 f 0.21.0
 llama 1.0.0
-memoize 1.2.0
+memoize 1.1
 noflet 0.0.15
 queue 0.2
-rem 0.8.0
+rem 0.8.2
 s 1.13.0

@@ -36,7 +36,12 @@ latest_stable() {
 }
 
 stp_repo="https://github.com/djr7C4/subtree-package.git"
-bootstrap_requirements_file="$(mktemp)"
+
+if [[ -e "bootstrap-requirements" ]]; then
+    bootstrap_requirements_file="bootstrap-requirements"
+else
+    bootstrap_requirements_file="$(mktemp)"
+fi
 
 stable() {
     name="$1"
@@ -50,7 +55,7 @@ stable() {
     echo "$git_tag"
 }
 
-repos=("anaphora https://github.com/rolandwalker/anaphora.git master" "dash https://github.com/magnars/dash.el.git master" "f https://github.com/rejeep/f.el.git master" "memoize https://github.com/djr7C4/emacs-memoize.git master" "s https://github.com/magnars/s.el.git master" "async https://github.com/jwiegley/emacs-async master" "llama https://github.com/tarsius/llama main" "rem https://github.com/djr7C4/rem.git main" "subtree-package https://github.com/djr7C4/subtree-package.git main")
+repos=("anaphora https://github.com/rolandwalker/anaphora.git master" "async https://github.com/jwiegley/emacs-async master" "cond-let https://github.com/tarsius/cond-let.git" "dash https://github.com/magnars/dash.el.git master" "f https://github.com/rejeep/f.el.git master" "llama https://github.com/tarsius/llama main" "memoize https://github.com/djr7C4/emacs-memoize.git master" "noflet https://github.com/nicferrier/emacs-noflet.git master" "rem https://github.com/djr7C4/rem.git main" "s https://github.com/magnars/s.el.git master" "subtree-package https://github.com/djr7C4/subtree-package.git main")
 
 pkg_info_file="stp-pkg-info.eld"
 
@@ -73,8 +78,10 @@ for item in "${repos[@]}"; do
     repo="$(echo "$item" | cut -d ' ' -f 2)"
     branch="$(echo "$item" | cut -d ' ' -f 3)"
 
+    version=""
+
     if [[ "$version_type" = "latest stable" ]]; then
-        version="$(latest_stable "$repo")" || exit 1
+        version="$(latest_stable "$repo")"
         branch_cell=""
     elif [[ "$version_type" = "recommended stable" ]]; then
         # subtree-package isn't in the bootstrap requirements file so it needs
@@ -84,7 +91,7 @@ for item in "${repos[@]}"; do
         if [[ "$name" = "subtree-package" ]]; then
             version="$stp_latest_stable"
         else
-            version="$(stable "$name" "$repo")" || exit 1
+            version="$(stable "$name" "$repo")"
         fi
 
         branch_cell=""
@@ -94,11 +101,12 @@ for item in "${repos[@]}"; do
     fi
 
     if [[ ! "$version" ]]; then
-        echo "Unable to detect the version of $name to install" >&2
-        read -p "Enter the version: " version
+        echo "Unable to detect the ${version_type} version of $name to install" >&2
+        echo "Falling back on the $branch branch" >&2
+        version="$branch"
     fi
 
-    echo "Cloning $version of $repo"
+    echo "Cloning version $version of $repo"
     git subtree add --prefix "package-source/${name}" --squash "$repo" "$version"
     echo "(\"${name}\" (method . git) (remote . \"${repo}\") (update . ${update})${branch_cell})" >> "$pkg_info_file" || { echo "Failed to add the git subtree for $repo" >&2 && exit 1; }
 done
