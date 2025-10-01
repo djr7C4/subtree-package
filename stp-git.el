@@ -95,7 +95,7 @@ available; otherwise, use the hash."
 
 (defvar stp-git-version-history nil)
 
-(cl-defun stp-git-read-version (prompt remote &key (extra-versions-position 'first) extra-versions default (branch-to-hash t) min-version)
+(cl-defun stp-git-read-version (prompt remote &key extra-versions (extra-versions-position 'first) default (branch-to-hash t) min-version)
   "Read a branch, tag or a hash for REMOTE.
 
 Completion is not performed on hashes but they can be entered.

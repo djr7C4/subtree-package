@@ -793,8 +793,8 @@ operations to perform."))
         (setq extra-versions (cons .branch (remove .branch extra-versions))))
       (stp-git-read-version prompt
                             chosen-remote
-                            :extra-versions-position (if (eq .update 'unstable) 'first 'last)
                             :extra-versions extra-versions
+                            :extra-versions-position (if (eq .update 'unstable) 'first 'last)
                             :branch-to-hash nil
                             :min-version (and enforce-min-version min-version)))))
 
