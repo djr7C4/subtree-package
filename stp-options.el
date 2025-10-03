@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: t; -*-
+;;; stp-options.el --- Manage package options -*- lexical-binding: t; -*-
 (require 'eieio)
 (require 'stp-utils)
 (require 'transient)

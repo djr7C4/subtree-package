@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: t; -*-
+;;; stp-locked.el --- Lock STP to a particular commit -*- lexical-binding: t; -*-
 
 (defvar stp-source-directory (expand-file-name "package-source/" user-emacs-directory)
   "The directory in which STP packages installed.")

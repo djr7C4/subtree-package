@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: t; -*-
+;;; stp.el --- Alias for subtree-package.el -*- lexical-binding: t; -*-
 (require 'subtree-package)
 
 (provide 'stp)

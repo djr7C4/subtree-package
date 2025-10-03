@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: t; -*-
+;;; stp-git.el --- Support for Git packages -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025 David J. Rosenbaum <djr7c4@gmail.com>
 ;;

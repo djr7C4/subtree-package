@@ -1,4 +1,4 @@
-;;; stp-headers.el --- -*- lexical-binding: t; -*-
+;;; stp-headers.el --- Utilities for elisp package headers -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025 David J. Rosenbaum <djr7c4@gmail.com>
 ;;

@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: t; -*-
+;;; stp-controller.el --- Controller for package operations -*- lexical-binding: t; -*-
 
 (require 'info)
 (require 'stp-headers)

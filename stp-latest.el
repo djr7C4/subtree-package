@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: t; -*-
+;;; stp-latest.el --- Compute the latest versions of packages -*- lexical-binding: t; -*-
 
 (require 'queue nil t)
 (require 'stp-git)

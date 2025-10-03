@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: t; -*-
+;;; stp-archive.el --- Support for Emacs package archives -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025 David J. Rosenbaum <djr7c4@gmail.com>
 ;;
