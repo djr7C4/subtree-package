@@ -169,7 +169,7 @@ methods."
 
 The current version is used instead of allowing the version to be
 specified because generic archives do not support installing
-older versions. type should be either \\='install or \\='upgrade
+older versions. ACTION should be either \\='install or \\='upgrade
 depending on which operation should be performed."
   (when (symbolp archive)
     (setq archive (symbol-name archive)))

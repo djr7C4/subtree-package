@@ -82,8 +82,8 @@
 (defun stp-url-install-or-upgrade (controller pkg-name remote version action options)
   "Install or upgrade PKG-NAME from REMOTE.
 
-If the file fetched from remote is an archive, it will be
-automatically extracted. type should be either \\='install or
+If the file fetched from REMOTE is an archive, it will be
+automatically extracted. ACTION should be either \\='install or
 upgrade depending on which operation should be performed."
   (when (or (stp-url-safe-remote-p remote)
             (yes-or-no-p (format "The remote %s is unsafe. Proceed anyway?" remote)))

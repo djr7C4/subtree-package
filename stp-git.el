@@ -237,7 +237,7 @@ returned."
       (nonzero-count count-to-unstable))))
 
 (cl-defun stp-git-install (_controller pkg-name remote version update _options &key branch (squash t) (set-pkg-info t))
-  "Install the specified version of PKG-NAME from REMOTE."
+  "Install the specified VERSION of PKG-NAME from REMOTE."
   (let* ((git-root (stp-git-root :path stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))
          (prefix (f-relative pkg-path git-root)))

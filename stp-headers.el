@@ -107,7 +107,7 @@ recent version will be kept. If HASH-TABLE is a hash table then
 requirements will be merged into it and the result will be
 returned instead of a requirements list. Otherwise, if HASH-TABLE
 is non-nil, then they will be merged into an empty hash table.
-The result is an alist unless hash-table is provided."
+The result is an alist unless HASH-TABLE is provided."
   (let ((versions (if (hash-table-p hash-table)
                       hash-table
                     (make-hash-table :test #'eq))))

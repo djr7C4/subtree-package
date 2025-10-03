@@ -126,7 +126,7 @@
   "Install or upgrade to the specified VERSION of PKG-NAME.
 
 The package is downloaded from REMOTE. If the file fetched from
-REMOTE is an archive, it will be automatically extracted. TYPE
+REMOTE is an archive, it will be automatically extracted. ACTION
 should be either \\='install or \\='upgrade depending on which
 operation should be performed."
   (let ((url (stp-elpa-download-url pkg-name remote version))

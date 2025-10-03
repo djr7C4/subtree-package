@@ -213,12 +213,12 @@ version is used.")
                                 load-path)))
 
 (defun stp-canonical-path (pkg-name)
-  "Return the canonical path to pkg-name. The return value always
+  "Return the canonical path to PKG-NAME. The return value always
 ends with a slash."
   (stp-full-path pkg-name t))
 
 (defun stp-full-path (pkg-name &optional canonical)
-  "Return the full path to pkg-name. The return value always ends
+  "Return the full path to PKG-NAME. The return value always ends
 with a slash."
   (let ((path (if (f-absolute-p pkg-name)
                   pkg-name
@@ -682,14 +682,14 @@ according to `stp-attribute-order'."
     (f-write (buffer-string) 'utf-8 stp-info-file)))
 
 (defun stp-get-attribute (pkg-name attr)
-  "Get the attribute attr in the alist with the key corresponding to
-pkg-name."
+  "Get the attribute ATTR in the alist with the key corresponding to
+PKG-NAME."
   (let ((pkg-name (stp-name pkg-name)))
     (map-elt (map-elt (stp-get-info-packages) pkg-name) attr)))
 
 (defun stp-set-attribute (pkg-name attr val)
-  "Set the attribute attr to val in the alist with the key
-corresponding to pkg-name."
+  "Set the attribute ATTR to VAL in the alist with the key
+corresponding to PKG-NAME."
   (let* ((pkg-name (stp-name pkg-name))
          (packages (stp-get-info-packages))
          (alist (map-elt packages pkg-name)))
@@ -701,20 +701,20 @@ corresponding to pkg-name."
     val))
 
 (defun stp-delete-attribute (pkg-name attr)
-  "Remove attr from the alist with the key corresponding to
-pkg-name."
+  "Remove ATTR from the alist with the key corresponding to
+PKG-NAME."
   (let ((alist (stp-get-alist pkg-name)))
     (stp-set-alist pkg-name (remq (assoc attr alist) alist))))
 
 (defun stp-get-alist (pkg-name)
   "Get the alist that contains information corresponding to
-pkg-name."
+PKG-NAME."
   (let ((pkg-name (stp-name pkg-name)))
     (map-elt (stp-get-info-packages) pkg-name)))
 
 (defun stp-set-alist (pkg-name alist)
-  "Set the alist that contains information corresponding to pkg-name
-to alist."
+  "Set the alist that contains information corresponding to PKG-NAME
+to ALIST."
   (let* ((pkg-name (stp-name pkg-name))
          (packages (stp-get-info-packages)))
     (setf (map-elt packages pkg-name) alist)

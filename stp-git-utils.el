@@ -97,13 +97,13 @@ within that package."
        -uniq))
 
 (defun stp-git-valid-remote-p (remote)
-  "Determine if remote is a valid git repository."
+  "Determine if REMOTE is a valid git repository."
   (and (stringp remote)
        (eql (car (rem-call-process-shell-command (format "git ls-remote -h '%s'" remote))) 0)))
 
 (cl-defun stp-git-valid-remote-ref-p (remote rev &optional ask-p)
-  ;; Check if rev is a ref on remote or if it is a hash that matches a ref on
-  ;; remote.
+  ;; Check if REV is a ref on REMOTE or if it is a hash that matches a ref on
+  ;; REMOTE.
   (and (or (member rev (stp-git-remote-tags remote t))
            (member rev (stp-git-remote-heads remote))
            ;; There is no way to check if hash exists on a remote (only refs) so
@@ -125,7 +125,7 @@ within that package."
         (error "git init failed")))))
 
 (cl-defun stp-git-add (path &key update)
-  "Run \"git add\" on path. When UPDATE is non-nil, only add changes
+  "Run \"git add\" on PATH. When UPDATE is non-nil, only add changes
 to tracked files."
   (dsb (dir target)
       (if (f-dir-p path)
@@ -176,7 +176,7 @@ repository. Return the path to the repository."
   "This allows hashes to be resolved when installing or upgrading.")
 
 (cl-defun stp-git-fetch (remote &key force refspec no-new-tags)
-  ;; When no-new-tags is non-nil, download the tags objects but remove the
+  ;; When NO-NEW-TAGS is non-nil, download the tags objects but remove the
   ;; references to them in .git/refs/tags. Otherwise, the refs will become
   ;; cluttered with tags for remotes of packages. These tags won't have a clear
   ;; meaning on the local repository unless it is for this specific package. For
@@ -430,7 +430,7 @@ installed as a git subtree."
                             ;; contents) will have different hashes.
                             (progn
                               (stp-git-fetch remote :no-new-tags t)
-                              ;; Some revs (e.g. tags) won't be available
+                              ;; Some revisions (e.g. tags) won't be available
                               ;; locally even after a fetch since we used
                               ;; :no-new-tags t. We convert them to hashes to
                               ;; avoid issues. If we didn't supply :no-new-tags
@@ -630,7 +630,7 @@ Otherwise, return REV."
     (stp-git-remote-hash-to-head "." rev :memoize nil)))
 
 (defun stp-git-tag-strip-dereference (tag)
-  "When tag is non-nil, remove the ^{} following a tag object if it
+  "When TAG is non-nil, remove the ^{} following a tag object if it
 is present."
   ;; A tag followed by ^{} means to dereference the tag until a commit is
   ;; reached.

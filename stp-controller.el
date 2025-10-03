@@ -134,7 +134,7 @@ the minimum required by another package.")
 
 (cl-defgeneric stp-validate-options (options)
   (:documentation
-   "Determine if the options passed are valid and signal an
+   "Determine if OPTIONS passed are valid and signal an
 appropriate error if they are not."))
 
 (cl-defmethod stp-validate-options ((_options stp-operation-options))
@@ -650,7 +650,7 @@ merging `stp-default-controller-args' with ARGS.")
 
 (cl-defgeneric stp-controller-append-errors (controller pkg-name &rest errors)
   (:documentation
-   "Append the specified error messages (strings) to the controller's
+   "Append the specified error messages (strings) to CONTROLLER's
 list of error messages. These will be reported to the user after
 all operations are completed."))
 
@@ -661,7 +661,7 @@ all operations are completed."))
 
 (cl-defgeneric stp-controller-append-operations (controller &rest operations)
   (:documentation
-   "Append the specified operations to the controller's list of
+   "Append the specified operations to CONTROLLER's list of
 operations to perform."))
 
 (cl-defmethod stp-controller-append-operations ((controller stp-controller) &rest new-operations)
@@ -671,7 +671,7 @@ operations to perform."))
 
 (cl-defgeneric stp-controller-prepend-operations (controller &rest operations)
   (:documentation
-   "Prepend the specified operations to the controller's list of
+   "Prepend the specified operations to CONTROLLER's list of
 operations to perform."))
 
 (cl-defmethod stp-controller-prepend-operations ((controller stp-controller) &rest new-operations)
@@ -681,7 +681,7 @@ operations to perform."))
 
 (cl-defgeneric stp-controller-get-package (controller pkg-name prompt-prefix min-version enforce-min-version)
   (:documentation
-   "Query the controller for a package."))
+   "Query CONTROLLER for a package."))
 
 (cl-defmethod stp-controller-get-package ((_controller stp-interactive-controller) pkg-name prompt-prefix min-version enforce-min-version)
   (stp-read-package :pkg-name pkg-name
@@ -769,7 +769,7 @@ operations to perform."))
 
 (cl-defgeneric stp-controller-get-remote (controller prompt remote other-remotes)
   (:documentation
-   "Query the controller for a remote."))
+   "Query CONTROLLER for a remote."))
 
 (cl-defmethod stp-controller-get-remote ((_controller stp-interactive-controller) prompt remote other-remotes)
   (stp-choose-remote prompt remote other-remotes))
@@ -781,7 +781,7 @@ operations to perform."))
 
 (cl-defgeneric stp-controller-get-git-version (controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version)
   (:documentation
-   "Query the controller for a new version of a git package."))
+   "Query CONTROLLER for a new version of a git package."))
 
 (cl-defmethod stp-controller-get-git-version ((_controller stp-interactive-controller) prompt _pkg-name pkg-alist chosen-remote min-version enforce-min-version)
   (let-alist pkg-alist
@@ -805,7 +805,7 @@ operations to perform."))
 
 (cl-defgeneric stp-controller-get-elpa-version (controller prompt pkg-name pkg-alist chosen-remote min-version enforce-min-version)
   (:documentation
-   "Query the controller for the new version of an ELPA package."))
+   "Query CONTROLLER for the new version of an ELPA package."))
 
 (cl-defmethod stp-controller-get-elpa-version ((_controller stp-interactive-controller) prompt pkg-name _pkg-alist chosen-remote min-version enforce-min-version)
   (stp-elpa-read-version prompt
@@ -819,7 +819,7 @@ operations to perform."))
     version))
 
 (cl-defgeneric stp-operation-verb (operation)
-  "Return a verb that describes the operation.")
+  "Return a verb that describes OPERATION.")
 
 (cl-defmethod stp-operation-verb ((_operation stp-package-operation))
   "performing an unknown package operation on")
@@ -1182,7 +1182,7 @@ package and were installed as dependencies."))
 
 (cl-defgeneric stp-execute (controller)
   (:documentation
-   "Execute the operations for the controller."))
+   "Execute the operations for CONTROLLER."))
 
 (cl-defmethod stp-execute ((controller stp-controller))
   (with-slots (options operations)
