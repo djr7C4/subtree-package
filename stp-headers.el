@@ -80,7 +80,9 @@ of FILE is different from the last time BODY was evaluated."
       (stp-headers-elisp-requirements))))
 
 (defun stp-headers-elisp-feature (name)
-  "Return requirements satisfied by the current buffer."
+  "Return requirements satisfied by the current buffer.
+
+NAME is the package name."
   (let-alist (stp-get-alist name)
     (let ((version (or (save-excursion (stp-headers-version))
                        ;; Fallback on version stored in the package info if it
@@ -220,8 +222,8 @@ packages from outside of STP will not be detected."
 This may be necessary if a package is installed outside of STP.
 By default, features provided by files distributed with Emacs are
 not recomputed unless the installed version of Emacs hash
-changed. With a prefix argument, all features are recomputed
-unconditionally."
+changed. When ALL is non-nil (interactively with a prefix
+argument), all features are recomputed unconditionally."
   (interactive "P")
   (stp-refresh-info)
   (cl-flet ((emacs-feature-p (feature)

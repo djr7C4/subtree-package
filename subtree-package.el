@@ -56,7 +56,7 @@
 (defvar stp-remote-history nil)
 
 (defun stp-read-remote (prompt &optional default)
-  "Read any type of remote."
+  "Read any type of remote with PROMPT and DEFAULT."
   (-> prompt
       (stp-read-remote-with-predicate
        (lambda (remote)
@@ -113,11 +113,13 @@ Note that not all info can be recovered automatically. However,
 it is typically possible to recover the \\='version attribute for
 the \\='git method and the \\='update attribute for any method.
 
-If quiet is nil, print status to show progress. If pkg-names is
+If QUIET is nil, print status to show progress. If pkg-names is
 the list of the packages to repair. By default all packages will
 be repaired.
 
-callback should be a function that can be queried to resolve
+OPTIONS should be an instance of `stp-package-operation-options'.
+
+CALLBACK should be a function that can be queried to resolve
 exceptional situations. Its arguments have the form (type
 pkg-name) where type is a symbol indicating the type of exception
 and pkg-name is the name of the package for which the problem
@@ -271,15 +273,18 @@ occurred."
   "Prepare an argument list for an interactive command.
 
 The first argument included in the list is the name of the
-package. If PKG-VERSION is non-nil, the \\='VERSION attribute for
-the package will be included as the next positional argument. If
-READ-PKG-LIST is non-nil, a package alist will be read from the
-user and included as an additional positional argument. When
-LINE-PKG is non-nil (as it is by default), any data that would
-normally be read from the user will be inferred from the cursor
-position when `stp-list-mode' is active. MIN-VERSION is the
-minimum version that should be selected for this package. If
-ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
+package. Normally, the user will be prompted for it but if
+PKG-NAME is non-nil that will be used instead. PROMPT-PREFIX is
+prepended to prompts when it is non-nil. If PKG-VERSION is
+non-nil, the \\='VERSION attribute for the package will be
+included as the next positional argument. If READ-PKG-LIST is
+non-nil, a package alist will be read from the user and included
+as an additional positional argument. When LINE-PKG is
+non-nil (as it is by default), any data that would normally be
+read from the user will be inferred from the cursor position when
+`stp-list-mode' is active. MIN-VERSION is the minimum version
+that should be selected for this package. If ENFORCE-MIN-VERSION
+is non-nil, this requirement is enforced."
   (stp-with-package-source-directory
     (plet* ((`(,pkg-name . ,pkg-alist)
              (or (and read-pkg-alist
@@ -313,11 +318,8 @@ ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
 (cl-defun stp-install-command (&key (refresh t))
   "Install a package.
 
-OPTIONS should be an instance of the class
-`stp-additive-operation-options'. It controls the behaviors
-corresponding to the names of the class slots. Interactively,
-these options can be toggled via a menu when the command is run
-with a prefix argument.
+With a prefix argument, a number of options can be interactively
+toggled via a transient menu.
 
 These behaviors include whether STP should automatically commit,
 push, update `stp-lock-file', require the code to be audited and
@@ -325,21 +327,22 @@ perform post actions. The variables `stp-auto-commit',
 `stp-auto-push', `stp-auto-lock', `stp-audit-changes' and
 `stp-auto-post-actions' control the default values.
 
-Finer grained control of post actions is also available via
-OPTIONS. In particular, updating the load path, loading code,
-building code, building info manuals and updating info
-directories can be individually enabled or disabled. The defaults
-are set from `stp-auto-update-load-path', `stp-auto-load',
-`stp-auto-build', `stp-auto-build-info' and
-`stp-auto-update-info-directories'.
+Finer grained control of post actions is also available. In
+particular, updating the load path, loading code, building code,
+building info manuals and updating info directories can be
+individually enabled or disabled. The defaults are set from
+`stp-auto-update-load-path', `stp-auto-load', `stp-auto-build',
+`stp-auto-build-info' and `stp-auto-update-info-directories'.
 
 If `stp-auto-commit', `stp-auto-push', `stp-auto-lock',
 `stp-auto-reset', `stp-audit-changes' and `stp-auto-post-actions'
 are non-nil, commit, push update the lock file, reset to the
 original commit on errors or failed audits, and perform post
 actions (see `stp-auto-post-actions'). With a prefix argument,
-each of these can be toggled via an interactive menu before
-running the command."
+each of these can be toggled via an interactive transient menu
+before running the command.
+
+When REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
@@ -368,7 +371,9 @@ running the command."
             (stp-list-refresh :quiet t)))))))
 
 (cl-defun stp-uninstall-command (&key (refresh t))
-  "Uninstall a package interactively."
+  "Uninstall a package interactively.
+
+If REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -382,7 +387,9 @@ running the command."
             (stp-list-refresh :quiet t)))))))
 
 (cl-defun stp-upgrade-command (&key (refresh t))
-  "Upgrade a package interactively."
+  "Upgrade a package interactively.
+
+If REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -448,7 +455,9 @@ running the command."
         (stp-list-refresh :quiet t)))))
 
 (cl-defun stp-install-or-upgrade-package-group-command (&key (refresh t))
-  "Install or upgrade the package groups or packages."
+  "Install or upgrade the package groups or packages.
+
+If REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -525,7 +534,9 @@ The function is called with the local path to the fork.")
           (funcall stp-fork-action default-directory))))))
 
 (cl-defun stp-reinstall-command (&key (refresh t))
-  "Uninstall and reinstall a package interactively as the same version."
+  "Uninstall and reinstall a package interactively as the same version.
+
+When REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -598,11 +609,11 @@ at the same time."
       (stp-update-lock-file))))
 
 (defun stp-repair-command ()
-  "Repair the stored package information.
+  "Repair the stored package information for the package on the current line.
 
 With a universal prefix argument, allow command options to be
-toggled via an interactive menu. If the prefix argument is
-negative, repair all packages."
+toggled via an interactive transient menu. If the prefix argument
+is negative, repair all packages as for `stp-repair-all-command'."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -614,10 +625,9 @@ negative, repair all packages."
                  (rem-at-end (stp-command-args) options)))))))
 
 (cl-defun stp-repair (pkg-name options &key (refresh t))
-  "Repair the package named pkg-name.
+  "Repair the package named PKG-NAME using OPTIONS.
 
-The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
-`stp-install'."
+When REFRESH is non-nil, refresh the package list afterwards."
   (when pkg-name
     (with-slots (do-commit do-push do-lock)
         options
@@ -634,6 +644,11 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
         (stp-list-refresh :quiet t)))))
 
 (cl-defun stp-repair-all-command (&key (toggle-p nil toggle-p-provided-p))
+  "Repair the stored package information for all packages.
+
+When TOGGLE-P is non-nil (interactively with a universal prefix
+argument), allow command options to be toggled via an interactive
+transient menu."
   (interactive)
   (stp-with-package-source-directory
     (stp-with-memoization
@@ -642,7 +657,10 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
                              (rem-maybe-kwd-args toggle-p toggle-p-provided-p))))))
 
 (cl-defun stp-repair-all (options &key (refresh t))
-  "Repair the stored package information for all packages."
+  "Repair the stored package information for all packages.
+
+OPTIONS should be an instance of `stp-package-operation-options'.
+REFRESH controls whether to refresh the package list afterwards."
   (with-slots (do-commit do-push do-lock)
       options
     (stp-repair-info (clone options :do-commit nil :do-push nil :do-lock nil)
@@ -670,9 +688,11 @@ The DO-COMMIT, DO-PUSH AND DO-LOCK arguments are as in
 (cl-defun stp-edit-remotes (pkg-name options &key (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME.
 
-This uses `completing-read-multiple'. The first chosen will be
-remotes and the rest will be other-remotes. The arguments
-DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
+This uses `completing-read-multiple'. The first remote chosen
+will be the remote attribute and the rest will be the
+other-remotes attribute. OPTIONS should be an instance of
+`stp-package-operation-options'. REFRESH controls whether to
+refresh package list afterwards."
   (with-slots (do-commit do-push do-lock)
       options
     (let-alist (stp-get-alist pkg-name)
@@ -723,8 +743,8 @@ DO-COMMIT, DO-PUSH, and DO-LOCK are as in `stp-install'."
 (cl-defun stp-toggle-update (pkg-name options &key (refresh t))
   "Toggle the update attribute for the package named PKG-NAME.
 
-The arguments DO-COMMIT, DO-PUSH and DO-LOCK are as in
-`stp-install'."
+OPTIONS should be an instance of `stp-package-operation-options'.
+REFRESH controls whether to refresh the package list afterwards."
   (when pkg-name
     (with-slots (do-commit do-push do-lock)
         options
@@ -838,7 +858,11 @@ inverted with a prefix argument. Packages in
                      (xor stp-allow-naive-byte-compile current-prefix-arg)))))
 
 (defun stp-build-all (&optional pkg-names allow-naive-byte-compile)
-  "Build all packages."
+  "Build all packages.
+
+When PKG-NAMES is non-nil, only build packages in PKG-NAMES.
+ALLOW-NAIVE-BYTE-COMPILE controls whether naive byte compilation
+is allowed."
   (let (failed)
     (cl-dolist (pkg-name pkg-names)
       (stp-msg "Building %s" pkg-name)
@@ -850,11 +874,13 @@ inverted with a prefix argument. Packages in
       (stp-msg "Successfully built all packages"))))
 
 (defvar stp-build-info-blacklist nil
-  "The list of packages whose info manuals should not be built by `stp-build-all-info'.
-This applies when it is called interactively.")
+  "Blacklist of packages for interactive calls to `stp-build-all-info'.")
 
 (defun stp-build-all-info (&optional pkg-names)
-  "Build the info manuals for all packages."
+  "Build the info manuals for all packages.
+
+When PKG-NAMES is non-nil, only build info manuals for packages
+in PKG-NAMES."
   (interactive (list (cl-set-difference (stp-filesystem-names)
                                         stp-build-info-blacklist
                                         :test #'equal)))
@@ -868,15 +894,21 @@ This applies when it is called interactively.")
         (stp-msg "Failed to build info manuals for: %s" (s-join " " failed))
       (stp-msg "Successfully built info manuals for all packages"))))
 
-(cl-defun stp-list-update-load-path (&optional arg)
-  "Reload the package."
+(cl-defun stp-list-update-load-path (&optional all)
+  "Reload the package.
+
+When ALL is non-nil (interactively with a prefix argument),
+reload all packages."
   (interactive "P")
-  (if arg
-      (stp-update-load-paths t)
+  (if all
+      (stp-update-load-paths)
     (stp-update-load-path (stp-canonical-path (stp-list-read-name "Package name: ")) t)))
 
 (defun stp-update-all-info-directories (&optional pkg-names quiet)
-  "Make the info files for all packages available to info commands."
+  "Make the info files for all packages available to info commands.
+
+When non-nil, PKG-NAMES only update the info directories for
+packages in PKG-NAMES. When QUIET is non-nil suppress messages."
   (interactive)
   (setq pkg-names (or pkg-names (stp-filesystem-names)))
   (cl-dolist (pkg-name pkg-names)
@@ -967,7 +999,7 @@ This applies when it is called interactively.")
       (stp-list-ensure-package-line))))
 
 (defun stp-list-next-package-with-predicate (predicate &optional n)
-  "Go forward N lines where predicate is non-nil.
+  "Go forward N lines where PREDICATE is non-nil.
 
 Only lines that correspond to packages are counted. If the
 beginning or end of the buffer is reached before then, go as far
@@ -1008,16 +1040,16 @@ forward as possible."
 (defun stp-list-next-package (&optional n)
   "Go to the next package.
 
-With a prefix argument, go forward that many packages. With a
-negative prefix argument, go backward that many packages."
+The integer N (interactively a prefix argument) specifies the
+number of packages to go forward."
   (interactive "p")
   (stp-list-next-package-with-predicate #'always n))
 
 (defun stp-list-previous-package (&optional n)
   "Go to the previous package.
 
-With a prefix argument, go backward that many packages. With a
-negative prefix argument, go forward that many packages."
+The integer N (interactively a prefix argument) specifies the
+number of packages to go backward."
   (interactive "p")
   (stp-list-next-package (- n)))
 
@@ -1031,10 +1063,10 @@ negative prefix argument, go forward that many packages."
     (stp-version-upgradable-p pkg-name .method .remote .count-to-stable .count-to-unstable .update)))
 
 (defun stp-list-next-upgradable (&optional n)
-  "Go to the next package that can be repaired.
+  "Go to the next package that can be upgraded.
 
-With a prefix argument, go forward that many packages. With a
-negative prefix argument, go backward that many packages."
+The integer N (interactively a prefix argument) specifies the
+number of upgradable packages to go forward."
   (interactive "p")
   (stp-with-memoization
     (stp-refresh-info)
@@ -1044,10 +1076,10 @@ negative prefix argument, go backward that many packages."
                                           n)))
 
 (defun stp-list-previous-upgradable (&optional n)
-  "Go to the previous package that needs to be repaired.
+  "Go to the previous package that needs to be upgraded.
 
-With a prefix argument, go forward that many packages. With a
-negative prefix argument, go backward that many packages."
+The integer N (interactively a prefix argument) specifies the
+number of upgradable packages to go backward."
   (interactive "p")
   (stp-list-next-upgradable (- n)))
 
@@ -1062,10 +1094,10 @@ negative prefix argument, go backward that many packages."
                            .branch)))))))
 
 (defun stp-list-next-repair (&optional n)
-  "Go to the next package that needs to be repaired.
+  "Go to the next package that missing information.
 
-With a prefix argument, go forward that many packages. With a
-negative prefix argument, go backward that many packages."
+The integer N (interactively a prefix argument) specifies the
+number of packages to go forward."
   (interactive "p")
   (stp-with-memoization
     (stp-list-next-package-with-predicate (lambda ()
@@ -1074,18 +1106,18 @@ negative prefix argument, go backward that many packages."
                                           n)))
 
 (defun stp-list-previous-repair (&optional n)
-  "Go to the previous package that needs to be repaired.
+  "Go to the previous package is missing information.
 
-With a prefix argument, go backward that many packages. With a
-negative prefix argument, go forward that many packages."
+The integer N (interactively a prefix argument) specifies the
+number of packages to go backward."
   (interactive "p")
   (stp-list-next-repair (- n)))
 
 (cl-defun stp-list-update-latest-version (pkg-name &key quiet async focus)
   "Update the latest version for PKG-NAME.
 
-This is like `stp-list-update-latest-versions' for a single
-package."
+This is like `stp-list-update-latest-versions' but for a single
+package. QUIET, ASYNC and FOCUS are the same as in the function."
   (interactive (let ((async (xor current-prefix-arg stp-latest-version-async)))
                  (list (stp-list-package-on-line)
                        :quiet 'packages
@@ -1108,14 +1140,14 @@ will be called by `stp-list-update-latest-versions'.")
 (defvar stp-list-update-latest-versions-batch-polling-interval 0.001)
 
 (cl-defun stp-list-update-latest-versions (&key (pkg-names (stp-stale-packages)) quiet (async stp-latest-version-async) focus (batch t))
-  "Compute the latest fields in `stp-list-mode'.
+  "Compute the latest fields in `stp-list-mode' for PKG-NAMES.
 
 This allows the user to see which packages can be upgraded. This
 is an expensive operation that may take several minutes if many
-packages are installed. It is performed synchronously if
-`stp-latest-version-async' is nil and otherwise it is done
-asynchronously. A universal prefix argument inverts the meaning
-of this variable.
+packages are installed. It is performed asynchronously if ASYNC
+is non-nil. By default, the value of `stp-latest-version-async'
+is used. Interactively, a universal prefix argument inverts the
+default value.
 
 By default, only compute the latest field for packages that are
 not already in the cache or were last updated more than
@@ -1131,7 +1163,9 @@ results in some overhead depending on the number of parallel
 processes (see `stp-latest-num-processes') and will make Emacs
 less responsive. When BATCH is non-nil, no updates will be
 performed until all latest fields have been computed. This will
-not slow down Emacs while the fields are being updated."
+not slow down Emacs while the fields are being updated.
+
+When QUIET is non-nil, messages will be suppressed."
   (interactive (let ((async (xor (consp current-prefix-arg) stp-latest-version-async)))
                  (list :pkg-names (if (>= (prefix-numeric-value current-prefix-arg) 0)
                                       (stp-stale-packages)
@@ -1329,7 +1363,15 @@ not slow down Emacs while the fields are being updated."
                           :test #'equal)))
 
 (defun stp-version-upgradable-p (pkg-name method remote count-to-stable count-to-unstable update)
-  "Check if the package can be upgraded to a newer version."
+  "Check if the package can be upgraded to a newer version.
+
+PKG-NAME is the package to check, METHOD is the method attribute
+for the package and REMOTE is the remote. COUNT-TO-STABLE is the
+number of versions from the current version to the latest stable
+version. COUNT-TO-UNSTABLE is the number of versions from the
+current version to the latest unstable version. When METHOD is
+\\='git, it is the number of commits. UPDATE is the update
+attribute for the package."
   (cl-ecase method
     (git
      (stp-git-version-upgradable-p count-to-stable count-to-unstable update))
@@ -1476,8 +1518,10 @@ asynchronously."
 When `stp-list-auto-update-latest-versions',
 `stp-list-auto-delete-stale-cached-repos' and
 `stp-list-auto-refresh-package-archives' are non-nil update the
-latest versions, delete stale cached repositories and refresh
-the package archives asynchronously."
+latest versions, delete stale cached repositories and refresh the
+package archives asynchronously. These defaults are
+inverted (interactively with a prefix argument) when ARG is
+non-nil."
   (interactive "P")
   (stp-refresh-info)
   (let* ((default-directory stp-source-directory)
@@ -1613,12 +1657,13 @@ development or for opening packages from `stp-list-mode'."
                   (rem-move-current-window-line-to-pos window-line))))
           (stp-msg "%s was not found in the local filesystem" pkg-name))))))
 
-(defun stp-unnecessary-dependencies-command (&optional arg)
+(defun stp-unnecessary-dependencies-command (&optional delete)
   "Inform the user about dependencies that are no longer required.
 
-With a prefix argument, delete them instead."
+When DELETE is non-nil (interactively with a prefix argument),
+delete them instead."
   (interactive "P")
-  (if arg
+  (if delete
       (call-interactively #'stp-delete-unnecessary-dependencies)
     (call-interactively #'stp-show-unnecessary-dependencies)))
 
@@ -1632,7 +1677,7 @@ With a prefix argument, delete them instead."
       (stp-msg "No unnecessary dependencies were found"))))
 
 (defun stp-delete-unnecessary-dependencies (options)
-  "Uninstall unnecessary dependencies."
+  "Uninstall unnecessary dependencies using OPTIONS."
   (interactive (list (stp-command-options :class 'stp-uninstall-operation-options)))
   (stp-refresh-info)
   (stp-with-package-source-directory
@@ -1643,9 +1688,11 @@ With a prefix argument, delete them instead."
        options))))
 
 (cl-defun stp-bump-version (filename options)
-  "Increase the version header for FILENAME. Interactively, this is
-the file for the current buffer or the main file for the package
-if no version header is found for the current file."
+  "Increase the version header for FILENAME using OPTIONS.
+
+Interactively, this is the file for the current buffer or the
+main file for the package if no version header is found for the
+current file."
   (interactive (let ((options (stp-command-options :class 'stp-bump-operation-options)))
                  (list (cl-flet ((has-version-header-p (filename)
                                    (when filename

@@ -165,9 +165,10 @@ appropriate error if they are not."))
        (-sort #'string<)))
 
 (defun stp-abbreviate-remote-version (method remote version)
-  "Abbreviate long hashes to make them more readable.
+  "Abbreviate long VERSION hashes to make them more readable.
 
-Other versions are not abbreviated."
+Other versions are not abbreviated. METHOD and REMOTE specify the
+remote and method attributes for the package."
   (cond
    ((and (eq method 'git) (not (stp-git-valid-remote-ref-p remote version)))
     (stp-git-abbreviate-hash version))
@@ -177,8 +178,9 @@ Other versions are not abbreviated."
     version)))
 
 (cl-defun stp-list-read-name (prompt)
-  "In `stp-list-mode', return the package on the current line if there
-is one. Otherwise, prompt the user for a package."
+  "If possible, return the package on the current line.
+
+Otherwise, prompt the user for a package with PROMPT."
   (stp-refresh-info)
   (or (and (derived-mode-p 'stp-list-mode)
            (stp-list-package-on-line))
@@ -311,7 +313,13 @@ representing archives."
          (mapcar #'car))))
 
 (cl-defun stp-read-remote-or-archive (prompt &key pkg-name default-remote (prompt-prefix "") (read-remote t))
-  "Read a package name and remote of any type or a package archive.
+  "Read a package name and remote or a package archive using PROMPT.
+
+When PKG-NAME is non-nil, only select remotes for that package.
+DEFAULT-REMOTE is used as the default when completing remotes.
+When PROMPT-PREFIX is non-nil, it will be prepended to the
+prompt. When READ-REMOTE is nil, the user will not be prompted
+for the remote or archive.
 
 When the input is ambiguous and could be package name or a local
 path, it will be treated as a package name unless it contains a
@@ -389,8 +397,9 @@ remote or archive. Archives are represented as symbols."
   "Build the package PKG-NAME.
 
 This is done by running the appropriate build systems or
-performing naive byte compilation. Return non-nil if there were
-no errors."
+performing naive byte compilation. ALLOW-NAIVE-BYTE-COMPILE
+controls whether naive byte compilation is allowed. Return
+non-nil if there were no errors."
   (when pkg-name
     (let* ((output-buffer stp-build-output-buffer-name)
            (pkg-path (stp-canonical-path pkg-name))
@@ -467,7 +476,9 @@ no errors."
         success))))
 
 (cl-defun stp-reload (pkg-name &key quiet)
-  "Reload the package."
+  "Reload the package PKG-NAME.
+
+When QUIET is non-nil, suppress messages."
   (interactive (list (stp-list-read-name "Package name: ")))
   ;; Reload the package twice so that macros are handled properly.
   (stp-reload-once pkg-name)
@@ -531,7 +542,9 @@ no errors."
       success)))
 
 (defun stp-update-info-directories (pkg-name &optional quiet)
-  "Make the info files for PKG-NAME available to info commands."
+  "Make the info files for PKG-NAME available to info commands.
+
+QUIET suppresses messages."
   (interactive (list (stp-list-read-name "Package name: ")))
   (when pkg-name
     (let* ((directory (stp-canonical-path pkg-name))
@@ -549,7 +562,9 @@ no errors."
           (stp-msg "No info files found for %s" pkg-name))))))
 
 (defun stp-update-lock-file (&optional interactive-p)
-  "Write the hash of the git repository to the lock file."
+  "Write the hash of the git repository to the lock file.
+
+INTERACTIVE-P is non-nil when the function is called interactively."
   (interactive (list t))
   (stp-with-package-source-directory
     (let ((hash (stp-git-rev-to-hash stp-source-directory "HEAD")))
@@ -646,8 +661,10 @@ no errors."
   (list (oref options controller-class) (oref options make-controller-args)))
 
 (cl-defgeneric stp-make-controller (options &rest args)
-  "Make a new controller of class `stp-default-controller-class' by
-merging `stp-default-controller-args' with ARGS.")
+  "Make a new controller of class `stp-default-controller-class'.
+
+The controller is created using OPTIONS and ARGS (merged with
+`stp-default-controller-args').")
 
 (cl-defmethod stp-make-controller ((options stp-operation-options) &rest args)
   (dsb (class default-args)
@@ -700,10 +717,12 @@ operations to perform."))
     (error "The newest version for %s is %s but at least %s is required" pkg-name version min-version)))
 
 (cl-defgeneric stp-controller-actual-update (controller pkg-name pkg-alist remote)
-  "Determine the update parameter to use.")
+  "Determine the update parameter to use with CONTROLLER.
+
+PKG-NAME is the name of the package, PKG-ALIST contains the
+package information and REMOTE is the remote.")
 
 (cl-defmethod stp-controller-actual-update ((controller stp-auto-controller) _pkg-name pkg-alist remote)
-  "Determine the update parameter to use."
   (with-slots (preferred-update respect-update development-directory-override)
       controller
     (let-alist pkg-alist

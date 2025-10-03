@@ -34,7 +34,9 @@
   paths)
 
 (defun stp-update-load-path (pkg-path &optional interactive-p)
-  "Add all appropriate directories in PKG-PATH to the `load-path'."
+  "Add all appropriate directories in PKG-PATH to the `load-path'.
+
+When INTERACTIVE-P indicates if the function was called interactively."
   (interactive "DDirectory: \nd")
   (dolist (path (stp-compute-load-path pkg-path))
     (add-to-list 'load-path path))

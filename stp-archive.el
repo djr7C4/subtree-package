@@ -68,7 +68,9 @@ After this, they should be refreshed.")
 
 When FORCE is non-nil or with a prefix argument interactively,
 refresh even if the last refresh was less than
-`stp-archive-refresh-interval' seconds ago."
+`stp-archive-refresh-interval' seconds ago.
+
+When QUIET is non-nil, suppress messages."
   (interactive (list :force current-prefix-arg))
   (when stp-archive-async-refresh-running
     (user-error "`stp-archive-async-refresh' is already running"))
@@ -167,12 +169,13 @@ methods."
     (package-version-join (package-desc-version desc))))
 
 (cl-defun stp-archive-install-or-upgrade (controller pkg-name archive action options)
-  "Install or upgrade PKG-NAME from the package archive ARCHIVE.
+  "Install or upgrade PKG-NAME from ARCHIVE using CONTROLLER.
 
 The current version is used instead of allowing the version to be
-specified because generic archives do not support installing
-older versions. ACTION should be either \\='install or \\='upgrade
-depending on which operation should be performed."
+passed as an argument because archives do not support installing
+older versions. ACTION should be either \\='install or
+\\='upgrade depending on which operation should be performed.
+OPTIONS are used when a callback to the CONTROLLER is needed."
   (when (symbolp archive)
     (setq archive (symbol-name archive)))
   (let* ((url (stp-archive-download-url pkg-name archive))
@@ -185,11 +188,13 @@ depending on which operation should be performed."
       (stp-set-attribute pkg-name 'method 'archive))))
 
 (defun stp-archive-install (controller pkg-name archive options)
-  "Install PKG-NAME from ARCHIVE."
+  "Install PKG-NAME from ARCHIVE using CONTROLLER with OPTIONS."
   (stp-archive-install-or-upgrade controller pkg-name archive 'install options))
 
 (defun stp-archive-upgrade (controller pkg-name archive options)
-  "Upgrade PKG-NAME using ARCHIVE."
+  "Upgrade PKG-NAME from ARCHIVE using CONTROLLER with OPTIONS..
+
+CONTROLLER manages the upgrade process."
   (stp-archive-install-or-upgrade controller pkg-name archive 'upgrade options))
 
 (provide 'stp-archive)

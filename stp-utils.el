@@ -220,13 +220,17 @@ version is used.")
 (defun stp-canonical-path (pkg-name)
   "Return the canonical path to PKG-NAME.
 
-The return value always ends with a slash."
+The return value always ends with a slash.
+
+When CANONICAL is non-nil, the truename of the path is used."
   (stp-full-path pkg-name t))
 
 (defun stp-full-path (pkg-name &optional canonical)
   "Return the full path to PKG-NAME.
 
-The return value always ends with a slash."
+The return value always ends with a slash.
+
+When CANONICAL is non-nil, the truename of the path is used."
   (let ((path (if (f-absolute-p pkg-name)
                   pkg-name
                 (f-join stp-source-directory pkg-name))))
@@ -240,7 +244,7 @@ The return value always ends with a slash."
     sym))
 
 (defun stp-name (pkg-path)
-  "Return the name of the package.
+  "Return the name of the package at PKG-PATH.
 
 Unlike `stp-relative-path', this never ends with a slash (nor
 does it contain any slashes)."
@@ -289,7 +293,9 @@ does it contain any slashes)."
   (setf (map-elt stp-package-info 'packages) packages))
 
 (defun stp-info-names (&optional method)
-  "Return a list of packages stored in `stp-package-info'."
+  "Return the list of packages stored in `stp-package-info'.
+
+When METHOD is non-nil, only return packages with that method."
   (sort (mapcar #'car
                 (-filter (lambda (pkg)
                            (or (not method)
@@ -304,8 +310,10 @@ does it contain any slashes)."
 (defvar stp-read-name-history nil)
 
 (defun stp-default-name (remote)
-  ;; Remove .git and then the extension. This causes the default name for a
-  ;; repository like "abc.el.git" to be "abc".
+  "Extract a default package name from REMOTE.
+
+Remove a \".git\" suffix and then the extension. This causes the
+default name for a repository like \"abc.el.git\" to be \"abc\"."
   (f-no-ext (s-chop-suffix ".git" (f-filename remote))))
 
 (def-edebug-spec stp-allow-skip (form body))
@@ -325,6 +333,7 @@ does it contain any slashes)."
 (defvar stp-read-group-name-history nil)
 
 (defun stp-read-group-name (prompt)
+  "Read a group name with PROMPT."
   (rem-comp-read prompt (stp-get-info-group-names) :require-match nil :history 'stp-read-group-history))
 
 (defun stp-expand-groups (group-names)
@@ -360,7 +369,7 @@ invalid. Methods in IGNORED-METHODS are not considered."
   "Check if REMOTE is a valid remote for some method.
 
 If METHOD is specified, ensure that REMOTE is valid for that
-specific METHOD."
+specific method."
   (if method
       (funcall (map-elt stp-remote-valid-alist method) remote)
     (and (stp-remote-method remote :noerror t) t)))
@@ -577,18 +586,18 @@ applied, the match data from their regular expression is active.")
       (stp-version-list< v1 v2)))
 
 (defun stp-version< (v1 v2)
-  "Determine if v2 of the package is newer than v1."
+  "Determine if V2 of the package is newer than V1."
   (stp-version-list< (stp-version-extract v1)
                      (stp-version-extract v2)))
 
 (defun stp-version= (v1 v2)
-  "Determine if v1 of the package is equal to v2."
+  "Determine if V1 of the package is equal to V2."
   (let ((v1e (stp-version-extract v1))
         (v2e (stp-version-extract v2)))
     (stp-verion-list= v1e v2e)))
 
 (defun stp-version<= (v1 v2)
-  "Determine if v1 of the package is less than or equal to v2."
+  "Determine if V1 of the package is less than or equal to V2."
   (let ((v1e (stp-version-extract v1))
         (v2e (stp-version-extract v2)))
     (stp-version-list<= v1e v2e)))
@@ -661,7 +670,7 @@ Package-Requires header of an elisp file.")
   (-sort (fn (string< (car %1) (car %2))) groups))
 
 (defun stp-sort-info-packages (packages)
-  "Sort packages alphabetically by name and sort their attributes.
+  "Sort PACKAGES alphabetically by name and also sort their attributes.
 
 Attributes are sorted according to `stp-attribute-order'."
   (mapcar (lambda (cell)

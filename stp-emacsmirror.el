@@ -22,7 +22,11 @@
 (defvar stp-emacsmirror-alist nil)
 
 (cl-defun stp-emacsmirror-async-refresh (&key force quiet)
-  "Refresh the lists of URLs of Github repositories from `stp-emacsmirrors'."
+  "Refresh the lists of URLs of Github repositories in `stp-emacsmirrors'.
+
+When FORCE is non-nil, refresh even if the last refresh occurred
+more recently than specified by
+`stp-emacsmirror-refresh-interval'."
   (interactive (list :force current-prefix-arg))
   (when stp-emacsmirror-async-refresh-running
     (user-error "`stp-emacsmirror-async-refresh' is already running"))

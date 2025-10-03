@@ -46,7 +46,7 @@
     (stp-git-tree-modified-p pkg-path)))
 
 (defun stp-git-subtree-package-p (pkg-name)
-  "Determine if there is a git subtree for this package."
+  "Determine if there is a git subtree for PKG-NAME."
   (and (stp-git-subtree-package-commit pkg-name) t))
 
 (defun stp-git-normalize-version (remote version)
@@ -81,6 +81,7 @@ available; otherwise, use the hash."
 (defvar stp-git-remote-history nil)
 
 (defun stp-git-read-remote (prompt &optional default)
+  "Read a remote with PROMPT and optional DEFAULT."
   (stp-read-remote-with-predicate prompt #'stp-git-valid-remote-p default 'stp-git-remote-history))
 
 (defun stp-git-versions-with-hashes (remote versions)
@@ -98,14 +99,21 @@ available; otherwise, use the hash."
 (defvar stp-git-version-history nil)
 
 (cl-defun stp-git-read-version (prompt remote &key extra-versions (extra-versions-position 'first) default (branch-to-hash t) min-version)
-  "Read a branch, tag or a hash for REMOTE.
+  "Read a branch, tag or a hash for REMOTE with PROMPT.
 
 Completion is not performed on hashes but they can be entered.
 EXTRA-VERSIONS is a list that is added to the options for the
 version that are presented to the user. If nil appears anywhere
-in extra-versions, it will be ignored. If BRANCH-TO-HASH is
-non-nil, branches are converted to hashes before they are
-returned."
+in extra-versions, it will be ignored.
+
+When EXTRA-VERSIONS-POSITION is \\='first, the extra versions
+will be shown at the beginning. Otherwise, they will be shown at
+the end.
+
+If BRANCH-TO-HASH is non-nil, branches are converted to hashes
+before they are returned.
+
+MIN-VERSION is the minimum required version."
   ;; We don't complete on heads here because they are not valid versions
   ;; (hashes or tags are).
   (setq extra-versions (-filter #'identity extra-versions))
@@ -144,7 +152,10 @@ returned."
     (format "%s %s" latest-stable (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp :keep-zero t))))
 
 (cl-defun stp-git-read-update (prompt &key default remote other-remotes)
-  "Read the update attribute."
+  "Read the update attribute with PROMPT with DEFAULT for REMOTE.
+
+OTHER-REMOTES is used to provide information to the user about
+how stale the latest stable version is."
   (let ((stable-annotation (and stp-git-read-update-show-stable-annotation
                                 remote
                                 (stp-git-stable-annotation remote other-remotes))))
@@ -166,7 +177,7 @@ returned."
 (defvar stp-branch-history nil)
 
 (defun stp-git-read-branch (prompt remote &optional default)
-  "Read a branch for pkg-name."
+  "Read a branch for REMOTE with PROMPT and DEFAULT."
   (let ((versions (->> (stp-git-remote-heads-sorted remote)
                        (stp-git-versions-with-hashes remote))))
     (->> (rem-comp-read prompt

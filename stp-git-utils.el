@@ -23,7 +23,9 @@
 (require 'timer)
 
 (cl-defun stp-git-root (&key path (transform #'f-canonical))
-  "Return the absolute path to the git repository containing PATH."
+  "Return the absolute path to the git repository containing PATH.
+
+TRANSFORM is applied to PATH before locating the repository."
   (setq path (or (and path (funcall transform path)) default-directory))
   (let* ((default-directory path)
          (root (or (rem-run-command '("git" "rev-parse" "--show-toplevel"))
@@ -74,7 +76,7 @@ instead."
       (list pkg-name (apply #'f-join (cddr (f-split (substring path k))))))))
 
 (defun stp-git-tracked-p (path)
-  "Determine if a file in a git repository is tracked."
+  "Determine if the file at PATH in a git repository is tracked."
   ;; This is needed to handle the case when path is a file in
   ;; `default-directory'. Without this, (f-dirname path) would be "./" which
   ;; will lead to the file not being found by git ls-files.
@@ -176,14 +178,22 @@ repository. Return the path to the repository."
   "This allows hashes to be resolved when installing or upgrading.")
 
 (cl-defun stp-git-fetch (remote &key force refspec no-new-tags)
-  ;; When NO-NEW-TAGS is non-nil, download the tags objects but remove the
-  ;; references to them in .git/refs/tags. Otherwise, the refs will become
-  ;; cluttered with tags for remotes of packages. These tags won't have a clear
-  ;; meaning on the local repository unless it is for this specific package. For
-  ;; example, there could be a v2.0.0 tag for chatgpt-shell but v2.0.0 doesn't
-  ;; have much meaning without even knowing which packages it is for. Git
-  ;; doesn't seem to provide a way to do this so we copy .git/refs/tags
-  ;; beforehand and then restore it after the fetch.
+  "Fetch from REMOTE.
+
+When FORCE is non-nil, pass the --force flag to git fetch.
+
+When REFSPEC is non-nil, pass it to git fetch as the refspec
+argument (see the manpage).
+
+When NO-NEW-TAGS is non-nil, download the tags objects but remove
+the references to them in .git/refs/tags. Otherwise, the refs
+will become cluttered with tags for remotes of packages. These
+tags won't have a clear meaning on the local repository unless it
+is for this specific package. For example, there could be a
+v2.0.0 tag for chatgpt-shell but v2.0.0 doesn't have much meaning
+without even knowing which packages it is for. Git doesn't seem
+to provide a way to do this so we copy .git/refs/tags beforehand
+and then restore it after the fetch."
   (let* ((git-root (stp-git-root))
          (tags-dir-tmp (when no-new-tags
                          (make-temp-file "git-tags" t)))
@@ -241,6 +251,7 @@ repository. Return the path to the repository."
                              (list revision)))))
 
 (defun stp-git-tag (tag revision)
+  "Create TAG at REVISION."
   (rem-run-command (list "git" "tag" tag revision) :error t))
 
 (cl-defun stp-git-status (&key keep-ignored keep-untracked)
@@ -252,7 +263,11 @@ version 1 of the git porcelain format (see the manual for
 git-status) and the second element is the character status code
 for the worktree. The third is the file name. When a file is
 renamed or copied, there is also a fourth element that indicates
-the new name."
+the new name.
+
+When KEEP-IGNORED is non-nil, include ignored files in the
+results. When KEEP-UNTRACKED is non-nil, include untracked files
+in the results."
   (let ((output (rem-run-command '("git" "status" "--porcelain") :error t)))
     (cl-remove-if (lambda (status)
                     (dsb (index-status worktree-status &rest args)
@@ -303,7 +318,7 @@ the new name."
   (mapcar (lambda (entry) (caddr entry)) (stp-git-status)))
 
 (defun stp-git-tree-modified-p (path)
-  "Determine if any files have been modified since the last commit."
+  "Determine if any files in PATH have been modified since the last commit."
   (setq path (f-canonical path))
   (let ((default-directory (stp-git-root :path path)))
     (cl-some (lambda (file)
@@ -337,6 +352,7 @@ Otherwise, return nil. BRANCH defualts to the current branch."
           push-remote))))
 
 (defun stp-git-remote-url (remote)
+  "Get the URL for REMOTE."
   (rem-run-command (list "git" "remote" "get-url" remote) :error t))
 
 (defvar stp-git-abbreviated-hash-length 7)
@@ -347,7 +363,9 @@ Otherwise, return nil. BRANCH defualts to the current branch."
 (defun stp-git-tree (path &optional rev)
   "Determine the hash of the git tree at PATH for revision REV.
 
-If there is no git tree at PATH then nil will be returned."
+If there is no git tree at PATH then nil will be returned. PATH
+is the directory to check. REV is the revision to use (defaults
+to HEAD)."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (setq path (f-canonical path)

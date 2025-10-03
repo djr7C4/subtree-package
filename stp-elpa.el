@@ -53,12 +53,16 @@
 (defvar stp-elpa-remote-history nil)
 
 (defun stp-elpa-read-remote (prompt &optional default)
+  "Read a remote URL using PROMPT with DEFAULT."
   (stp-read-remote-with-predicate prompt #'stp-elpa-valid-remote-p default 'stp-elpa-remote-history))
 
 (defvar stp-elpa-version-history nil)
 
 (cl-defun stp-elpa-read-version (prompt pkg-name remote &key default min-version)
-  "Read a ELPA version."
+  "Read a ELPA version with PROMPT for PKG-NAME from REMOTE.
+
+DEFAULT is the default version and MIN-VERSION is the minimum
+required version."
   (let ((versions (stp-elpa-versions-sorted pkg-name remote)))
     (when min-version
       (setq versions (stp-filter-by-min-version min-version versions)))
@@ -70,7 +74,7 @@
                  :sort-fun #'identity)))
 
 (defun stp-elpa-version-url-alist (pkg-name remote)
-  "Return an alist that maps versions to download URLs."
+  "Return an alist mapping versions to download URLs for PKG-NAME on REMOTE."
   (let* ((elpa-html-buf (or (url-retrieve-synchronously remote)
                             (error "Failed to retrieve %s" remote)))
          (elpa-html-tree (unwind-protect
@@ -143,11 +147,11 @@ operation should be performed."
       (stp-set-attribute pkg-name 'method 'elpa))))
 
 (defun stp-elpa-install (controller pkg-name remote version options)
-  "Install the specified VERSION of PKG-NAME from REMOTE."
+  "Install the specified VERSION of PKG-NAME from REMOTE using CONTROLLER."
   (stp-elpa-install-or-upgrade controller pkg-name remote version 'install options))
 
 (defun stp-elpa-upgrade (controller pkg-name remote version options)
-  "Upgrade to the specified VERSION of PKG-NAME from REMOTE."
+  "Upgrade to the specified VERSION of PKG-NAME from REMOTE using CONTROLLER."
   (stp-elpa-install-or-upgrade controller pkg-name remote version 'upgrade options))
 
 (provide 'stp-elpa)

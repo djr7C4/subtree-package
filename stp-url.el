@@ -82,11 +82,12 @@
     (stp-set-attribute pkg-name 'version version)))
 
 (defun stp-url-install-or-upgrade (controller pkg-name remote version action options)
-  "Install or upgrade PKG-NAME from REMOTE.
+  "Install or upgrade PKG-NAME to VERSION from REMOTE using CONTROLLER.
 
 If the file fetched from REMOTE is an archive, it will be
 automatically extracted. ACTION should be either \\='install or
-upgrade depending on which operation should be performed."
+upgrade depending on which operation should be performed. OPTIONS
+are used when a callback to the CONTROLLER is needed."
   (when (or (stp-url-safe-remote-p remote)
             (yes-or-no-p (format "The remote %s is unsafe. Proceed anyway?" remote)))
     (stp-url-install-or-upgrade-basic controller pkg-name remote version action options)
