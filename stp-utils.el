@@ -326,7 +326,7 @@ name may also be the name of a package."
 
 (defvar stp-attribute-order '(method remote other-remotes last-remote version update branch dependency requirements)
   "The order in which package attributes should be sorted before being written
-  to disk.")
+to disk.")
 
 (defvar stp-remote-valid-alist '((git . stp-git-valid-remote-p)
                                  (elpa . stp-elpa-valid-remote-p)

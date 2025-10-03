@@ -815,7 +815,7 @@ inverted with a prefix argument."
 
 (defvar stp-build-blacklist nil
   "This is a list of packages that should not be built by
-  `stp-build-all' when it is called interactively.")
+`stp-build-all' when it is called interactively.")
 
 (defun stp-build-all-command ()
   "Build all packages.
@@ -848,7 +848,7 @@ inverted with a prefix argument. Packages in
 
 (defvar stp-build-info-blacklist nil
   "This is a list of packages that should not be built by
-  `stp-build-all-info' when it is called interactively.")
+`stp-build-all-info' when it is called interactively.")
 
 (defun stp-build-all-info (&optional pkg-names)
   "Build the info manuals for all packages."
