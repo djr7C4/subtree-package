@@ -7,8 +7,7 @@
 (require 'stp-utils)
 
 (defvar stp-latest-versions-stale-interval (timer-duration "1 day")
-  "The number of seconds until the cached latest versions in
-`stp-latest-versions-cache' are considered stale.")
+  "The number of seconds until the cached latest versions are stale.")
 
 (defvar stp-latest-versions-cache nil)
 

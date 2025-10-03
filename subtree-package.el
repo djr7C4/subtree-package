@@ -395,8 +395,7 @@ running the command."
             (stp-list-refresh :quiet t)))))))
 
 (defun stp-check-requirements ()
-  "Check the requirements of all STP packages and report any that
-are not satisfied to the user."
+  "Report any unsatisfied requirements of STP packages to the user."
   (interactive)
   (stp-headers-update-features)
   (let* ((requirements (->> (stp-get-info-packages)
@@ -481,12 +480,12 @@ are not satisfied to the user."
          :class 'stp-uninstall-operation-options)))))
 
 (defvar stp-fork-directory nil
-  "The directory to use for forks. When this is nil,
-`stp-source-directory' is used.")
+  "The directory to use for forks.
+When this is nil, `stp-source-directory' is used.")
 
 (defvar stp-fork-action #'find-file-other-window
-  "The action to execute after a fork is created. The function is
-called with the local path to the fork.")
+  "The action to execute after a fork is created.
+The function is called with the local path to the fork.")
 
 (defun stp-fork-command ()
   "Fork the repository for a package."
@@ -540,8 +539,10 @@ called with the local path to the fork.")
             (stp-list-refresh :quiet t)))))))
 
 (defun stp-add-or-edit-package-group-command ()
-  "Add or edit a package group for easily upgrading multiple related
-packages at the same time."
+  "Add or edit a package group.
+
+This allows the user to easily upgrade multiple related packages
+at the same time."
   (interactive)
   (stp-ensure-no-merge-conflicts)
   (stp-with-package-source-directory
@@ -814,8 +815,8 @@ inverted with a prefix argument."
                  (xor stp-allow-naive-byte-compile current-prefix-arg)))))
 
 (defvar stp-build-blacklist nil
-  "This is a list of packages that should not be built by
-`stp-build-all' when it is called interactively.")
+  "The list of packages that should not be built by `stp-build-all'.
+This applies when it is called interactively.")
 
 (defun stp-build-all-command ()
   "Build all packages.
@@ -847,8 +848,8 @@ inverted with a prefix argument. Packages in
       (stp-msg "Successfully built all packages"))))
 
 (defvar stp-build-info-blacklist nil
-  "This is a list of packages that should not be built by
-`stp-build-all-info' when it is called interactively.")
+  "The list of packages whose info manuals should not be built by `stp-build-all-info'.
+This applies when it is called interactively.")
 
 (defun stp-build-all-info (&optional pkg-names)
   "Build the info manuals for all packages."
@@ -1096,9 +1097,9 @@ package."
     (stp-list-update-latest-version pkg-name :quiet t :async stp-latest-version-async)))
 
 (defvar stp-list-latest-versions-min-refresh-interval 3
-  "This is the minimum number of seconds after which
-`stp-list-refresh' will be called by
-`stp-list-update-latest-versions'.")
+  "The minimum number of seconds before refreshing latest versions.
+This is the minimum number of seconds after which `stp-list-refresh'
+will be called by `stp-list-update-latest-versions'.")
 
 (defvar stp-list-update-latest-versions-running nil)
 
@@ -1339,11 +1340,11 @@ not slow down Emacs while the fields are being updated."
     (url)))
 
 (defvar stp-list-prefer-latest-stable t
-  "When non-nil, if the current version is equivalent to the latest
-stable show that instead of the version. This can be useful when
-the hash of the latest stable version is stored in the package
-database since the latest stable version is always stored as a
-tag.")
+  "When non-nil, show the latest stable tag instead of an equivalent hash.
+
+This can be useful when the hash of the latest stable version is
+stored in the package database since the latest stable version is
+always stored as a tag.")
 
 (defun stp-list-version-field (pkg-name pkg-alist version-alist)
   (let-alist (map-merge 'alist pkg-alist version-alist)
@@ -1611,16 +1612,16 @@ development or for opening packages from `stp-list-mode'."
           (stp-msg "%s was not found in the local filesystem" pkg-name))))))
 
 (defun stp-unnecessary-dependencies-command (&optional arg)
-  "By default, inform the user about dependencies that are no longer
-required. With a prefix argument, delete them instead."
+  "Inform the user about dependencies that are no longer required.
+
+With a prefix argument, delete them instead."
   (interactive "P")
   (if arg
       (call-interactively #'stp-delete-unnecessary-dependencies)
     (call-interactively #'stp-show-unnecessary-dependencies)))
 
 (defun stp-show-unnecessary-dependencies ()
-  "Print the list of packages that were installed as dependencies
-but are no longer required by any other package."
+  "Show packages marked as dependency that are no longer required."
   (interactive)
   (stp-refresh-info)
   (let ((pkgs (stp-find-unnecessary-dependencies)))
@@ -1629,8 +1630,7 @@ but are no longer required by any other package."
       (stp-msg "No unnecessary dependencies were found"))))
 
 (defun stp-delete-unnecessary-dependencies (options)
-  "Uninstall packages that were installed as dependencies but are no
-longer required by any other package."
+  "Uninstall unnecessary dependencies."
   (interactive (list (stp-command-options :class 'stp-uninstall-operation-options)))
   (stp-refresh-info)
   (stp-with-package-source-directory
@@ -1691,6 +1691,7 @@ if no version header is found for the current file."
             (stp-git-push :do-push (stp-maybe-call do-push) :tags t)))))))
 
 (defun stp-savehist-setup ()
+  "Configure savehist to save subtree-package variables."
   (with-eval-after-load "savehist"
     (defvar savehist-additional-variables)
     (cl-dolist (var '(stp-latest-versions-cache

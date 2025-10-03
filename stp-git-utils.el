@@ -57,9 +57,7 @@ instead."
                pkg-name)))
 
 (defun stp-split-current-package ()
-  "Return a list containing the name of the package for the current
-file and the relative path to the current file or directory
-within that package."
+  "Return the name of the package and the relative path to the current file."
   (stp-refresh-info)
   (let ((path (or buffer-file-name default-directory)))
     (dsb (pkg-name k)
@@ -630,8 +628,7 @@ Otherwise, return REV."
     (stp-git-remote-hash-to-head "." rev :memoize nil)))
 
 (defun stp-git-tag-strip-dereference (tag)
-  "When TAG is non-nil, remove the ^{} following a tag object if it
-is present."
+  "Remove the ^{} following a tag name."
   ;; A tag followed by ^{} means to dereference the tag until a commit is
   ;; reached.
   (s-chop-suffix "^{}" tag))
@@ -838,8 +835,7 @@ repositories."
     (string-to-number (rem-run-command cmd :error t :nostderr t))))
 
 (defun stp-git-remote-timestamp (remote rev)
-  "This is similar to `stp-git-timestamp' except that it works with
-remote repositories."
+  "This is similar to `stp-git-timestamp' but for remote repositories."
   (let ((path (stp-git-ensure-cached-repo remote)))
     (stp-git-timestamp path rev)))
 

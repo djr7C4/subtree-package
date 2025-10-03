@@ -15,14 +15,12 @@
 (defvar stp-emacsmirror-directory (f-join user-emacs-directory "stp/emacsmirrors/"))
 
 (defvar stp-emacsmirrors '("emacsmirror" "emacsorphanage" "emacsattic")
-  "A list of GitHub organizations that contain repositories for
-Emacs packages.")
+  "A list of GitHub organizations for Emacs packages.")
 
 (defvar stp-emacsmirror-alist nil)
 
 (cl-defun stp-emacsmirror-async-refresh (&key force quiet)
-  "Refresh the lists of URLs of Github repositories from
-`stp-emacsmirrors'."
+  "Refresh the lists of URLs of Github repositories from `stp-emacsmirrors'."
   (interactive (list :force current-prefix-arg))
   (when stp-emacsmirror-async-refresh-running
     (user-error "`stp-emacsmirror-async-refresh' is already running"))
@@ -107,8 +105,8 @@ Emacs packages.")
        (-sort (fn (string< (car %1) (car %2))))))
 
 (defun stp-emacsmirror-find-remotes (pkg-name)
-  "Find remotes for PKG-NAME in `stp-emacsmirror-alist'. The result
-is an alist that maps remotes to methods."
+  "Find remotes for PKG-NAME in `stp-emacsmirror-alist'.
+The result is an alist that maps remotes to methods."
   (->> (stp-emacsmirror-package-repositories)
        (-filter (fn (string= pkg-name (car %))))
        (mapcar (fn (cons (cdr %) 'git)))))

@@ -67,9 +67,10 @@ each type per interactive command."
   "All messages from STP are logged in this buffer.")
 
 (defvar stp-log-max message-log-max
-  "The maximum number of lines of STP log messages to keep in
-`stp-log-buffer-name'. When it is nil, logging is disabled. When
-it is t, the buffer is never truncated.")
+  "Maximum number of lines of STP log messages to keep.
+
+When it is nil, logging is disabled. When it is t, the buffer is
+never truncated.")
 
 (defun stp-msg (&rest args)
   (with-current-buffer (get-buffer-create stp-log-buffer-name)
@@ -93,18 +94,20 @@ it is t, the buffer is never truncated.")
           (delete-region (point-min) (point)))))))
 
 (defun stp-negate (value)
-  "If VALUE is a function, return a function that returns the
-negation of that function. Otherwise, return the negation of
-VALUE."
+  "Return the negation of VALUE.
+
+If VALUE is a function, return a function that returns the negation
+of that function.  Otherwise, return the negation of VALUE."
   (if (functionp value)
       (fn (not (apply value &*)))
     (not value)))
 
 (defun stp-and (&rest values)
-  "If no value is a function, return the non-nil if all values
-are non-nil. Otherwise, return a function that calls each value
-that is a function and returns non-nil if all of the results are
-non-nil."
+  "Return non-nil if all VALUES are non-nil.
+
+If no value is a function, return non-nil if all values are non-nil.
+Otherwise, return a function that calls each value that is a function
+and returns non-nil if all of the results are non-nil."
   (if (cl-some #'functionp values)
       (lambda (&rest args)
         (cl-every (lambda (value)
@@ -213,13 +216,15 @@ version is used.")
                                 load-path)))
 
 (defun stp-canonical-path (pkg-name)
-  "Return the canonical path to PKG-NAME. The return value always
-ends with a slash."
+  "Return the canonical path to PKG-NAME.
+
+The return value always ends with a slash."
   (stp-full-path pkg-name t))
 
 (defun stp-full-path (pkg-name &optional canonical)
-  "Return the full path to PKG-NAME. The return value always ends
-with a slash."
+  "Return the full path to PKG-NAME.
+
+The return value always ends with a slash."
   (let ((path (if (f-absolute-p pkg-name)
                   pkg-name
                 (f-join stp-source-directory pkg-name))))
@@ -233,8 +238,10 @@ with a slash."
     sym))
 
 (defun stp-name (pkg-path)
-  "Returns the name of the package. Unlike `stp-relative-path', this
-never ends with a slash (nor does it contain any slashes)."
+  "Return the name of the package.
+
+Unlike `stp-relative-path', this never ends with a slash (nor
+does it contain any slashes)."
   (f-filename pkg-path))
 
 (defmacro stp-with-package-source-directory (&rest body)
@@ -319,14 +326,14 @@ never ends with a slash (nor does it contain any slashes)."
   (rem-comp-read prompt (stp-get-info-group-names) :require-match nil :history 'stp-read-group-history))
 
 (defun stp-expand-groups (group-names)
-  "Return a list of all packages specified by GROUP-NAMES. A group
-name may also be the name of a package."
+  "Return a list of all packages specified by GROUP-NAMES.
+
+A group name may also be the name of a package."
   (let ((groups (stp-get-info-groups)))
     (-uniq (mapcan (fn (or (cdr (assoc % groups)) (list %))) group-names))))
 
 (defvar stp-attribute-order '(method remote other-remotes last-remote version update branch dependency requirements)
-  "The order in which package attributes should be sorted before being written
-to disk.")
+  "The order in which package attributes should be sorted.")
 
 (defvar stp-remote-valid-alist '((git . stp-git-valid-remote-p)
                                  (elpa . stp-elpa-valid-remote-p)
@@ -336,9 +343,10 @@ to disk.")
 given method to methods.")
 
 (cl-defun stp-remote-method (remote &key noerror ignored-methods)
-  "Determine the method for REMOTE. If NOERROR is non-nil, then do
-not signal an error when REMOTE is invalid. Methods in
-IGNORED-METHODS are not considered."
+  "Determine the method for REMOTE.
+
+If NOERROR is non-nil, then do not signal an error when REMOTE is
+invalid. Methods in IGNORED-METHODS are not considered."
   (or (car (cl-find-if (lambda (cell)
                          (and (not (memq (car cell) ignored-methods))
                               (funcall (cdr cell) remote)))
@@ -368,8 +376,7 @@ specific METHOD."
                          :sort-fun #'identity)))
 
 (defvar stp-development-directory nil
-  "Set this to the directory that contains local elisp repositories
-for packages that you develop.")
+  "The directory that contains local repositories for packages you develop.")
 
 (defun stp-normalize-remote (remote)
   ;; Use absolute paths for local repositories.
@@ -397,9 +404,10 @@ for packages that you develop.")
     remote))
 
 (defvar stp-use-other-remotes t
-  "If this variable is non-nil, allow the user to choose from the
-other-remotes attribute in `stp-info-file' when a remote needs to
-be selected.")
+  "If non-nil, allow the user to choose from the other-remotes attribute.
+
+The other-remotes attribute is in `stp-info-file' and is used when
+a remote needs to be selected.")
 
 (defvar stp-remote-history nil)
 
@@ -444,9 +452,10 @@ be selected.")
     remote))
 
 (defvar stp-prefer-chosen-remote nil
-  "When non-nil, always put the last chosen remote as the \\='remote
-attribute and relegate the others to \\'other-remotes. Otherwise,
-do not reorder the remotes based on which was chosen.")
+  "When non-nil, set the \\='remote attribute to the last remote chosen.
+
+Other remotes are relegated to \\'other-remotes. When nil, do not
+reorder the remotes based on which was chosen.")
 
 (defun stp-update-remotes (pkg-name chosen-remote remote other-remotes)
   ;; Remote should always be chosen-remote since that is where the package was
@@ -472,13 +481,15 @@ do not reorder the remotes based on which was chosen.")
 (defvar stp-remote-transformers
   '(("\\(?:http[s]?://\\)\\(?:www\\.\\)?\\(.+\\)\\.github\\.io/\\(.+\\)/?" . stp-github-io-transformer)
     ("\\(\\(?:http[s]?://\\)\\(?:www\\.\\)?github\\.com/\\(?:.+\\)/\\(?:.+\\)\\)\\.git" . stp-github-no-extension-transformer))
-  "This is an alist that maps regular expressions to functions that
-transform the :url fields of the extras slot of `package-desc'
-objects. A function is applied with the remote as the argument if
-the corresponding regular expression matches. Only the first
-function that applies is used to transform the remote. When
-functions are applied, the match data from their regular
-expression is active.")
+  "This is an alist that maps regular expressions to functions.
+
+The functions transform the :url field of the extras slot of
+`package-desc' objects.
+
+A function is applied with the remote as the argument if the
+corresponding regular expression matches. Only the first function
+that applies is used to transform the remote. When functions are
+applied, the match data from their regular expression is active.")
 
 (defun stp-transform-remote (remote)
   "Transform REMOTE by applying `stp-remote-transformers'."
@@ -587,8 +598,7 @@ expression is active.")
            versions))
 
 (defun stp-requirements-version (version)
-  "Convert VERSION to the form that is accepted by
-`version-to-list'. This is what appears in requirements headers."
+  "Convert VERSION to the form accepted by `version-to-list'."
   (let ((extracted-version (stp-version-extract version)))
     (and extracted-version (s-join "." extracted-version))))
 
@@ -649,8 +659,9 @@ Package-Requires header of an elisp file.")
   (-sort (fn (string< (car %1) (car %2))) groups))
 
 (defun stp-sort-info-packages (packages)
-  "Sort packages alphabetically by name and sort their attributes
-according to `stp-attribute-order'."
+  "Sort packages alphabetically by name and sort their attributes.
+
+Attributes are sorted according to `stp-attribute-order'."
   (mapcar (lambda (cell)
             (cons (car cell)
                   (-sort (fn (stp-attribute< (car %1) (car %2)))
@@ -682,14 +693,12 @@ according to `stp-attribute-order'."
     (f-write (buffer-string) 'utf-8 stp-info-file)))
 
 (defun stp-get-attribute (pkg-name attr)
-  "Get the attribute ATTR in the alist with the key corresponding to
-PKG-NAME."
+  "Get the attribute ATTR in the alist for PKG-NAME."
   (let ((pkg-name (stp-name pkg-name)))
     (map-elt (map-elt (stp-get-info-packages) pkg-name) attr)))
 
 (defun stp-set-attribute (pkg-name attr val)
-  "Set the attribute ATTR to VAL in the alist with the key
-corresponding to PKG-NAME."
+  "Set the attribute ATTR to VAL in the alist for PKG-NAME."
   (let* ((pkg-name (stp-name pkg-name))
          (packages (stp-get-info-packages))
          (alist (map-elt packages pkg-name)))
@@ -701,20 +710,17 @@ corresponding to PKG-NAME."
     val))
 
 (defun stp-delete-attribute (pkg-name attr)
-  "Remove ATTR from the alist with the key corresponding to
-PKG-NAME."
+  "Remove ATTR from the alist for PKG-NAME."
   (let ((alist (stp-get-alist pkg-name)))
     (stp-set-alist pkg-name (remq (assoc attr alist) alist))))
 
 (defun stp-get-alist (pkg-name)
-  "Get the alist that contains information corresponding to
-PKG-NAME."
+  "Get the alist that contains information for PKG-NAME."
   (let ((pkg-name (stp-name pkg-name)))
     (map-elt (stp-get-info-packages) pkg-name)))
 
 (defun stp-set-alist (pkg-name alist)
-  "Set the alist that contains information corresponding to PKG-NAME
-to ALIST."
+  "Set the alist that contains information for PKG-NAME to ALIST."
   (let* ((pkg-name (stp-name pkg-name))
          (packages (stp-get-info-packages)))
     (setf (map-elt packages pkg-name) alist)
@@ -722,15 +728,13 @@ to ALIST."
     alist))
 
 (defun stp-delete-alist (pkg-name)
-  "Remove the alist that contains information corresponding to
-PKG-NAME."
+  "Remove the alist for PKG-NAME."
   (let ((packages (stp-get-info-packages)))
     (setq packages (map-delete packages pkg-name))
     (stp-set-info-packages packages)))
 
 (defun stp-find-unnecessary-dependencies ()
-  "Return a list of the names of all packages that are no longer
-required by another package but were installed as dependencies."
+  "Return the list of unnecessary dependencies."
   (mapcar #'car
           (-filter (lambda (pkg)
                      (dsb (pkg-name . pkg-alist)
@@ -796,11 +800,14 @@ required by another package but were installed as dependencies."
     ("^\\(?:haskell-mode-\\)\\(1-44_\\|1-45_\\)$" . stp-haskell-extractor)
     ;; auctex
     ("^\\(?:auctex_release\\|auctex\\|release\\|rel\\)\\(?:[-_./]\\)\\([0-9]+\\([-_.][0-9]+\\)*[a-zA-Z]?\\+?\\)$" . stp-auctex-extractor))
-  "An list of regexps to match to package versions (after the suffix
-is removed) and functions to extract a key from the text that
-matches the first group of the regexp. The key should be a list
-of strings which are the components of the version string. For
-example, for v1.2.3a the key would be (\"1\" \"2\" \"3\" \"a\").
+  "An alist of regexps that map to version extractors.
+
+Each regexp matches a package version (after the suffix is
+removed). Version extractors are functions that are called to
+extract a key from the text that matches the first group of the
+regexp. The key should be a list of strings which are the
+components of the version string. For example, for v1.2.3a the
+key would be (\"1\" \"2\" \"3\" \"a\").
 
 Functions are called with the match data from matching the
 package version and take the version with the suffix removed as
@@ -822,9 +829,10 @@ an argument.")
 
 (defun stp-download-elisp (dir pkg-name remote)
   "Download the elisp file or archive at REMOTE and copy it to DIR.
-DIR will be created if it does not already exist. If REMOTE
-contains a single elisp file, it will be renamed as PKG-NAME with a
-.el extension added if necessary."
+
+DIR will be created if it does not already exist. If REMOTE contains
+a single elisp file, it will be renamed as PKG-NAME with a .el
+extension added if necessary."
   (unless (f-dir-p dir)
     (f-mkdir-full-path dir))
   ;; Without this, `f-move' will not work below when dir is the target.
@@ -913,8 +921,9 @@ contains a single elisp file, it will be renamed as PKG-NAME with a
       (load f))))
 
 (defun stp-library-exists-p (name)
-  "Check if NAME exists in the load path. NAME can be a symbol, a
-string or a list of the form (NAME VERSION)."
+  "Check if NAME exists in the load path.
+
+NAME can be a symbol, a string or a list of the form (NAME VERSION)."
   (when (listp name)
     (setq name (car name)))
   (when (symbolp name)

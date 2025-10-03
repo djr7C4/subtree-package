@@ -28,28 +28,30 @@ This has no effect unless `stp-auto-commit' is non-nil. The value
 can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-lock nil
-  "When non-nil, automatically update `stp-lock-file' when packages
-are changed. The value can also be a function as for
-`stp-auto-commit'.")
+  "When non-nil, automatically update `stp-lock-file' when packages are changed.
+
+The value can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-audit-changes nil
-  "Show diffs whenever a package changes or new code is added. This
-is useful for security purposes. The value can also be a function
-as for `stp-auto-commit'.")
+  "Show diffs whenever a package changes or new code is added.
 
-(defvar stp-auto-reset '(:audit)
-  "A list that indicates when git reset should be used under
-exceptional circumstances. If the list contains :audit, reset
-when an audit fails. If it contains :error, reset when errors
-occur. t means to always reset and nil means to never reset.
-Instead of a list, the value t is also allowed. This is
-equivalent to \\='(:audit :reset). The value can also be a
+This is useful for security purposes. The value can also be a
 function as for `stp-auto-commit'.")
 
+(defvar stp-auto-reset '(:audit)
+  "A list that indicates when git reset should be used.
+
+If the list contains :audit, reset when an audit fails. If it
+contains :error, reset when errors occur. t means to always reset
+and nil means to never reset. Instead of a list, the value t is
+also allowed. This is equivalent to \\='(:audit :reset). The
+value can also be a function as for `stp-auto-commit'.")
+
 (defvar stp-auto-dependencies t
-  "When non-nil, automatically install or upgrade dependencies as
-needed when installing, uninstalling, upgrading or reinstalling
-packages.")
+  "When non-nil, automatically install or upgrade dependencies as needed.
+
+This applies when installing, uninstalling, upgrading or
+reinstalling packages.")
 
 (defvar stp-auto-post-actions t
   "When non-nil, automatically perform post actions.
@@ -60,9 +62,9 @@ actions can be individually enabled or disabled via
 `stp-auto-build-info' and `stp-auto-update-info-directories'.")
 
 (defvar stp-auto-tag t
-  "When bumping the version, automatically tag the commit with the
-new version. The value can also be a function as for
-`stp-auto-commit'.")
+  "When bumping the version, tag the commit with the new version.
+
+The value can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-update-load-path t
   "When non-nil, automatically update the load path.
@@ -111,8 +113,9 @@ for `stp-auto-commit'.")
   ((allow-skip :initarg :allow-skip :initform t)))
 
 (defvar stp-enforce-min-version nil
-  "Determines if the user is allowed to select a version older than
-the minimum required by another package.")
+  "Determines if the user is allowed to select a version older than the minimum.
+
+The minimum is the version required by another package.")
 
 (defclass stp-additive-operation (stp-package-change-operation stp-skippable-package-operation)
   ((dependency :initarg :dependency :initform nil)
@@ -215,12 +218,11 @@ prompted."
                                (f-canonical stp-source-directory)))
 
 (defvar stp-allow-unclean #'stp-unclean-fun
-  "This variable determines the behavior when the git repository is
-unclean at the beginning of commands.
+  "This variable determines the behavior when the git repository is unclean.
 
-When it is nil, an error occurs. :allow means that the command
-should proceed without user intervention. If the value is a
-function, it will be called with no arguments and the return
+When the value is nil, an error occurs. :allow means that the
+command should proceed without user intervention. If the value is
+a function, it will be called with no arguments and the return
 value will be interpreted as described here. Any other value
 means that the user should be prompted to determine if the
 command should proceed.")
@@ -272,9 +274,11 @@ command should proceed.")
       (setq first nil))))
 
 (defun stp-sort-remotes (remotes)
-  "Sort the alist REMOTES that maps remotes to methods by method
-according to the order in `stp-methods-order'. REMOTES may also
-contain strings that map to remote symbols representing archives."
+  "Sort the alist REMOTES that maps remotes to methods by method.
+
+This is done according to the order in `stp-methods-order'.
+REMOTES may also contain strings that map to remote symbols
+representing archives."
   (seq-sort-by (lambda (remote)
                  (let ((method-or-archive (cdr remote)))
                    (list (cl-position (if (not (memq method-or-archive stp-methods-order))

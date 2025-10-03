@@ -159,8 +159,7 @@ may be either a single path or a list of paths."
   (stp-headers-paths-requirements paths :fun #'stp-headers-directory-features :recursive recursive))
 
 (defun stp-headers-requirements-hash-table (requirements)
-  "Return a hash table mapping the symbol for each package in
-REQUIREMENTS to its version."
+  "Return a hash table mapping each package symbol in REQUIREMENTS to its version."
   ;; Make sure that there are no duplicate packages.
   (stp-headers-merge-elisp-requirements requirements t))
 
@@ -169,18 +168,18 @@ REQUIREMENTS to its version."
 (defvar stp-headers-versions nil)
 
 (defvar stp-headers-always-recompute-features nil
-  "When non-nil, features are always recomputed by
-`stp-headers-update-features' instead of using incremental updates. This
-is slower but will detect packages installed with other package
-managers.")
+  "When non-nil, features are always recomputed by `stp-headers-update-features'.
+
+This is slower than using incremental updates but it will detect
+packages installed with other package managers.")
 
 (defvar stp-headers-update-recompute-development-directory t
-  "When non-nil, always recompute features for packages in
-`stp-development-directory'.")
+  "When non-nil, always recompute features for packages in `stp-development-directory'.")
 
 (defun stp-headers-update-features (&optional suppress-first)
-  "Update `stp-headers-installed-features'. Add the new features
-from packages that were installed or upgraded since this function
+  "Update `stp-headers-installed-features'.
+
+Add the new features from packages that were installed or upgraded since this function
 was last invoked. This is much faster than recomputing all
 features which can take several seconds or more if many packages
 are installed. The downside is that modifications made to
@@ -214,11 +213,13 @@ packages from outside of STP will not be detected."
           stp-headers-versions (stp-headers-compute-versions))))
 
 (defun stp-headers-recompute-features (&optional all)
-  "Recompute features in the load path. This may be necessary if a
-package is installed outside of STP. By default, features
-provided by files distributed with Emacs are not recomputed
-unless the installed version of Emacs hash changed. With a prefix
-argument, all features are recomputed unconditionally."
+  "Recompute features in the load path.
+
+This may be necessary if a package is installed outside of STP.
+By default, features provided by files distributed with Emacs are
+not recomputed unless the installed version of Emacs hash
+changed. With a prefix argument, all features are recomputed
+unconditionally."
   (interactive "P")
   (stp-refresh-info)
   (cl-flet ((emacs-feature-p (feature)
@@ -250,8 +251,9 @@ argument, all features are recomputed unconditionally."
   (and files (list (car files))))
 
 (defvar stp-requirements-file-selector #'stp-requirements-default-file-selector
-  "This variable should be a function that takes a list of candidate
-files that can be used to find the requirements for the package.
+  "This variable should be a function that takes a list of candidate files.
+
+The files are used to find the requirements for the package.
 These are sorted with more promising candidates first. The
 function should return the list of files that should be actually
 be used to compute the requirements. This can be set to
@@ -567,13 +569,12 @@ inserted."
       inserted)))
 
 (defvar stp-main-package-name-transform (fn (s-chop-suffix ".el" (s-chop-prefix "emacs-" %)))
-  "The function to apply to transform the name of a package when
-looking for the main file.")
+  "A function that transforms a package name when finding the main file.")
 
 (defvar stp-main-file nil
-  "This variable overrides the heuristics in
-`stp-main-package-file'. Generally, it should be set as a
-file-local or directory-local variable.")
+  "This variable overrides the heuristics in `stp-main-package-file'.
+
+Generally, it should be set as a file-local or directory-local variable.")
 
 (cl-defun stp-main-package-file (pkg-name &key no-directory relative)
   (or stp-main-file
