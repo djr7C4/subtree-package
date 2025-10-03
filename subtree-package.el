@@ -935,11 +935,13 @@ inverted with a prefix argument. Packages in
     (beginning-of-line)))
 
 (defun stp-list-scroll-up-command ()
+  "Scroll up while ensuring that point is on a package."
   (interactive)
   (call-interactively #'scroll-up-command)
   (stp-list-ensure-package-line))
 
 (defun stp-list-scroll-down-command ()
+  "Scroll down while ensuring that point is on a package."
   (interactive)
   (call-interactively #'scroll-down-command)
   (stp-list-ensure-package-line))

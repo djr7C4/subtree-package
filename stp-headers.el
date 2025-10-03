@@ -430,6 +430,9 @@ was inserted."
 (defvar stp-headers-ignored-requirements nil)
 
 (defun stp-headers-update-requirements-header (&optional insert)
+  "Update the Package-Requires header in the current buffer.
+
+When insert is non-nil, insert the header if it does not already exist."
   (interactive (list t))
   (stp-refresh-info)
   (stp-headers-update-features)
