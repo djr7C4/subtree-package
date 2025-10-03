@@ -29,6 +29,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Code:
+
 (require 'align)
 (require 'async nil t)
 (require 'find-lisp)

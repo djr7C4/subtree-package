@@ -1,5 +1,7 @@
 ;;; stp-bootstrap.el --- Bootstrap subtree-package -*- lexical-binding: t; -*-
 
+;;; Code:
+
 (defvar stp-source-directory)
 (defvar stp-package-source-directories '("clients" "contrib" "core" "elisp" "extensions" "lisp" "src"))
 

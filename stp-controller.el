@@ -1,5 +1,7 @@
 ;;; stp-controller.el --- Controller for package operations -*- lexical-binding: t; -*-
 
+;;; Code:
+
 (require 'info)
 (require 'stp-headers)
 (require 'stp-latest)

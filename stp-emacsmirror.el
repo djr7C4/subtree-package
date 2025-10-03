@@ -1,5 +1,7 @@
 ;;; stp-emacsmirror.el --- Emacsmirror support -*- lexical-binding: t; -*-
 
+;;; Code:
+
 (require 'async)
 (require 'cl-lib)
 (require 'f)

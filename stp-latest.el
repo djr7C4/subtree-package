@@ -1,5 +1,7 @@
 ;;; stp-latest.el --- Compute the latest versions of packages -*- lexical-binding: t; -*-
 
+;;; Code:
+
 (require 'queue nil t)
 (require 'stp-git)
 (require 'stp-elpa)
