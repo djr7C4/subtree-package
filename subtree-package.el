@@ -1688,9 +1688,9 @@ delete them instead."
        options))))
 
 (cl-defun stp-bump-version (filename options)
-  "Increase the version header for FILENAME using OPTIONS.
+  "Bump the version header for FILENAME using OPTIONS.
 
-Interactively, this is the file for the current buffer or the
+Interactively, FILENAME is the file for the current buffer or the
 main file for the package if no version header is found for the
 current file."
   (interactive (let ((options (stp-command-options :class 'stp-bump-operation-options)))
