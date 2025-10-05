@@ -95,11 +95,15 @@ are used when a callback to the CONTROLLER is needed."
       (stp-set-attribute pkg-name 'method 'url))))
 
 (defun stp-url-install (controller pkg-name remote version options)
-  "Install PKG-NAME from REMOTE."
+  "Install PKG-NAME from REMOTE.
+
+OPTIONS are used when a callback to the CONTROLLER is needed."
   (stp-url-install-or-upgrade controller pkg-name remote version 'install options))
 
 (defun stp-url-upgrade (controller pkg-name remote version options)
-  "Upgrade PKG-NAME from REMOTE."
+  "Upgrade PKG-NAME from REMOTE.
+
+OPTIONS are used when a callback to the CONTROLLER is needed."
   (stp-url-install-or-upgrade controller pkg-name remote version 'upgrade options))
 
 (provide 'stp-url)

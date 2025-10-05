@@ -319,11 +319,15 @@ default name for a repository like \"abc.el.git\" to be \"abc\"."
 (def-edebug-spec stp-allow-skip (form body))
 
 (cl-defun stp-read-name (prompt &key default)
-  "Read the name of a package."
+  "Read the name of a package using PROMPT with DEFAULT."
   (rem-read-from-mini prompt :history 'stp-read-name-history :initial-contents default))
 
 (cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (table (stp-info-names)))
-  "Read the name of a package that is already installed."
+  "Read the name of an installed package from TABLE using PROMPT.
+
+When REQUIRE-MATCH is non-nil, require a match in TABLE. When
+MULTIPLE is non-nil, `completing-read-multiple' is used to allow
+for the selection of multiple packages."
   (rem-comp-read prompt
                  table
                  :require-match require-match
@@ -482,11 +486,11 @@ reorder the remotes based on which was chosen.")
            (stp-set-attribute pkg-name 'other-remotes)))))
 
 (defun stp-github-io-transformer (remote)
-  "Transform github.io pages to git repositories."
+  "A transform github.io REMOTE into a git repository."
   (format "https://github.com/%s/%s" (match-string 1 remote) (match-string 2 remote)))
 
 (defun stp-github-no-extension-transformer (remote)
-  "Remove .git extensions from github repositories."
+  "Remove .git extensions from a github REMOTE."
   (match-string 1 remote))
 
 (defvar stp-remote-transformers
@@ -666,7 +670,7 @@ Package-Requires header of an elisp file.")
                     (cons 'packages (stp-sort-info-packages packages)) packages)))
 
 (defun stp-sort-info-groups (groups)
-  "Sort package groups alphabetically by name."
+  "Sort package GROUPS alphabetically by name."
   (-sort (fn (string< (car %1) (car %2))) groups))
 
 (defun stp-sort-info-packages (packages)

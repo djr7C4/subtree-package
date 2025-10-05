@@ -284,7 +284,9 @@ how stale the latest stable version is."
   "When this is non-nil, attempt to reinstall when upgrading fails.")
 
 (cl-defun stp-git-upgrade (controller pkg-name remote version options &key (squash t) (set-pkg-info t) fallback-version)
-  "Upgrade PKG-NAME to the specified VERSION from REMOTE."
+  "Upgrade PKG-NAME to the specified VERSION from REMOTE.
+
+OPTIONS are used when a callback to the CONTROLLER is needed."
   (setq fallback-version (or fallback-version version))
   (let* ((git-root (stp-git-root :path stp-source-directory))
          (pkg-path (stp-canonical-path pkg-name))

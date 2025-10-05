@@ -133,8 +133,10 @@ The result is an alist unless HASH-TABLE is provided."
 (cl-defun stp-headers-directory-requirements (dir &key (fun #'stp-headers-elisp-file-requirements) recursive)
   "Find all packages that are required by DIR.
 
-There are determined according to the Package-Requires field of
-its elisp files."
+This is done by calling FUN with each filename. The results are
+then merged. By default, FUN uses the Package-Requires field to
+compute requirements. Subdirectories are searched when RECURSIVE
+is non-nil."
   (let* (reqs
          (files (rem-elisp-files-to-load dir :compressed t :recursive recursive)))
     (cl-dolist (file files)
@@ -142,8 +144,14 @@ its elisp files."
     (stp-headers-merge-elisp-requirements reqs)))
 
 (cl-defun stp-headers-paths-requirements (paths &key (fun #'stp-headers-directory-requirements) recursive)
-  "Find all requirements for the files in PATHS. PATHS may be either
-a single path or a list of paths."
+  "Find all requirements for the files in PATHS.
+
+PATHS may be either a single path or a list of paths.
+Requirements are computed by calling FUN with each filename. The
+results are then merged. By default, FUN uses the
+Package-Requires field to compute requirements. When RECURSIVE is
+non-nil, each path that corresponds to a directory is first
+expanded to find all of the elisp files it contains."
   (setq paths (ensure-list paths))
   (->> (-filter (fn (and % (f-directory-p %))) paths)
        (mapcar (-rpartial fun :recursive recursive))
@@ -151,15 +159,19 @@ a single path or a list of paths."
        stp-headers-merge-elisp-requirements))
 
 (cl-defun stp-headers-directory-features (dir &key recursive)
-  "Find all requirements that are satisfied by files in DIR."
+  "Find all requirements that are satisfied by files in DIR.
+
+Subdirectories are searched when recursive is non-nil."
   (stp-headers-directory-requirements dir
                                       :fun (fn (awhen (stp-headers-elisp-file-feature %)
                                                  (list it)))
                                       :recursive recursive))
 
 (cl-defun stp-headers-paths-features (paths &key recursive)
-  "Find all requirements that are satisfied by files in PATHS. PATHS
-may be either a single path or a list of paths."
+  "Find all requirements that are satisfied by files in PATHS.
+
+PATHS may be either a single path or a list of paths.
+Subdirectories are searched when recursive is non-nil."
   (stp-headers-paths-requirements paths :fun #'stp-headers-directory-features :recursive recursive))
 
 (defun stp-headers-requirements-hash-table (requirements)
@@ -180,10 +192,11 @@ packages installed with other package managers.")
 (defvar stp-headers-update-recompute-development-directory t
   "When non-nil, always recompute features for packages in `stp-development-directory'.")
 
-(defun stp-headers-update-features (&optional suppress-first)
+(defun stp-headers-update-features (&optional quiet)
   "Update `stp-headers-installed-features'.
 
-Add the new features from packages that were installed or upgraded since this function
+When QUIET is non-nil, suppress messages. Add the new features
+from packages that were installed or upgraded since this function
 was last invoked. This is much faster than recomputing all
 features which can take several seconds or more if many packages
 are installed. The downside is that modifications made to
@@ -211,7 +224,7 @@ packages from outside of STP will not be detected."
                                                   stp-headers-merge-elisp-requirements)
               stp-headers-uninstalled-features nil
               stp-headers-versions new-versions))
-    (unless suppress-first
+    (unless quiet
       (stp-msg "Installed features have not yet been computed. This will take a moment the first time"))
     (setq stp-headers-installed-features (stp-headers-paths-features load-path)
           stp-headers-versions (stp-headers-compute-versions))))
@@ -438,7 +451,8 @@ was inserted."
 (defun stp-headers-update-requirements-header (&optional insert)
   "Update the Package-Requires header in the current buffer.
 
-When insert is non-nil, insert the header if it does not already exist."
+If the header does not already exist and INSERT is non-nil then
+insert them."
   (interactive (list t))
   (stp-refresh-info)
   (stp-headers-update-features)

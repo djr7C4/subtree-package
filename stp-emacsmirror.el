@@ -26,7 +26,8 @@
 
 When FORCE is non-nil, refresh even if the last refresh occurred
 more recently than specified by
-`stp-emacsmirror-refresh-interval'."
+`stp-emacsmirror-refresh-interval'. Suppresses messages when
+QUIET is non-nil."
   (interactive (list :force current-prefix-arg))
   (when stp-emacsmirror-async-refresh-running
     (user-error "`stp-emacsmirror-async-refresh' is already running"))

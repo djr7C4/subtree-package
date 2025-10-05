@@ -277,14 +277,15 @@ package. Normally, the user will be prompted for it but if
 PKG-NAME is non-nil that will be used instead. PROMPT-PREFIX is
 prepended to prompts when it is non-nil. If PKG-VERSION is
 non-nil, the \\='VERSION attribute for the package will be
-included as the next positional argument. If READ-PKG-LIST is
+included as the next positional argument. If READ-PKG-ALIST is
 non-nil, a package alist will be read from the user and included
-as an additional positional argument. When LINE-PKG is
-non-nil (as it is by default), any data that would normally be
-read from the user will be inferred from the cursor position when
-`stp-list-mode' is active. MIN-VERSION is the minimum version
-that should be selected for this package. If ENFORCE-MIN-VERSION
-is non-nil, this requirement is enforced."
+as an additional positional argument. When EXISTING-PKG is
+non-nil, read the name of a package that is already installed.
+When LINE-PKG is non-nil (as it is by default), any data that
+would normally be read from the user will be inferred from the
+cursor position when `stp-list-mode' is active. MIN-VERSION is
+the minimum version that should be selected for this package. If
+ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
   (stp-with-package-source-directory
     (plet* ((`(,pkg-name . ,pkg-alist)
              (or (and read-pkg-alist
@@ -1144,10 +1145,12 @@ will be called by `stp-list-update-latest-versions'.")
 
 This allows the user to see which packages can be upgraded. This
 is an expensive operation that may take several minutes if many
-packages are installed. It is performed asynchronously if ASYNC
-is non-nil. By default, the value of `stp-latest-version-async'
-is used. Interactively, a universal prefix argument inverts the
-default value.
+packages are installed.
+
+The update is performed asynchronously if ASYNC is non-nil. By
+default, the value of `stp-latest-version-async' is used.
+Interactively, a universal prefix argument inverts the default
+value.
 
 By default, only compute the latest field for packages that are
 not already in the cache or were last updated more than
@@ -1165,7 +1168,9 @@ less responsive. When BATCH is non-nil, no updates will be
 performed until all latest fields have been computed. This will
 not slow down Emacs while the fields are being updated.
 
-When QUIET is non-nil, messages will be suppressed."
+When QUIET is non-nil, messages will be suppressed. When FOCUS is
+non-nil, focus on the line for the package that had its latest
+version information updated."
   (interactive (let ((async (xor (consp current-prefix-arg) stp-latest-version-async)))
                  (list :pkg-names (if (>= (prefix-numeric-value current-prefix-arg) 0)
                                       (stp-stale-packages)

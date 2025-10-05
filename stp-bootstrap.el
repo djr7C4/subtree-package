@@ -63,7 +63,10 @@ When INTERACTIVE-P indicates if the function was called interactively."
     paths))
 
 (defun stp-update-load-paths (&optional dir interactive-p)
-  "Add all appropriate package directories to the `load-path'."
+  "Add all appropriate package directories to the `load-path'.
+
+DIR is the directory to search for packages. INTERACTIVE-P is
+non-nil when called interactively."
   (interactive (list nil t))
   (dolist (path (stp-compute-load-paths dir))
     (add-to-list 'load-path path))

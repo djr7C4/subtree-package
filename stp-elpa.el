@@ -134,7 +134,8 @@ required version."
 The package is downloaded from REMOTE. If the file fetched from
 REMOTE is an archive, it will be automatically extracted. ACTION
 should be either \\='install or \\='upgrade depending on which
-operation should be performed."
+operation should be performed. OPTIONS are used when a callback
+to the CONTROLLER is needed."
   (let ((url (stp-elpa-download-url pkg-name remote version))
         (new-version version)
         (old-version (stp-get-attribute pkg-name 'version)))

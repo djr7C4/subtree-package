@@ -96,16 +96,17 @@ asynchronously. See `stp-latest-version-async'.")
   "Retry computing latest versions up to this many times.")
 
 (cl-defun stp-latest-versions (package-callback final-callback pkg-names &key quiet async (num-processes stp-latest-num-processes) (max-tries stp-latest-retries))
-  "Compute the latest versions for the packages in PACKAGES.
+  "Compute the latest versions for the packages in PKG-NAMES.
 
 Once the latest version becomes available for package, call
 PACKAGE-CALLBACK with the latest version alist as the argument.
 Once all latest versions are available, call FINAL-CALLBACK with
 the alist mapping the names of the packages to their latest
-version alists. he latest versions are computed asynchronously
+version alists. The latest versions are computed asynchronously
 using NUM-PROCESSES simultaneously. In case an error occurs while
 computing the latest version for a package, it will be retried up
-to TRIES times."
+to MAX-TRIES times. When QUIET is non-nil, suppress messages.
+When ASYNC is non-nil, perform the computation asynchronously."
   (let (latest-versions
         (queue (make-queue))
         (running 0))

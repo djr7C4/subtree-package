@@ -393,10 +393,11 @@ This is done for revision REV when it is non-nil."
     (s-split "\n" (rem-run-command cmd :error t) t)))
 
 (defun stp-git-subtree-commit-message (path &optional format)
-  "Return the stp-msg for the last local commit by git subtree.
+  "Return the message for the last local commit by git subtree at PATH.
 
 This is different from the remote commit that was merged when
---squash is used."
+--squash is used. FORMAT is passed to the --format argument of
+git log."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (let* ((default-directory path)
@@ -505,7 +506,7 @@ installed as a git subtree."
   (stp-git-remote-hash-alist-basic remote))
 
 (cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p) (memoize t))
-  "Return an alist that maps hashes to refs.
+  "Return an alist that maps hashes to refs for REMOTE.
 
 If supplied, PREFIXES is a list of allowed prefixes. Matching
 prefixes are removed from the refs. By default all refs are
@@ -539,7 +540,9 @@ not be memoized even within an `stp-with-memoization' form."
                                (s-split "\n" output)))))))
 
 (cl-defun stp-git-remote-hash-tag-alist (remote &key (memoize t))
-  "Return an alist that maps hashes to tags."
+  "Return an alist that maps hashes to tags for REMOTE.
+
+Memoization is used when MEMOIZE is non-nil."
   (stp-git-remote-hash-alist remote :prefixes '("refs/tags/") :memoize memoize))
 
 (defun stp-git-remote-tags (remote &optional keep-dereferences)
@@ -552,7 +555,9 @@ not be memoized even within an `stp-with-memoization' form."
   (member rev (stp-git-remote-tags remote t)))
 
 (cl-defun stp-git-remote-hash-head-alist (remote &key (memoize t))
-  "Return an alist that maps hashes to heads."
+  "Return an alist that maps hashes to heads for REMOTE.
+
+Memoization is used when MEMOIZE is non-nil."
   ;; Manually add HEAD instead of using the branch refs/heads/HEAD. This branch
   ;; should not exist as it is likely to create confusion but some repositories
   ;; may have created it by mistake.
@@ -598,7 +603,7 @@ returned."
     (s-split "\n" (rem-run-command cmd :error t) t)))
 
 (cl-defun stp-git-remote-rev-to-hash (remote rev &key (memoize t))
-  "Convert REV to a hash if it isn't one already.
+  "Convert REV to a hash using REMOTE.
 
 Refs that do not match any hash will remain unchanged."
   (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
@@ -611,21 +616,21 @@ Refs that do not match any hash will remain unchanged."
       rev))
 
 (cl-defun stp-git-remote-head-to-hash (remote rev &key (memoize t))
-  "If REV is a head, convert it to a hash.
+  "If REV is a head, convert it to a hash using REMOTE.
 
 Otherwise, return REV."
   (or (car (rassoc rev (stp-git-remote-hash-head-alist remote :memoize memoize)))
       rev))
 
 (cl-defun stp-git-remote-tag-to-hash (remote rev &key (memoize t))
-  "If REV is a tag, convert it to a hash.
+  "If REV is a tag, convert it to a hash using REMOTE.
 
 Otherwise, return REV."
   (or (car (rassoc rev (stp-git-remote-hash-tag-alist remote :memoize memoize)))
       rev))
 
 (cl-defun stp-git-remote-hash-to-head (remote rev &key (memoize t))
-  "If REV is a hash that corresponds to a head, return the head.
+  "If REV is a hash that corresponds to a head on REMOTE, return the head.
 
 Otherwise, return REV."
   (or (map-elt (stp-git-remote-hash-head-alist remote :memoize memoize) rev)
@@ -648,7 +653,7 @@ Otherwise, return REV."
     (stp-git-remote-hash-to-head "." rev :memoize nil)))
 
 (defun stp-git-tag-strip-dereference (tag)
-  "Remove the ^{} following a tag name."
+  "Remove the ^{} following a TAG name."
   ;; A tag followed by ^{} means to dereference the tag until a commit is
   ;; reached.
   (s-chop-suffix "^{}" tag))
@@ -663,7 +668,7 @@ Otherwise, return REV."
   (car (rassoc (stp-git-tag-append-dereference rev) (stp-git-remote-hash-tag-alist remote))))
 
 (cl-defun stp-git-remote-rev-to-tag (remote rev &key keep-dereference (memoize t))
-  "If REV is a hash that corresponds to a tag, return the tag.
+  "If REV is a hash that corresponds to a tag on REMOTE, return the tag.
 
 Otherwise, return REV."
   (or (let ((tag (map-elt (stp-git-remote-hash-tag-alist remote :memoize memoize) rev)))
@@ -831,10 +836,11 @@ and REV2 do not share a common ancestor."
                           (f-delete file))))))))
 
 (cl-defun stp-git-count-remote-commits (remotes rev rev2)
-  "This is `stp-git-count-commits' for remote repositories.
+  "Count the number of commits from REV to REV2.
 
-REMOTES can be either a single repository or a list of multiple
-repositories."
+This is similar to `stp-git-count-commits' for remote
+repositories. REMOTES can be either a single repository or a list
+of multiple repositories."
   ;; branch is ignored because it does not save much space and branches are not
   ;; known for stable git packages which prevents using it there anyway. This
   ;; would result in multiple cached versions of the same repository if it was
@@ -855,7 +861,9 @@ repositories."
     (string-to-number (rem-run-command cmd :error t :nostderr t))))
 
 (defun stp-git-remote-timestamp (remote rev)
-  "This is similar to `stp-git-timestamp' but for remote repositories."
+  "Return the timestamp for REV on REMOTE.
+
+This is similar to `stp-git-timestamp' but for remote repositories."
   (let ((path (stp-git-ensure-cached-repo remote)))
     (stp-git-timestamp path rev)))
 
@@ -874,7 +882,7 @@ repositories."
     rev))
 
 (defun stp-git-remote-last-stable (remote rev)
-  "Find the last stable version up to and including REV."
+  "Find the last stable version up to and including REV on REMOTE."
   (let ((path (stp-git-ensure-cached-repo remote)))
     (stp-git-last-stable path rev)))
 
