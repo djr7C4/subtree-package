@@ -53,30 +53,29 @@
   (cl-defun stp-transient-slot-toggler (slot &rest args &key choices (require-match t) (sort-fun #'identity) (allow-toggle t) &allow-other-keys)
     `(lambda ()
        (interactive)
-       (let* ((scope (transient-scope))
-              (options (car scope))
-              (choices (->> (if (functionp ',choices)
-                                (funcall ',choices)
-                              ',choices)
-                            (mapcar #'prin1-to-string)))
-              (value (prin1-to-string (oref options ,slot)))
-              (new-value
-               (cond
-                ((and ,allow-toggle
-                      (not current-prefix-arg)
-                      (= (length choices) 2)
-                      (member value choices))
-                 (read (car (remove value choices))))
-                (choices
-                 (--> choices
-                      (rem-comp-read ,(format "Set %s: " (apply #'stp-option-slot-base-name slot args))
-                                     it
-                                     :require-match ,require-match
-                                     :sort-fun #',sort-fun)
-                      read))
-                (t
-                 (not (oref options ,slot))))))
-         (oset options ,slot new-value))))
+       (let-alist (transient-scope)
+         (let* ((choices (->> (if (functionp ',choices)
+                                  (funcall ',choices)
+                                ',choices)
+                              (mapcar #'prin1-to-string)))
+                (value (prin1-to-string (oref .options ,slot)))
+                (new-value
+                 (cond
+                  ((and ,allow-toggle
+                        (not current-prefix-arg)
+                        (= (length choices) 2)
+                        (member value choices))
+                   (read (car (remove value choices))))
+                  (choices
+                   (--> choices
+                        (rem-comp-read ,(format "Set %s: " (apply #'stp-option-slot-base-name slot args))
+                                       it
+                                       :require-match ,require-match
+                                       :sort-fun #',sort-fun)
+                        read))
+                  (t
+                   (not (oref .options ,slot))))))
+           (oset .options ,slot new-value)))))
 
   (defvar stp-transient-truncation-length 30)
 
@@ -91,16 +90,15 @@
 
   (cl-defun stp-transient-slot-description (slot &rest args &key action (value-desc-fun #'stp-transient-describe-value) &allow-other-keys)
     `(lambda ()
-       (let* ((scope (transient-scope))
-              (options (car scope))
-              (value (slot-value options ',slot))
-              (value-desc (funcall #',value-desc-fun value))
-              (base-name ,(apply #'stp-option-slot-base-name slot args)))
-         (if (and ,action (not (slot-value options 'do-actions)))
-             (setq base-name (propertize base-name 'face 'transient-inactive-argument)
-                   value-desc (propertize value-desc 'face 'transient-inactive-value))
-           (setq value-desc (propertize value-desc 'face 'transient-value)))
-         (concat base-name " " value-desc))))
+       (let-alist (transient-scope)
+         (let* ((value (slot-value .options ',slot))
+                (value-desc (funcall #',value-desc-fun value))
+                (base-name ,(apply #'stp-option-slot-base-name slot args)))
+           (if (and ,action (not (slot-value .options 'do-actions)))
+               (setq base-name (propertize base-name 'face 'transient-inactive-argument)
+                     value-desc (propertize value-desc 'face 'transient-inactive-value))
+             (setq value-desc (propertize value-desc 'face 'transient-value)))
+           (concat base-name " " value-desc)))))
 
   (cl-defun stp-transient-toggle-binding (slot &rest args &key (key (substring (apply #'stp-option-slot-base-name slot args) 0 1)) &allow-other-keys)
     `(,key
@@ -108,9 +106,8 @@
       ,(apply #'stp-transient-slot-toggler slot args)
       :transient t
       :if (lambda ()
-            (let* ((scope (transient-scope))
-                   (options (car scope)))
-              (slot-exists-p options ',slot)))))
+            (let-alist (transient-scope)
+              (slot-exists-p .options ',slot)))))
 
   (defun stp-transient-toggle-bindings (slots &rest args)
     (mapcar (fn (apply #'stp-transient-toggle-binding
@@ -123,9 +120,8 @@
   (cl-defun stp-transient-hide-group-p (slots &key (invert t))
     (setq slots (mapcar (fn (if (consp %) (car %) %)) slots))
     `(lambda ()
-       (let* ((scope (transient-scope))
-              (options (car scope)))
-         (xor (stp-some-slot-exists-p ',slots options) ,invert))))
+       (let-alist (transient-scope)
+         (xor (stp-some-slot-exists-p ',slots .options) ,invert))))
 
   (defvar stp-transient-reset-choices '(nil (:audit) (:error) (:audit :error) t))
   (defvar stp-transient-controller-choices '(stp-auto-controller stp-interactive-controller))
@@ -143,10 +139,9 @@
       (make-controller-args :name "controller-args"
                             :key "M"
                             :choices (lambda ()
-                                       (let* ((scope (transient-scope))
-                                              (options (car scope)))
+                                       (let-alist (transient-scope)
                                          (map-elt ',stp-transient-controller-args-choices-alist
-                                                  (oref options controller-class))))
+                                                  (oref .options controller-class))))
                             :require-match nil
                             :value-desc-fun prin1-to-string)))
 
@@ -168,9 +163,13 @@
                     (do-build-info :key "m")
                     (do-update-info-directories :key "I"))))))
 
+(cl-defun stp-make-options-transient-scope (options &key normal-exit)
+  `((options . ,options)
+    (normal-exit . ,normal-exit)))
+
 (cl-macrolet
     ((make-transient ()
-       `(transient-define-prefix stp-toggle-options-transient (options normal-exit)
+       `(transient-define-prefix stp-toggle-options-transient (scope)
           ["Controller"
            :hide ,(stp-transient-hide-group-p stp-transient-controller-specs)
            ,@(stp-transient-toggle-bindings stp-transient-controller-specs)]
@@ -182,20 +181,22 @@
             ,@(stp-transient-toggle-bindings (cdr stp-transient-action-specs))]]
           ["Commands"
            ("RET"
-            "execute"
+            (lambda ()
+              (format "execute %S" this-command))
             (lambda ()
               (interactive)
-              (setf (caadr (transient-scope)) t)))]
+              (setf (map-elt (transient-scope) 'normal-exit) t)))]
           (interactive (error "This transient should be called as a function rather than interactively"))
-          (transient-setup 'stp-toggle-options-transient nil nil :scope (list options normal-exit)))))
+          (transient-setup 'stp-toggle-options-transient nil nil :scope scope))))
   (make-transient))
 
 (defun stp-toggle-options (options)
-  (let ((normal-exit (list nil)))
-    (rem-call-transient-synchronously #'stp-toggle-options-transient options normal-exit)
-    (if (car normal-exit)
-        options
-      (keyboard-quit))))
+  (let ((scope (stp-make-options-transient-scope options)))
+    (let-alist scope
+      (rem-call-transient-synchronously #'stp-toggle-options-transient scope)
+      (if .normal-exit
+          options
+        (keyboard-quit)))))
 
 (provide 'stp-options)
 
