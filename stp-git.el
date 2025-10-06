@@ -50,9 +50,7 @@
   (and (stp-git-subtree-package-commit pkg-name) t))
 
 (defun stp-git-normalize-version (remote version)
-  ;; If version is a hash, it might be shortened if the user entered it
-  ;; manually. In this case, we replace it with the full hash from the installed
-  ;; subtree.
+  "Display VERSION from REMOTE in a standardized way."
   (->> version
        (stp-git-remote-head-to-hash remote)
        (stp-git-remote-rev-to-tag remote)))
@@ -343,7 +341,7 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
            ;; case, we attempt to uninstall the package and install the new
            ;; version instead.
            ((and stp-subtree-pull-fallback
-                 (yes-or-no-p (format "git subtree %s failed: %s. Uninstall and reinstall?" action output))
+                 (yes-or-no-p (format "The command \"git subtree\" %s failed: %s. Uninstall and reinstall?" action output))
                  (or (stp-maybe-call (oref options do-commit))
                      (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
             (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)

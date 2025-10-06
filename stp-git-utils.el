@@ -1,6 +1,12 @@
 ;;; stp-git-utils.el --- Git utility functions -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025 David J. Rosenbaum <djr7c4@gmail.com>
+
+;; Author: David J. Rosenbaum <djr7c4@gmail.com>
+;; Keywords: TODO
+;; URL: https://github.com/djr7C4/subtree-package
+;; Version: 0.11.4
+;; Package-Requires: nil
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
@@ -104,8 +110,7 @@ instead."
        (eql (car (rem-call-process-shell-command (format "git ls-remote -h '%s'" remote))) 0)))
 
 (cl-defun stp-git-valid-remote-ref-p (remote rev &optional ask-p)
-  ;; Check if REV is a ref on REMOTE or if it is a hash that matches a ref on
-  ;; REMOTE.
+  "Check if REV is a ref or a hash for a ref on REMOTE."
   (and (or (member rev (stp-git-remote-tags remote t))
            (member rev (stp-git-remote-heads remote))
            ;; There is no way to check if hash exists on a remote (only refs) so
@@ -124,11 +129,12 @@ instead."
   (let ((default-directory path))
     (unless (stp-git-root)
       (unless (eql (car (rem-call-process-shell-command "git init")) 0)
-        (error "git init failed")))))
+        (error "The command \"git init\" failed")))))
 
 (cl-defun stp-git-add (path &key update)
-  "Run \"git add\" on PATH. When UPDATE is non-nil, only add changes
-to tracked files."
+  "Run \"git add\" on PATH.
+
+When UPDATE is non-nil, only add changes to tracked files."
   (dsb (dir target)
       (if (f-dir-p path)
           ;; This allows path to be the top-level of a git repository.
@@ -166,7 +172,7 @@ repository. Return the path to the repository."
 (cl-defun stp-git-commit (msg &key (do-commit t))
   (when do-commit
     (when (stp-git-merge-conflict-p)
-      (error "Committing is not possible due to %s."
+      (error "Committing is not possible due to %s"
              (if (> (length (stp-git-conflicted-files)) 1)
                  "merge conflicts"
                "a merge conflict")))
@@ -245,7 +251,7 @@ and then restore it after the fetch."
                        (hard . "--hard")))
          (mode-flag (and mode
                          (or (map-elt mode-flags mode)
-                             (error "mode must be in %S" mode-flags)))))
+                             (error "The mode must be in %S" mode-flags)))))
     (rem-run-command (append (list "git" "reset")
                              (rem-maybe-args mode-flag mode-flag)
                              (list revision)))))
@@ -464,6 +470,7 @@ installed as a git subtree."
   (and (stp-git-subtree-commit path) t))
 
 (defun stp-git-head (&optional path)
+  "Resolve HEAD for the git repository at PATH."
   ;; This version is not used because it is memoized. The local HEAD can change
   ;; as packaging operations are run so memoizing it is undesirable.
   ;; (stp-git-remote-head (stp-git-root :path (or path stp-source-directory)))
@@ -475,9 +482,12 @@ installed as a git subtree."
 (defvar stp-git-diff-buffer-name "*stp-git-diff*")
 
 (defun stp-git-show-diff (&optional hashes)
-  ;; (stp-git-show-diff hash new-hash): show the changes from hash to new-hash
-  ;; (stp-git-show-diff hash): show the changes from hash to the index
-  ;; (stp-git-show-diff): show the changes from the index to the working tree
+  "Display the differences between HASHES to the user.
+
+Several forms of HASHES are supported:
+\(HASH NEW-HASH): shows the changes from HASH to NEW-HASH
+\(hash): show the changes from HASH to the index
+nil: show the changes from the index to the working tree"
   (let ((buf (get-buffer-create stp-git-diff-buffer-name))
         (diff (stp-git-diff hashes)))
     (with-current-buffer buf
@@ -761,7 +771,10 @@ and REV2 do not share a common ancestor."
 (defvar stp-git-cache-directory (f-join user-emacs-directory "stp/cache/git-repos/"))
 
 (defun stp-git-minimal-clone (remote path &optional branch)
-  ;; Make the call to git clone as lightweight as possible.
+  "Make lightweight clone of REMOTE at PATH.
+
+When BRANCH is non-nil, use --single-branch to only clone the
+history of that specific branch."
   (let ((cmd (append '("git" "clone" "--bare" "--no-checkout" "--filter=blob:none")
                      (and branch (format " --single-branch --branch '%s'" branch))
                      (list remote path))))
@@ -785,8 +798,10 @@ and REV2 do not share a common ancestor."
   (secure-hash 'sha512 remote))
 
 (defun stp-git-cached-repo-path (remote)
-  ;; When there is a list of remotes, use a combination of all the remote URLs
-  ;; for caching.
+  "Create or update the locally cached copy of REMOTE.
+
+When there is a list of remotes, use a combination of all the
+remote URLs for caching."
   (let ((id (if (listp remote)
                 (s-join "|" remote)
               remote)))

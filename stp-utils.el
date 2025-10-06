@@ -598,7 +598,7 @@ applied, the match data from their regular expression is active.")
   "Determine if V1 of the package is equal to V2."
   (let ((v1e (stp-version-extract v1))
         (v2e (stp-version-extract v2)))
-    (stp-verion-list= v1e v2e)))
+    (stp-version-list= v1e v2e)))
 
 (defun stp-version<= (v1 v2)
   "Determine if V1 of the package is less than or equal to V2."

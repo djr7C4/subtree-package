@@ -29,6 +29,11 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Commentary:
+;; Subtree package allows the user to install, upgrade, reinstall and manage
+;; Emacs Lisp packages as git subtrees. Both automatic and manual strategies
+;; (via `completing-read') are supported.
+
 ;;; Code:
 
 (require 'align)
@@ -279,13 +284,14 @@ prepended to prompts when it is non-nil. If PKG-VERSION is
 non-nil, the \\='VERSION attribute for the package will be
 included as the next positional argument. If READ-PKG-ALIST is
 non-nil, a package alist will be read from the user and included
-as an additional positional argument. When EXISTING-PKG is
-non-nil, read the name of a package that is already installed.
-When LINE-PKG is non-nil (as it is by default), any data that
-would normally be read from the user will be inferred from the
-cursor position when `stp-list-mode' is active. MIN-VERSION is
-the minimum version that should be selected for this package. If
-ENFORCE-MIN-VERSION is non-nil, this requirement is enforced."
+as an additional positional argument. This is done using the
+CONTROLLER when it is non-nil. When EXISTING-PKG is non-nil, read
+the name of a package that is already installed. When LINE-PKG is
+non-nil (as it is by default), any data that would normally be
+read from the user will be inferred from the cursor position when
+`stp-list-mode' is active. MIN-VERSION is the minimum version
+that should be selected for this package. If ENFORCE-MIN-VERSION
+is non-nil, this requirement is enforced."
   (stp-with-package-source-directory
     (plet* ((`(,pkg-name . ,pkg-alist)
              (or (and read-pkg-alist
@@ -519,7 +525,7 @@ The function is called with the local path to the fork.")
       (unless (eq .method 'git)
         (error "Only packages that use the git method can be forked"))
       (unless (executable-find "gh")
-        (error "gh is required for forking"))
+        (error "The executable gh is required for forking"))
       (let ((default-directory dir))
         (rem-run-command (list "gh" "repo" "fork" "--clone" "--fork-name" pkg-name remote))
         (let* ((default-directory (f-join dir pkg-name))
@@ -771,7 +777,7 @@ REFRESH controls whether to refresh the package list afterwards."
                 (when refresh
                   (stp-list-refresh :quiet t))
                 (stp-msg msg))
-            (user-error "The update attribute can only be toggled for git packages.")))))))
+            (user-error "The update attribute can only be toggled for git packages")))))))
 
 (defun stp-toggle-dependency-command ()
   "Toggle the dependency attribute of a package interactively.
@@ -1055,6 +1061,7 @@ number of packages to go backward."
   (stp-list-next-package (- n)))
 
 (defun stp-package-upgradable-p (pkg-name)
+  "Determine if PKG-NAME can be upgraded under its current update policy."
   ;; Create a combined alist so that latest version information and package
   ;; information can be accessed using `let-alist' since `let-alist' does not
   ;; nest nicely.
@@ -1375,7 +1382,7 @@ for the package and REMOTE is the remote. COUNT-TO-STABLE is the
 number of versions from the current version to the latest stable
 version. COUNT-TO-UNSTABLE is the number of versions from the
 current version to the latest unstable version. When METHOD is
-\\='git, it is the number of commits. UPDATE is the update
+\\='git, this is the number of commits. UPDATE is the update
 attribute for the package."
   (cl-ecase method
     (git

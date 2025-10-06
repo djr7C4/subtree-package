@@ -6,17 +6,18 @@
 (defvar stp-package-source-directories '("clients" "contrib" "core" "elisp" "extensions" "lisp" "src"))
 
 (defun stp-bootstrap ()
-  ;; We need dash, f and s because they are used by stp.
   (setq load-path (append (mapcar (lambda (dir)
                                     ;; Don't use `f-join' as we do elsewhere in
                                     ;; STP as it is an external dependency that
                                     ;; will not be available during
                                     ;; bootstrapping.
                                     (expand-file-name (concat dir "/") stp-source-directory))
+                                  ;; We need dash, f and s because they are used
+                                  ;; by STP.
                                   '("dash"
                                     "f"
                                     "s" ;; s needs to be here because it is
-                                        ;; required by f.
+                                    ;; required by f.
                                     ))
                           load-path)))
 

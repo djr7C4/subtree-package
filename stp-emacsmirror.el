@@ -42,7 +42,7 @@ QUIET is non-nil."
         (unless quiet
           (stp-msg "Refreshing Emacs mirrors asynchronously"))
         (unless (executable-find "gh")
-          (error "gh is required for refreshing Emacs mirrors"))
+          (error "The command \"gh\" is required for refreshing Emacs mirrors"))
         (f-mkdir-full-path stp-emacsmirror-directory)
         (async-start
          `(lambda ()

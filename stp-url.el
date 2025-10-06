@@ -55,8 +55,10 @@
   (format-time-string "%m/%d/%Y-%R"))
 
 (cl-defun stp-url-read-version (prompt &optional (default (stp-url-default-version)))
-  ;; Versions for URL packages are simply whatever the user chooses. Dates are
-  ;; one possibility.
+  "Read the version using PROMPT with DEFAULT.
+
+Versions for URL packages are simply whatever string the user
+chooses. Dates are one possibility."
   (rem-read-from-mini prompt :default default :history stp-url-version-history))
 
 (cl-defun stp-url-install-or-upgrade-basic (controller pkg-name remote version action options &key (set-remote t))
