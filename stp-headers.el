@@ -42,8 +42,10 @@ These are determined according to the Package-Requires field."
                   reqs))))))
 
 (cl-defmacro stp-headers-with-file-cache ((file cache) &rest body)
-  "Return the result of evaluating BODY unless a valid entry in
-CACHE can be used. An entry is valid unless the modification time
+  "Return the result of evaluating BODY.
+
+When a valid entry in CACHE is available, it is used instead of
+recomputing BODY. An entry is valid unless the modification time
 of FILE is different from the last time BODY was evaluated."
   (declare (indent 1))
   (with-gensyms (entry new-timestamp result)
@@ -106,12 +108,14 @@ NAME is the package name."
       (stp-headers-elisp-feature (rem-no-ext (f-filename file))))))
 
 (cl-defun stp-headers-merge-elisp-requirements (requirements &optional (hash-table nil hash-table-provided-p))
-  "Merge duplicate requirements in REQUIREMENTS. Only the most
-recent version will be kept. If HASH-TABLE is a hash table then
-requirements will be merged into it and the result will be
-returned instead of a requirements list. Otherwise, if HASH-TABLE
-is non-nil, then they will be merged into an empty hash table.
-The result is an alist unless HASH-TABLE is provided."
+  "Merge duplicate REQUIREMENTS.
+
+Only the most recent version of each requirement will be kept. If
+HASH-TABLE is a hash table then requirements will be merged into
+it and the result will be returned instead of a requirements
+list. Otherwise, if HASH-TABLE is non-nil, then they will be
+merged into an empty hash table. The result is an alist unless
+HASH-TABLE is provided."
   (let ((versions (if (hash-table-p hash-table)
                       hash-table
                     (make-hash-table :test #'eq))))
@@ -161,7 +165,7 @@ expanded to find all of the elisp files it contains."
 (cl-defun stp-headers-directory-features (dir &key recursive)
   "Find all requirements that are satisfied by files in DIR.
 
-Subdirectories are searched when recursive is non-nil."
+Subdirectories are searched when RECURSIVE is non-nil."
   (stp-headers-directory-requirements dir
                                       :fun (fn (awhen (stp-headers-elisp-file-feature %)
                                                  (list it)))
@@ -171,7 +175,7 @@ Subdirectories are searched when recursive is non-nil."
   "Find all requirements that are satisfied by files in PATHS.
 
 PATHS may be either a single path or a list of paths.
-Subdirectories are searched when recursive is non-nil."
+Subdirectories are searched when RECURSIVE is non-nil."
   (stp-headers-paths-requirements paths :fun #'stp-headers-directory-features :recursive recursive))
 
 (defun stp-headers-requirements-hash-table (requirements)
@@ -184,13 +188,13 @@ Subdirectories are searched when recursive is non-nil."
 (defvar stp-headers-versions nil)
 
 (defvar stp-headers-always-recompute-features nil
-  "When non-nil, features are always recomputed by `stp-headers-update-features'.
+  "When non-nil, `stp-headers-update-features' always recomputes features.
 
 This is slower than using incremental updates but it will detect
 packages installed with other package managers.")
 
 (defvar stp-headers-update-recompute-development-directory t
-  "When non-nil, always recompute features for packages in `stp-development-directory'.")
+  "When non-nil, always recompute features in `stp-development-directory'.")
 
 (defun stp-headers-update-features (&optional quiet)
   "Update `stp-headers-installed-features'.

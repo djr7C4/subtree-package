@@ -354,8 +354,7 @@ A group name may also be the name of a package."
                                  (elpa . stp-elpa-valid-remote-p)
                                  (archive . stp-archive-valid-remote-p)
                                  (url . stp-url-valid-remote-p))
-  "This alist maps predicates for testing if a remote is valid for a
-given method to methods.")
+  "This alist maps predicates for valid remotes methods.")
 
 (cl-defun stp-remote-method (remote &key noerror ignored-methods)
   "Determine the method for REMOTE.
@@ -394,6 +393,7 @@ specific method."
   "The directory that contains local repositories for packages you develop.")
 
 (defun stp-normalize-remote (remote)
+  "Normalize REMOTE."
   ;; Use absolute paths for local repositories.
   (let ((default-directory stp-development-directory))
     (if (f-exists-p remote)

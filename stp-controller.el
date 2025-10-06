@@ -243,7 +243,7 @@ command should proceed.")
 
 (defun stp-audit-changes (pkg-name type last-hash do-reset)
   (unless (memq type '(install upgrade))
-    (error "type must be either 'install or 'upgrade"))
+    (error "The type must be either 'install or 'upgrade"))
   (stp-git-show-diff (list last-hash))
   (unless (prog1
               (yes-or-no-p "Are the changes to the package safe? ")
