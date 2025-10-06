@@ -163,9 +163,10 @@
                     (do-build-info :key "m")
                     (do-update-info-directories :key "I"))))))
 
-(cl-defun stp-make-options-transient-scope (options &key normal-exit)
+(cl-defun stp-make-options-transient-scope (options &key normal-exit (command this-command))
   `((options . ,options)
-    (normal-exit . ,normal-exit)))
+    (normal-exit . ,normal-exit)
+    (command . ,command)))
 
 (cl-macrolet
     ((make-transient ()
@@ -182,7 +183,7 @@
           ["Commands"
            ("RET"
             (lambda ()
-              (format "execute %S" this-command))
+              (format "execute %S" (map-elt (transient-scope) 'command)))
             (lambda ()
               (interactive)
               (setf (map-elt (transient-scope) 'normal-exit) t)))]
@@ -192,11 +193,10 @@
 
 (defun stp-toggle-options (options)
   (let ((scope (stp-make-options-transient-scope options)))
-    (let-alist scope
-      (rem-call-transient-synchronously #'stp-toggle-options-transient scope)
-      (if .normal-exit
-          options
-        (keyboard-quit)))))
+    (rem-call-transient-synchronously #'stp-toggle-options-transient scope)
+    (if (map-elt scope 'normal-exit)
+        options
+      (keyboard-quit))))
 
 (provide 'stp-options)
 
