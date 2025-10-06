@@ -46,126 +46,127 @@
 (defclass stp-bump-operation-options (stp-basic-operation-options)
   ((do-tag :initarg :do-tag :initform (symbol-value 'stp-auto-tag))))
 
-(cl-defun stp-option-slot-base-name (slot &key name &allow-other-keys)
-  (or name (s-replace "-" " " (s-chop-prefix "do-" (symbol-name slot)))))
+(eval-when-compile
+  (cl-defun stp-option-slot-base-name (slot &key name &allow-other-keys)
+    (or name (s-replace "-" " " (s-chop-prefix "do-" (symbol-name slot)))))
 
-(cl-defun stp-transient-slot-toggler (slot &rest args &key choices (require-match t) (sort-fun #'identity) (allow-toggle t) &allow-other-keys)
-  `(lambda ()
-     (interactive)
-     (let* ((scope (transient-scope))
-            (options (car scope))
-            (choices (->> (if (functionp ',choices)
-                              (funcall ',choices)
-                            ',choices)
-                          (mapcar #'prin1-to-string)))
-            (value (prin1-to-string (oref options ,slot)))
-            (new-value
-             (cond
-              ((and ,allow-toggle
-                    (not current-prefix-arg)
-                    (= (length choices) 2)
-                    (member value choices))
-               (read (car (remove value choices))))
-              (choices
-               (--> choices
-                    (rem-comp-read ,(format "Set %s: " (apply #'stp-option-slot-base-name slot args))
-                                   it
-                                   :require-match ,require-match
-                                   :sort-fun #',sort-fun)
-                    read))
-              (t
-               (not (oref options ,slot))))))
-       (oset options ,slot new-value))))
+  (cl-defun stp-transient-slot-toggler (slot &rest args &key choices (require-match t) (sort-fun #'identity) (allow-toggle t) &allow-other-keys)
+    `(lambda ()
+       (interactive)
+       (let* ((scope (transient-scope))
+              (options (car scope))
+              (choices (->> (if (functionp ',choices)
+                                (funcall ',choices)
+                              ',choices)
+                            (mapcar #'prin1-to-string)))
+              (value (prin1-to-string (oref options ,slot)))
+              (new-value
+               (cond
+                ((and ,allow-toggle
+                      (not current-prefix-arg)
+                      (= (length choices) 2)
+                      (member value choices))
+                 (read (car (remove value choices))))
+                (choices
+                 (--> choices
+                      (rem-comp-read ,(format "Set %s: " (apply #'stp-option-slot-base-name slot args))
+                                     it
+                                     :require-match ,require-match
+                                     :sort-fun #',sort-fun)
+                      read))
+                (t
+                 (not (oref options ,slot))))))
+         (oset options ,slot new-value))))
 
-(defvar stp-transient-truncation-length 30)
+  (defvar stp-transient-truncation-length 30)
 
-(defun stp-transient-describe-value (value)
-  (cl-case value
-    ((nil)
-     "disabled")
-    ((t)
-     "enabled")
-    (t
-     (s-truncate stp-transient-truncation-length (prin1-to-string value)))))
+  (defun stp-transient-describe-value (value)
+    (cl-case value
+      ((nil)
+       "disabled")
+      ((t)
+       "enabled")
+      (t
+       (s-truncate stp-transient-truncation-length (prin1-to-string value)))))
 
-(cl-defun stp-transient-slot-description (slot &rest args &key action (value-desc-fun #'stp-transient-describe-value) &allow-other-keys)
-  `(lambda ()
-     (let* ((scope (transient-scope))
-            (options (car scope))
-            (value (slot-value options ',slot))
-            (value-desc (funcall #',value-desc-fun value))
-            (base-name ,(apply #'stp-option-slot-base-name slot args)))
-       (if (and ,action (not (slot-value options 'do-actions)))
-           (setq base-name (propertize base-name 'face 'transient-inactive-argument)
-                 value-desc (propertize value-desc 'face 'transient-inactive-value))
-         (setq value-desc (propertize value-desc 'face 'transient-value)))
-       (concat base-name " " value-desc))))
+  (cl-defun stp-transient-slot-description (slot &rest args &key action (value-desc-fun #'stp-transient-describe-value) &allow-other-keys)
+    `(lambda ()
+       (let* ((scope (transient-scope))
+              (options (car scope))
+              (value (slot-value options ',slot))
+              (value-desc (funcall #',value-desc-fun value))
+              (base-name ,(apply #'stp-option-slot-base-name slot args)))
+         (if (and ,action (not (slot-value options 'do-actions)))
+             (setq base-name (propertize base-name 'face 'transient-inactive-argument)
+                   value-desc (propertize value-desc 'face 'transient-inactive-value))
+           (setq value-desc (propertize value-desc 'face 'transient-value)))
+         (concat base-name " " value-desc))))
 
-(cl-defun stp-transient-toggle-binding (slot &rest args &key (key (substring (apply #'stp-option-slot-base-name slot args) 0 1)) &allow-other-keys)
-  `(,key
-    ,(apply #'stp-transient-slot-description slot args)
-    ,(apply #'stp-transient-slot-toggler slot args)
-    :transient t
-    :if (lambda ()
-          (let* ((scope (transient-scope))
-                 (options (car scope)))
-            (slot-exists-p options ',slot)))))
+  (cl-defun stp-transient-toggle-binding (slot &rest args &key (key (substring (apply #'stp-option-slot-base-name slot args) 0 1)) &allow-other-keys)
+    `(,key
+      ,(apply #'stp-transient-slot-description slot args)
+      ,(apply #'stp-transient-slot-toggler slot args)
+      :transient t
+      :if (lambda ()
+            (let* ((scope (transient-scope))
+                   (options (car scope)))
+              (slot-exists-p options ',slot)))))
 
-(defun stp-transient-toggle-bindings (slots &rest args)
-  (mapcar (fn (apply #'stp-transient-toggle-binding
-                     (append (if (consp %)
-                                 %
-                               (list %))
-                             args)))
-          slots))
+  (defun stp-transient-toggle-bindings (slots &rest args)
+    (mapcar (fn (apply #'stp-transient-toggle-binding
+                       (append (if (consp %)
+                                   %
+                                 (list %))
+                               args)))
+            slots))
 
-(cl-defun stp-transient-hide-group-p (slots &key (invert t))
-  (setq slots (mapcar (fn (if (consp %) (car %) %)) slots))
-  `(lambda ()
-     (let* ((scope (transient-scope))
-            (options (car scope)))
-       (xor (stp-some-slot-exists-p ',slots options) ,invert))))
+  (cl-defun stp-transient-hide-group-p (slots &key (invert t))
+    (setq slots (mapcar (fn (if (consp %) (car %) %)) slots))
+    `(lambda ()
+       (let* ((scope (transient-scope))
+              (options (car scope)))
+         (xor (stp-some-slot-exists-p ',slots options) ,invert))))
 
-(defvar stp-transient-reset-choices '(nil (:audit) (:error) (:audit :error) t))
-(defvar stp-transient-controller-choices '(stp-auto-controller stp-interactive-controller))
+  (defvar stp-transient-reset-choices '(nil (:audit) (:error) (:audit :error) t))
+  (defvar stp-transient-controller-choices '(stp-auto-controller stp-interactive-controller))
 
-(defvar stp-transient-controller-args-choices-alist
-  '((stp-auto-controller nil (:preferred-update stable) (:preferred-update unstable))
-    (stp-interactive-controller nil)))
+  (defvar stp-transient-controller-args-choices-alist
+    '((stp-auto-controller nil (:preferred-update stable) (:preferred-update unstable))
+      (stp-interactive-controller nil)))
 
-(defvar stp-transient-controller-specs
-  `((controller-class :name "controller"
-                      :key "C"
-                      :choices ,stp-transient-controller-choices
-                      :require-match nil
-                      :value-desc-fun prin1-to-string)
-    (make-controller-args :name "controller-args"
-                          :key "M"
-                          :choices (lambda ()
-                                     (let* ((scope (transient-scope))
-                                            (options (car scope)))
-                                       (map-elt ',stp-transient-controller-args-choices-alist
-                                                (oref options controller-class))))
-                          :require-match nil
-                          :value-desc-fun prin1-to-string)))
+  (defvar stp-transient-controller-specs
+    `((controller-class :name "controller"
+                        :key "C"
+                        :choices ,stp-transient-controller-choices
+                        :require-match nil
+                        :value-desc-fun prin1-to-string)
+      (make-controller-args :name "controller-args"
+                            :key "M"
+                            :choices (lambda ()
+                                       (let* ((scope (transient-scope))
+                                              (options (car scope)))
+                                         (map-elt ',stp-transient-controller-args-choices-alist
+                                                  (oref options controller-class))))
+                            :require-match nil
+                            :value-desc-fun prin1-to-string)))
 
-(defvar stp-transient-option-specs
-  `(do-commit
-    do-push
-    do-lock
-    (do-reset :choices ,stp-transient-reset-choices)
-    do-dependencies
-    (do-audit :key "A")
-    do-tag))
+  (defvar stp-transient-option-specs
+    `(do-commit
+      do-push
+      do-lock
+      (do-reset :choices ,stp-transient-reset-choices)
+      do-dependencies
+      (do-audit :key "A")
+      do-tag))
 
-(defvar stp-transient-action-specs
-  (cons 'do-actions
-        (mapcar (fn (rem-at-end (ensure-list %) :action t))
-                '(do-update-load-path
-                  (do-load :key "g")
-                  do-build
-                  (do-build-info :key "m")
-                  (do-update-info-directories :key "I")))))
+  (defvar stp-transient-action-specs
+    (cons 'do-actions
+          (mapcar (fn (rem-at-end (ensure-list %) :action t))
+                  '(do-update-load-path
+                    (do-load :key "g")
+                    do-build
+                    (do-build-info :key "m")
+                    (do-update-info-directories :key "I"))))))
 
 (cl-macrolet
     ((make-transient ()
