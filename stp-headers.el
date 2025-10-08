@@ -545,50 +545,68 @@ present. Return non-nil if a header that was not there before was
 inserted."
   (interactive (list t))
   (save-excursion
-    (stp-headers-update-elisp-filename-headers insert)
-    ;; Go to the prop line.
-    (rem-ensure-prop-line)
-    (beginning-of-line)
-    (forward-comment 1)
-    (when (stp-headers-update-copyright-header insert)
-      ;; When a copyright header was added, make sure there is a blank line
-      ;; before it.
+    (save-match-data
+      (stp-headers-update-elisp-filename-headers insert)
+      ;; Go to the prop line.
+      (rem-ensure-prop-line)
       (beginning-of-line)
-      (unless (rem-looking-back-p (format "\\([%s]*[%s][%s]*[%s]\\)\\{0,2\\}"
-                                          rem-spaces
-                                          rem-newlines
-                                          rem-spaces
-                                          rem-newlines)
-                                  nil
-                                  t)
-        (replace-match "\n\n")))
-    (let (inserted)
-      (when insert
-        (unless (lm-header "Author")
-          (setq inserted t)
-          (goto-char (lm-copyright-mark))
-          (end-of-line)
-          (insert (format "\n\n;; Author: %s <%s>\n" user-full-name user-mail-address)))
-        (unless (save-excursion (lm-header "Keywords"))
-          (setq inserted t)
-          (insert ";; Keywords: TODO\n"))
-        (unless (save-excursion (or (lm-header "URL") (lm-header "Website")))
-          (awhen (ignore-errors
-                   (-> (stp-git-push-target)
-                       stp-git-remote-url
-                       stp-transform-remote))
+      (forward-comment 1)
+      (when (stp-headers-update-copyright-header insert)
+        ;; When a copyright header was added, make sure there is a blank line
+        ;; before it.
+        (beginning-of-line)
+        (unless (rem-looking-back-p (format "\\([%s]*[%s][%s]*[%s]\\)\\{0,2\\}"
+                                            rem-spaces
+                                            rem-newlines
+                                            rem-spaces
+                                            rem-newlines)
+                                    nil
+                                    t)
+          (replace-match "\n\n")))
+      (let (inserted)
+        (when insert
+          (unless (lm-header "Author")
             (setq inserted t)
-            (insert (format ";; URL: %s\n" it))))
-        (when (stp-headers-update-version-header insert)
-          (setq inserted t))
-        (when (stp-headers-update-requirements-header insert)
-          (setq inserted t))
-        (unless (save-excursion (lm-header-multiline "Package-Requires"))
-          (setq inserted t)
-          (insert ";; Package-Requires: ()")))
-      (run-hooks 'stp-headers-update-hook)
-      (stp-msg "Updated headers in %s" (or buffer-file-name (buffer-name)))
-      inserted)))
+            (goto-char (lm-copyright-mark))
+            (end-of-line)
+            (insert (format "\n\n;; Author: %s <%s>\n" user-full-name user-mail-address)))
+          (unless (save-excursion (lm-header "Keywords"))
+            (setq inserted t)
+            (insert ";; Keywords: TODO\n"))
+          (unless (save-excursion (or (lm-header "URL") (lm-header "Website")))
+            (awhen (ignore-errors
+                     (-> (stp-git-push-target)
+                         stp-git-remote-url
+                         stp-transform-remote))
+              (setq inserted t)
+              (insert (format ";; URL: %s\n" it))))
+          (when (stp-headers-update-version-header insert)
+            (setq inserted t))
+          (when (stp-headers-update-requirements-header insert)
+            (setq inserted t))
+          (unless (save-excursion (lm-header-multiline "Package-Requires"))
+            (setq inserted t)
+            (insert ";; Package-Requires: ()"))
+          (goto-char (point-min))
+          ;; Skip past any comments and whitespace at the beginning of the file.
+          (while (comment-forward))
+          (let ((end (point)))
+            (goto-char (point-min))
+            (unless (re-search-forward "^;+ +Commentary:" end t)
+              (goto-char end)
+              (skip-chars-backward rem-whitespace)
+              (delete-region (point) end)
+              (insert "\n\n;;; Commentary: TODO\n")
+              (setq end (point)))
+            (goto-char (point-min))
+            (unless (re-search-forward "^;+ +Code:" end t)
+              (goto-char end)
+              (skip-chars-backward rem-whitespace)
+              (delete-region (point) end)
+              (insert "\n\n;;; Code:\n\n"))))
+        (run-hooks 'stp-headers-update-hook)
+        (stp-msg "Updated headers in %s" (or buffer-file-name (buffer-name)))
+        inserted))))
 
 (defvar stp-main-package-name-transform (fn (s-chop-suffix ".el" (s-chop-prefix "emacs-" %)))
   "A function that transforms a package name when finding the main file.")
