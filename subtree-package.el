@@ -4,7 +4,7 @@
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: convenience elisp git tools vc
 ;; URL: https://github.com/djr7C4/subtree-package
-;; Version: 0.11.4
+;; Version: 0.11.5
 ;; Package-Requires: (
 ;;   (anaphora "1.0.4")
 ;;   (async "1.9.9")
@@ -902,7 +902,7 @@ in PKG-NAMES."
       (stp-msg "Successfully built info manuals for all packages"))))
 
 (cl-defun stp-list-update-load-path (&optional all)
-  "Reload the package.
+  "Reload the current package.
 
 When ALL is non-nil (interactively with a prefix argument),
 reload all packages."
@@ -1125,7 +1125,7 @@ number of packages to go backward."
   "Update the latest version for PKG-NAME.
 
 This is like `stp-list-update-latest-versions' but for a single
-package. QUIET, ASYNC and FOCUS are the same as in the function."
+package. QUIET, ASYNC and FOCUS are the same as in that function."
   (interactive (let ((async (xor current-prefix-arg stp-latest-version-async)))
                  (list (stp-list-package-on-line)
                        :quiet 'packages

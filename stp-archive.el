@@ -192,9 +192,7 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
   (stp-archive-install-or-upgrade controller pkg-name archive 'install options))
 
 (defun stp-archive-upgrade (controller pkg-name archive options)
-  "Upgrade PKG-NAME from ARCHIVE using CONTROLLER with OPTIONS..
-
-CONTROLLER manages the upgrade process."
+  "Upgrade PKG-NAME from ARCHIVE using CONTROLLER with OPTIONS."
   (stp-archive-install-or-upgrade controller pkg-name archive 'upgrade options))
 
 (provide 'stp-archive)

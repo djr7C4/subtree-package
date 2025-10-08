@@ -31,7 +31,7 @@
 (cl-defun stp-git-root (&key path (transform #'f-canonical))
   "Return the absolute path to the git repository containing PATH.
 
-TRANSFORM is applied to PATH before locating the repository."
+TRANSFORM is a function that is applied to PATH when it is non-nil."
   (setq path (or (and path (funcall transform path)) default-directory))
   (let* ((default-directory path)
          (root (or (rem-run-command '("git" "rev-parse" "--show-toplevel"))
@@ -370,8 +370,8 @@ Otherwise, return nil. BRANCH defualts to the current branch."
   "Determine the hash of the git tree at PATH for revision REV.
 
 If there is no git tree at PATH then nil will be returned. PATH
-is the directory to check. REV is the revision to use (defaults
-to HEAD)."
+is the directory to check. REV is the revision to use and
+defaults to HEAD."
   (unless (f-dir-p path)
     (error "The directory %s does not exist" path))
   (setq path (f-canonical path)
@@ -771,10 +771,11 @@ and REV2 do not share a common ancestor."
 (defvar stp-git-cache-directory (f-join user-emacs-directory "stp/cache/git-repos/"))
 
 (defun stp-git-minimal-clone (remote path &optional branch)
-  "Make lightweight clone of REMOTE at PATH.
+  "Make a lightweight clone of REMOTE at PATH.
 
-When BRANCH is non-nil, use --single-branch to only clone the
-history of that specific branch."
+This contains the commit history but not the actual blobs. When
+BRANCH is non-nil, use --single-branch to only clone the history
+of that specific branch."
   (let ((cmd (append '("git" "clone" "--bare" "--no-checkout" "--filter=blob:none")
                      (and branch (format " --single-branch --branch '%s'" branch))
                      (list remote path))))
@@ -801,7 +802,7 @@ history of that specific branch."
   "Create or update the locally cached copy of REMOTE.
 
 When there is a list of remotes, use a combination of all the
-remote URLs for caching."
+remote repositories for caching."
   (let ((id (if (listp remote)
                 (s-join "|" remote)
               remote)))

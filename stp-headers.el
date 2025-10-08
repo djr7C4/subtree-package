@@ -155,7 +155,7 @@ Requirements are computed by calling FUN with each filename. The
 results are then merged. By default, FUN uses the
 Package-Requires field to compute requirements. When RECURSIVE is
 non-nil, each path that corresponds to a directory is first
-expanded to find all of the elisp files it contains."
+expanded to all of the elisp files it contains."
   (setq paths (ensure-list paths))
   (->> (-filter (fn (and % (f-directory-p %))) paths)
        (mapcar (-rpartial fun :recursive recursive))

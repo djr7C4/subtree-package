@@ -37,17 +37,17 @@ The value can also be a function as for `stp-auto-commit'.")
 (defvar stp-audit-changes nil
   "Show diffs whenever a package changes or new code is added.
 
-This is useful for security purposes. The value can also be a
-function as for `stp-auto-commit'.")
+This is useful for security purposes since it prevents new code
+from being run before it has been reviewed. The value can also be
+a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-reset '(:audit)
   "A list that indicates when git reset should be used.
 
-If the list contains :audit, reset when an audit fails. If it
-contains :error, reset when errors occur. t means to always reset
-and nil means to never reset. Instead of a list, the value t is
-also allowed. This is equivalent to \\='(:audit :reset). The
-value can also be a function as for `stp-auto-commit'.")
+If it contains :audit, reset when an audit fails. If it contains
+:error, reset when errors occur. Instead of a list, the value t
+is also allowed and is equivalent to \\='(:audit :error). A
+function is also permitted as for `stp-auto-commit'.")
 
 (defvar stp-auto-dependencies t
   "When non-nil, automatically install or upgrade dependencies as needed.
@@ -64,7 +64,7 @@ actions can be individually enabled or disabled via
 `stp-auto-build-info' and `stp-auto-update-info-directories'.")
 
 (defvar stp-auto-tag t
-  "When bumping the version, tag the commit with the new version.
+  "When non-nil, tag the commit when bumping to a new version.
 
 The value can also be a function as for `stp-auto-commit'.")
 
@@ -139,8 +139,9 @@ The minimum is the version required by another package.")
 
 (cl-defgeneric stp-validate-options (options)
   (:documentation
-   "Determine if OPTIONS passed are valid and signal an
-appropriate error if they are not."))
+   "Determine if the OPTIONS passed are valid.
+
+Signal an appropriate error if they are not."))
 
 (cl-defmethod stp-validate-options ((_options stp-operation-options))
   t)
@@ -178,7 +179,7 @@ remote and method attributes for the package."
     version)))
 
 (cl-defun stp-list-read-name (prompt)
-  "If possible, return the package on the current line.
+  "If it exists, return the package on the current line.
 
 Otherwise, prompt the user for a package with PROMPT."
   (stp-refresh-info)
@@ -663,8 +664,8 @@ INTERACTIVE-P is non-nil when the function is called interactively."
 (cl-defgeneric stp-make-controller (options &rest args)
   "Make a new controller of class `stp-default-controller-class'.
 
-The controller is created using OPTIONS and ARGS (merged with
-`stp-default-controller-args').")
+The controller is created using OPTIONS and ARGS (which is merged
+with `stp-default-controller-args').")
 
 (cl-defmethod stp-make-controller ((options stp-operation-options) &rest args)
   (dsb (class default-args)
@@ -717,10 +718,10 @@ operations to perform."))
     (error "The newest version for %s is %s but at least %s is required" pkg-name version min-version)))
 
 (cl-defgeneric stp-controller-actual-update (controller pkg-name pkg-alist remote)
-  "Determine the update parameter to use with CONTROLLER.
+  "Determine the update parameter using CONTROLLER.
 
 PKG-NAME is the name of the package, PKG-ALIST contains the
-package information and REMOTE is the remote.")
+package alist and REMOTE is the remote.")
 
 (cl-defmethod stp-controller-actual-update ((controller stp-auto-controller) _pkg-name pkg-alist remote)
   (with-slots (preferred-update respect-update development-directory-override)

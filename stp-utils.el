@@ -69,7 +69,7 @@ each type per interactive command."
   "All messages from STP are logged in this buffer.")
 
 (defvar stp-log-max message-log-max
-  "Maximum number of lines of STP log messages to keep.
+  "The Maximum number of lines of STP log messages to keep.
 
 When it is nil, logging is disabled. When it is t, the buffer is
 never truncated.")
@@ -354,7 +354,7 @@ A group name may also be the name of a package."
                                  (elpa . stp-elpa-valid-remote-p)
                                  (archive . stp-archive-valid-remote-p)
                                  (url . stp-url-valid-remote-p))
-  "This alist maps predicates for valid remotes methods.")
+  "This alist maps predicates for valid remotes to methods.")
 
 (cl-defun stp-remote-method (remote &key noerror ignored-methods)
   "Determine the method for REMOTE.
@@ -486,7 +486,7 @@ reorder the remotes based on which was chosen.")
            (stp-set-attribute pkg-name 'other-remotes)))))
 
 (defun stp-github-io-transformer (remote)
-  "A transform github.io REMOTE into a git repository."
+  "Transform a github.io REMOTE into a git repository."
   (format "https://github.com/%s/%s" (match-string 1 remote) (match-string 2 remote)))
 
 (defun stp-github-no-extension-transformer (remote)
