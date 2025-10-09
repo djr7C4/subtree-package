@@ -350,8 +350,7 @@ remote or archive. Archives are represented as symbols."
                                           "Remote or archive: "
                                           (->> (append remotes archive-alist)
                                                stp-sort-remotes
-                                               (mapcar #'car))
-                                          :default (car remotes)))))
+                                               (mapcar #'car))))))
             (cons pkg-name (and remote-or-archive
                                 (or (map-elt archive-alist remote-or-archive)
                                     (car (s-split " " remote-or-archive)))))))
