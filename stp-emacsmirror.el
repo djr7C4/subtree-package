@@ -105,7 +105,7 @@ is non-nil."
                  (dsb (mirror . pkg-names)
                      cell
                    (mapcar (lambda (pkg-name)
-                             (cons pkg-name (format "https://github.com/%s/%s/" mirror pkg-name)))
+                             (cons pkg-name (format "https://github.com/%s/%s.git" mirror pkg-name)))
                            pkg-names))))
        (apply #'append)
        -uniq
