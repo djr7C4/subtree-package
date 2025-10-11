@@ -424,7 +424,8 @@ was inserted."
 (defun stp-headers-update-version-header (&optional insert)
   (let ((header "Version: "))
     (cl-flet ((insert-version (value)
-                (let ((version (stp-git-latest-stable-version (stp-git-root))))
+                (let ((version (and (stp-git-root)
+                                    (stp-git-latest-stable-version (stp-git-root)))))
                   (insert (format ";; %s%s\n"
                                   header
                                   (or (and version
