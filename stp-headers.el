@@ -544,6 +544,12 @@ When INSERT is non-nil, insert the headers if they are not
 present. Return non-nil if a header that was not there before was
 inserted."
   (interactive (list t))
+  (cond
+   ((not buffer-file-name)
+    (user-error "Cannot update headers for buffers that are not associated with a file"))
+   ;; Errors will occur when the buffer has not been saved yet.
+   ((not (f-exists-p buffer-file-name))
+    (save-buffer)))
   (save-excursion
     (save-match-data
       (stp-headers-update-elisp-filename-headers insert)
