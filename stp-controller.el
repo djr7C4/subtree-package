@@ -975,10 +975,11 @@ package and were installed as dependencies."))
                   (cl-dolist (feature features)
                     (push feature stp-headers-uninstalled-features))
                   (stp-delete-load-path pkg-name)
-                  (stp-git-commit (format "Uninstalled version %s of %s"
-                                          (stp-abbreviate-remote-version .method .remote .version)
-                                          pkg-name)
-                                  :do-commit do-commit)
+                  (let ((msg (format "Uninstalled version %s of %s"
+                                     (stp-abbreviate-remote-version .method .remote .version)
+                                     pkg-name)))
+                    (stp-git-commit msg :do-commit do-commit)
+                    (stp-msg msg))
                   (stp-headers-update-features)
                   (when (stp-maybe-call do-dependencies)
                     (stp-uninstall-requirements controller requirements options))
@@ -1056,10 +1057,11 @@ package and were installed as dependencies."))
               ;; For archives, the version is determined automatically instead of
               ;; being read and so .version will be nil here.
               (setq .version (stp-get-attribute pkg-name 'version))
-              (stp-git-commit (format "Installed version %s of %s"
-                                      (stp-abbreviate-remote-version .method .remote .version)
-                                      pkg-name)
-                              :do-commit do-commit)
+              (let ((msg (format "Installed version %s of %s"
+                                 (stp-abbreviate-remote-version .method .remote .version)
+                                 pkg-name)))
+                (stp-git-commit msg :do-commit do-commit)
+                (stp-msg msg))
               ;; Features need to be updated before resolving dependencies. For
               ;; this reason, handling feature updates in a `stp-operate' :after
               ;; method doesn't work well.
@@ -1110,10 +1112,11 @@ package and were installed as dependencies."))
                 ;; Don't commit, push or perform push actions until the user
                 ;; resolves any merge conflicts.
                 (stp-upgrade-handle-merge-conflicts)
-                (stp-git-commit (format "Upgraded to version %s of %s"
-                                        (stp-abbreviate-remote-version .method chosen-remote new-version)
-                                        pkg-name)
-                                :do-commit do-commit)
+                (let ((msg (format "Upgraded to version %s of %s"
+                                   (stp-abbreviate-remote-version .method chosen-remote new-version)
+                                   pkg-name)))
+                  (stp-git-commit msg :do-commit do-commit)
+                  (stp-msg msg))
                 (stp-headers-update-features)
                 (when (stp-maybe-call do-dependencies)
                   (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
