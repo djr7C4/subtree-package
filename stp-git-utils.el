@@ -104,7 +104,7 @@ instead."
        (mapcar (-partial #'apply #'cons) it)
        -uniq))
 
-(defun stp-git-valid-remote-p (remote)
+(stp-defmemoized stp-git-valid-remote-p (remote)
   "Determine if REMOTE is a valid git repository."
   (and (stringp remote)
        (eql (car (rem-call-process-shell-command (format "git ls-remote -h '%s'" remote))) 0)))
@@ -119,7 +119,7 @@ instead."
                 (yes-or-no-p (format "%s was not found in %s (this is normal for hashes). Continue?" rev remote))))
        t))
 
-(cl-defun stp-git-valid-rev-p (path rev)
+(stp-defmemoized stp-git-valid-rev-p (path rev)
   "Check if REV is a valid git revision at the local PATH."
   (let ((default-directory path))
     (eql (car (rem-call-process-shell-command (format "git rev-parse --verify '%s'" rev))) 0)))
@@ -149,7 +149,7 @@ When UPDATE is non-nil, only add changes to tracked files."
 
 (defvar stp-git-synthetic-repos nil)
 
-(defun stp-git-download-as-synthetic-repo (pkg-name remote)
+(stp-defmemoized stp-git-download-as-synthetic-repo (pkg-name remote)
   "Create a new git synthetic repository for PKG-NAME.
 
 This is done by downloading REMOTE and adding it to the
@@ -366,7 +366,7 @@ Otherwise, return nil. BRANCH defualts to the current branch."
 (defun stp-git-abbreviate-hash (hash)
   (s-left stp-git-abbreviated-hash-length hash))
 
-(defun stp-git-tree (path &optional rev)
+(stp-defmemoized stp-git-tree (path &optional rev)
   "Determine the hash of the git tree at PATH for revision REV.
 
 If there is no git tree at PATH then nil will be returned. PATH
@@ -512,10 +512,10 @@ nil: show the changes from the index to the working tree"
 (defun stp-git-remote-hash-alist-basic (remote)
   (rem-run-command (list "git" "ls-remote" remote) :error t :nostderr t))
 
-(defun stp-git-remote-hash-alist-memoized (remote)
+(stp-defmemoized stp-git-remote-hash-alist-memoized (remote)
   (stp-git-remote-hash-alist-basic remote))
 
-(cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p) (memoize t))
+(stp-defmemoized stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p) (memoize t))
   "Return an alist that maps hashes to refs for REMOTE.
 
 If supplied, PREFIXES is a list of allowed prefixes. Matching
@@ -813,7 +813,7 @@ remote repositories for caching."
 (defun stp-git-cached-repo-timestamp-path (path)
   (f-join stp-git-cache-directory (format "%s%s" path stp-git-cached-repo-timestamp-suffix)))
 
-(defun stp-git-ensure-cached-repo (remotes &optional branch)
+(stp-defmemoized stp-git-ensure-cached-repo (remotes &optional branch)
   (if (listp remotes)
       ;; Fetch in reverse order so that branches and tags in earlier remotes
       ;; take precedence.
@@ -864,7 +864,7 @@ of multiple repositories."
   (let ((path (stp-git-ensure-cached-repo remotes)))
     (stp-git-count-commits path rev rev2)))
 
-(defun stp-git-timestamp (path rev)
+(stp-defmemoized stp-git-timestamp (path rev)
   "Return the UNIX timestamp for when REV was commited at PATH."
   (let ((default-directory path)
         (cmd (list "git" "show" "--no-patch" "--format=%ct" (format "%s^{commit}" rev))))

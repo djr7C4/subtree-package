@@ -27,7 +27,14 @@
 (require 'seq)
 (require 'stp-locked)
 
-(defvar stp-memoized-functions '(stp-refresh-info stp-git-download-as-synthetic-repo stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-memoized stp-git-remote-hash-alist stp-git-valid-rev-p stp-git-timestamp stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
+(defvar stp-memoized-functions nil)
+
+(defmacro stp-defmemoized (name args &rest body)
+  (declare (indent 2) (doc-string 3) (debug defun))
+  `(progn
+     (rem-defmemoize ,name ,args
+       ,@body)
+     (add-to-list 'stp-memoized-functions ',name)))
 
 (defvar stp-memoization-active nil)
 
@@ -44,12 +51,10 @@ each type per interactive command."
            (stp-memoization-active t))
        (unwind-protect
            (progn
-             (unless ,memoization-active-orig
-               (mapc (-rpartial #'memoize nil) stp-memoized-functions))
+             (mapc #'rem-reset-memoization stp-memoized-functions)
              ,@body)
          (unless ,memoization-active-orig
-           (mapc (-rpartial #'f-delete t) stp-git-synthetic-repos)
-           (mapc #'memoize-restore stp-memoized-functions))))))
+           (mapc (-rpartial #'f-delete t) stp-git-synthetic-repos))))))
 
 (def-edebug-spec stp-with-memoization t)
 
@@ -692,7 +697,7 @@ Attributes are sorted according to `stp-attribute-order'."
       (insert-file-contents stp-info-file)
       (read (buffer-string)))))
 
-(defun stp-refresh-info ()
+(stp-defmemoized stp-refresh-info ()
   (stp-force-refresh-info))
 
 ;; This version exists for when memoization should not be used.

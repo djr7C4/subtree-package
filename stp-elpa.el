@@ -73,7 +73,7 @@ required version."
                  :history 'stp-elpa-version-history
                  :sort-fun #'identity)))
 
-(defun stp-elpa-version-url-alist (pkg-name remote)
+(stp-defmemoized stp-elpa-version-url-alist (pkg-name remote)
   "Return an alist mapping versions to download URLs for PKG-NAME on REMOTE."
   (let* ((elpa-html-buf (or (url-retrieve-synchronously remote)
                             (error "Failed to retrieve %s" remote)))

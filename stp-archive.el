@@ -115,7 +115,7 @@ Names are strings and are sorted in alphabetical order."
        (-sort #'string<)))
 
 ;; This function is useful due to memoization.
-(defun stp-achive-get-descs (pkg-name)
+(stp-defmemoized stp-achive-get-descs (pkg-name)
   (map-elt package-archive-contents (intern pkg-name)))
 
 (defun stp-archive-get-desc (pkg-name archive)
