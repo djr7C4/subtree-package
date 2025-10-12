@@ -56,8 +56,6 @@
 (require 'timer)
 (require 'url-handlers)
 
-(defvar stp-memoized-functions '(stp-refresh-info stp-git-download-as-synthetic-repo stp-git-ensure-cached-repo stp-git-valid-remote-p stp-git-remote-hash-alist-memoized stp-git-remote-hash-alist stp-git-valid-rev-p stp-git-timestamp stp-git-tree stp-elpa-version-url-alist stp-achive-get-descs))
-
 (defvar stp-remote-history nil)
 
 (defun stp-read-remote (prompt &optional default)
