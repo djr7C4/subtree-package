@@ -286,97 +286,102 @@ how stale the latest stable version is."
 
 OPTIONS are used when a callback to the CONTROLLER is needed."
   (setq fallback-version (or fallback-version version))
-  (let* ((git-root (stp-git-root :path stp-source-directory))
-         (pkg-path (stp-canonical-path pkg-name))
-         (prefix (f-relative pkg-path git-root)))
-    (unless (f-exists-p pkg-path)
-      (error "%s does not exist" pkg-name))
-    (let ((default-directory git-root))
-      ;; Upgrade package
-      (let* ((hash-p (stp-git-maybe-fetch remote version :no-new-tags t))
-             (action (if hash-p
-                         ;; merging is done instead of pulling for
-                         ;; hashes because git subtree pull does
-                         ;; not work for hashes on remotes.
-                         "merge"
-                       "pull"))
-             (version-hash (stp-git-remote-rev-to-hash remote version))
-             (cmd (append (list "git" "subtree" action "--prefix" prefix)
-                          (and squash (list "--squash"))
-                          ;; When the version is a hash, don't provide a remote
-                          ;; since git subtree merge doesn't accept one.
-                          (and (not hash-p) (list remote))
-                          ;; Use the hash when performing a merge since if the
-                          ;; version is the main branch on the remote the local
-                          ;; main branch will be different than the one on the
-                          ;; remote.
-                          (if (string= action "merge")
-                              (list version-hash)
-                            (list version)))))
-        (when (or (stp-git-hash= (stp-git-subtree-package-commit pkg-name) version-hash)
-                  ;; If the tag is cannot be dereferenced, the above check won't
-                  ;; detect that the versions are in fact the same. See
-                  ;; `stp-git-remote-rev-to-hash'. In this case, we check if the
-                  ;; version strings are the same. This will miss the versions
-                  ;; being the same if the versions were specified in different
-                  ;; ways (e.g. as a hash instead of a tag).
-                  (string= version (stp-get-attribute pkg-name 'version)))
-          (user-error "Commit %s of %s is already installed"
-                      (if (stp-git-hash= version version-hash)
-                          (stp-git-abbreviate-hash version-hash)
-                        (format "%s (%s)" (stp-git-abbreviate-hash version-hash) version))
-                      pkg-name))
-        (dsb (exit-code output)
-            (rem-run-command cmd :return 'both)
-          (cond
-           ;; Check for merge conflicts. These have to be dealt with manually by
-           ;; the user. The stp-msg is displayed in higher-level code as
-           ;; otherwise it won't show here.
-           ((stp-git-merge-conflict-p))
-           ;; If the command succeeded and there are no merge conflicts then we
-           ;; don't need to do anything.
-           ((= exit-code 0))
-           ;; Sometimes git subtree merge/pull fails. This can happen if the
-           ;; prefix has been changed since the subtree was created. In this
-           ;; case, we attempt to uninstall the package and install the new
-           ;; version instead.
-           ((and stp-subtree-pull-fallback
-                 (yes-or-no-p (format "The command \"git subtree\" %s failed: %s. Uninstall and reinstall?" action output))
-                 (or (stp-maybe-call (oref options do-commit))
-                     (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
-            (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
-            nil
-            (stp-controller-prepend-operations
-             controller
-             (stp-reinstall-operation :pkg-name pkg-name
-                                      :new-version fallback-version
-                                      :options options))
-            (setq set-pkg-info nil)))
-          ;; If we get this far it means that either the merge succeeded or
-          ;; there was a merge conflict which will be resolved manually by the
-          ;; user. Either way, we update the package database.
-          (when set-pkg-info
-            (if (stp-git-remote-head-p remote version)
-                ;; If we update to a head (i.e. a branch), update the branch
-                ;; parameter and store the current hash as the version. Since
-                ;; branches are constantly updated as more commits are pushed to
-                ;; the remote, storing a branch name does not make sense.
-                (progn
-                  (stp-set-attribute pkg-name 'version version-hash)
-                  (stp-set-attribute pkg-name 'branch version)
-                  (stp-set-attribute pkg-name 'update 'unstable))
-              ;; For tags or hashes, use the tag or hash.
-              (setq version (stp-git-normalize-version remote version))
-              (stp-set-attribute pkg-name 'version version)
-              (if (stp-git-remote-tag-p remote version)
-                  ;; Tags do not have a branch to update from and are considered
-                  ;; stable.
+  (with-slots (do-toggle-update)
+      options
+    (let* ((git-root (stp-git-root :path stp-source-directory))
+           (pkg-path (stp-canonical-path pkg-name))
+           (prefix (f-relative pkg-path git-root)))
+      (unless (f-exists-p pkg-path)
+        (error "%s does not exist" pkg-name))
+      (let ((default-directory git-root))
+        ;; Upgrade package
+        (let* ((hash-p (stp-git-maybe-fetch remote version :no-new-tags t))
+               (action (if hash-p
+                           ;; merging is done instead of pulling for hashes
+                           ;; because git subtree pull does not work for hashes
+                           ;; on remotes.
+                           "merge"
+                         "pull"))
+               (version-hash (stp-git-remote-rev-to-hash remote version))
+               (cmd (append (list "git" "subtree" action "--prefix" prefix)
+                            (and squash (list "--squash"))
+                            ;; When the version is a hash, don't provide a
+                            ;; remote since git subtree merge doesn't accept
+                            ;; one.
+                            (and (not hash-p) (list remote))
+                            ;; Use the hash when performing a merge since if the
+                            ;; version is the main branch on the remote the
+                            ;; local main branch will be different than the one
+                            ;; on the remote.
+                            (if (string= action "merge")
+                                (list version-hash)
+                              (list version)))))
+          (when (or (stp-git-hash= (stp-git-subtree-package-commit pkg-name) version-hash)
+                    ;; If the tag is cannot be dereferenced, the above check
+                    ;; won't detect that the versions are in fact the same. See
+                    ;; `stp-git-remote-rev-to-hash'. In this case, we check if
+                    ;; the version strings are the same. This will miss the
+                    ;; versions being the same if the versions were specified in
+                    ;; different ways (e.g. as a hash instead of a tag).
+                    (string= version (stp-get-attribute pkg-name 'version)))
+            (user-error "Commit %s of %s is already installed"
+                        (if (stp-git-hash= version version-hash)
+                            (stp-git-abbreviate-hash version-hash)
+                          (format "%s (%s)" (stp-git-abbreviate-hash version-hash) version))
+                        pkg-name))
+          (dsb (exit-code output)
+              (rem-run-command cmd :return 'both)
+            (cond
+             ;; Check for merge conflicts. These have to be dealt with manually
+             ;; by the user. The stp-msg is displayed in higher-level code as
+             ;; otherwise it won't show here.
+             ((stp-git-merge-conflict-p))
+             ;; If the command succeeded and there are no merge conflicts then
+             ;; we don't need to do anything.
+             ((= exit-code 0))
+             ;; Sometimes git subtree merge/pull fails. This can happen if the
+             ;; prefix has been changed since the subtree was created. In this
+             ;; case, we attempt to uninstall the package and install the new
+             ;; version instead.
+             ((and stp-subtree-pull-fallback
+                   (yes-or-no-p (format "The command \"git subtree\" %s failed: %s. Uninstall and reinstall?" action output))
+                   (or (stp-maybe-call (oref options do-commit))
+                       (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
+              (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
+              nil
+              (stp-controller-prepend-operations
+               controller
+               (stp-reinstall-operation :pkg-name pkg-name
+                                        :new-version fallback-version
+                                        :options options))
+              (setq set-pkg-info nil)))
+            ;; If we get this far it means that either the merge succeeded or
+            ;; there was a merge conflict which will be resolved manually by the
+            ;; user. Either way, we update the package database.
+            (when set-pkg-info
+              (if (stp-git-remote-head-p remote version)
+                  ;; If we update to a head (i.e. a branch), update the branch
+                  ;; parameter and store the current hash as the version. Since
+                  ;; branches are constantly updated as more commits are pushed
+                  ;; to the remote, storing a branch name does not make sense.
                   (progn
-                    (stp-delete-attribute pkg-name 'branch)
-                    (stp-set-attribute pkg-name 'update 'stable))
-                ;; If there is a 'branch attribute when updating to a hash,
-                ;; leave it as is.
-                (stp-set-attribute pkg-name 'update 'unstable)))))))))
+                    (stp-set-attribute pkg-name 'version version-hash)
+                    (stp-set-attribute pkg-name 'branch version)
+                    (when do-toggle-update
+                      (stp-set-attribute pkg-name 'update 'unstable)))
+                ;; For tags or hashes, use the tag or hash.
+                (setq version (stp-git-normalize-version remote version))
+                (stp-set-attribute pkg-name 'version version)
+                (when do-toggle-update
+                  (if (stp-git-remote-tag-p remote version)
+                      ;; Tags do not have a branch to update from and are
+                      ;; considered stable.
+                      (progn
+                        (stp-delete-attribute pkg-name 'branch)
+                        (stp-set-attribute pkg-name 'update 'stable))
+                    ;; If there is a 'branch attribute when updating to a hash,
+                    ;; leave it as is.
+                    (stp-set-attribute pkg-name 'update 'unstable)))))))))))
 
 (provide 'stp-git)
 
