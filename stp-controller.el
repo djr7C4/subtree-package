@@ -55,7 +55,7 @@ a function as for `stp-auto-commit'.")
 This applies when installing, uninstalling, upgrading or
 reinstalling packages.")
 
-(defvar stp-auto-toggle-update t
+(defvar stp-auto-toggle-update nil
   "When non-nil, set the update attribute when a git package is upgraded.
 
 This is useful when the update attribute is stable but an
