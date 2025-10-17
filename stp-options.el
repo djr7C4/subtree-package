@@ -40,7 +40,10 @@
 (defclass stp-additive-operation-options (stp-package-change-operation-options stp-audit-operation-options stp-action-operation-options) ())
 
 (defclass stp-install-operation-options (stp-additive-operation-options) ())
-(defclass stp-upgrade-operation-options (stp-additive-operation-options) ())
+
+(defclass stp-upgrade-operation-options (stp-additive-operation-options)
+  ((do-toggle-update :initarg :do-toggle-update :initform (symbol-value stp-auto-toggle-update))))
+
 (defclass stp-reinstall-operation-options (stp-additive-operation-options) ())
 
 (defclass stp-bump-operation-options (stp-basic-operation-options)
@@ -152,6 +155,7 @@
       (do-reset :choices ,stp-transient-reset-choices)
       do-dependencies
       (do-audit :key "A")
+      do-toggle-update
       do-tag))
 
   (defvar stp-transient-action-specs

@@ -34,13 +34,6 @@ can also be a function as for `stp-auto-commit'.")
 
 The value can also be a function as for `stp-auto-commit'.")
 
-(defvar stp-audit-changes nil
-  "Show diffs whenever a package changes or new code is added.
-
-This is useful for security purposes since it prevents new code
-from being run before it has been reviewed. The value can also be
-a function as for `stp-auto-commit'.")
-
 (defvar stp-auto-reset '(:audit)
   "A list that indicates when git reset should be used.
 
@@ -49,11 +42,24 @@ If it contains :audit, reset when an audit fails. If it contains
 is also allowed and is equivalent to \\='(:audit :error). A
 function is also permitted as for `stp-auto-commit'.")
 
+(defvar stp-audit-changes nil
+  "Show diffs whenever a package changes or new code is added.
+
+This is useful for security purposes since it prevents new code
+from being run before it has been reviewed. The value can also be
+a function as for `stp-auto-commit'.")
+
 (defvar stp-auto-dependencies t
   "When non-nil, automatically install or upgrade dependencies as needed.
 
 This applies when installing, uninstalling, upgrading or
 reinstalling packages.")
+
+(defvar stp-auto-toggle-update t
+  "When non-nil, set the update attribute when a git package is upgraded.
+
+This is useful when the update attribute is stable but an
+unstable version is installed or vice versa.")
 
 (defvar stp-auto-post-actions t
   "When non-nil, automatically perform post actions.
@@ -97,7 +103,6 @@ for `stp-auto-commit'.")
 When this variable is a function it will be called to determine
 the value when it is needed. The value can also be a function as
 for `stp-auto-commit'.")
-
 
 (defclass stp-operation ()
   ((pkg-name :initarg :pkg-name :initform nil)
