@@ -447,7 +447,7 @@ a remote needs to be selected.")
                 (if multiple
                     (cl-every #'valid-candidate-p (s-split crm-separator candidates))
                   (valid-candidate-p candidates))))
-    (let* ((default-directory (or (stp-development-directories) default-directory))
+    (let* ((default-directory (or (car (stp-development-directories)) default-directory))
            (new-remotes (rem-comp-read prompt
                                        (completion-table-in-turn known-remotes
                                                                  #'completion-file-name-table)
