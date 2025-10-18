@@ -494,10 +494,6 @@ If REFRESH is non-nil, refresh the package list afterwards."
          table
          :class 'stp-uninstall-operation-options)))))
 
-(defvar stp-fork-directory nil
-  "The directory to use for forks.
-When this is nil, `stp-source-directory' is used.")
-
 (defvar stp-fork-action #'find-file-other-window
   "The action to execute after a fork is created.
 The function is called with the local path to the fork.")
@@ -511,7 +507,7 @@ The function is called with the local path to the fork.")
       (unless (eq .method 'git)
         (user-error "Only packages that use the git method can be forked"))
       (let* ((options (stp-command-options :class 'stp-basic-operation-options))
-             (dir (or stp-fork-directory stp-development-directory))
+             (dir (or stp-fork-directory (car stp-development-directories)))
              (remote (stp-choose-remote "Remote: " .remote .other-remotes)))
         (stp-fork pkg-name remote dir options)))))
 
@@ -1612,7 +1608,7 @@ confirmation."
   "Try to find FILE for PKG-NAME in the other local source location.
 
 This is done by looking for a directory named PKG-NAME in a
-remote on the local filesystem, `stp-development-directory' or
+remote on the local filesystem, `stp-development-directories' or
 `stp-source-directory'. If more than one of these exists and does
 not contain the current file, the user will be prompted to choose
 between them. If FILE is non-nil, open the corresponding file in
@@ -1628,21 +1624,26 @@ development or for opening packages from `stp-list-mode'."
   (stp-refresh-info)
   (let ((path (f-canonical (or buffer-file-name default-directory))))
     (let-alist (stp-get-alist pkg-name)
-      ;; Prefer a remote on the local filesystem or `stp-development-directory'.
-      ;; If neither of these exists, fallback on the copy of the package in
-      ;; `stp-source-directory'.
+      ;; Prefer a remote on the local filesystem or in
+      ;; `stp-development-directories'. If neither of these exists, fallback on
+      ;; the copy of the package in `stp-source-directory'.
       (let ((dirs (-filter (lambda (dir)
                              ;; Ignore directories that do not exist and the
                              ;; copy of the package that we are currently in.
                              (and (f-dir-p dir)
                                   (not (f-same-p dir path))
                                   (not (f-ancestor-of-p (f-canonical dir) path))))
-                           (append (and .remote (list .remote))
-                                   .other-remotes
-                                   (and stp-development-directory
-                                        (list (f-slash (f-join stp-development-directory pkg-name))
-                                              (stp-full-path pkg-name)))))))
-        (setq dirs (cl-remove-duplicates dirs :test #'f-same-p))
+                           (if (derived-mode-p 'stp-list-mode)
+                               (list (stp-full-path pkg-name))
+                               (append (and .remote (list .remote))
+                                       .other-remotes
+                                       (mapcar (lambda (dir)
+                                                 (f-slash (f-join dir pkg-name)))
+                                               (stp-development-directories))
+                                       (list (stp-full-path pkg-name)))))))
+        (setq dirs (->> (cl-remove-duplicates dirs :test #'f-same-p)
+                        (cl-remove-if (lambda (dir)
+                                        (rem-ancestor-of-inclusive-p (f-canonical dir) path)))))
         (if dirs
             (let ((dir (f-full (if (cdr dirs)
                                    (rem-comp-read "Directory: " dirs :require-match t)

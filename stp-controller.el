@@ -731,18 +731,20 @@ package alist and REMOTE is the remote.")
   (with-slots (preferred-update respect-update development-directory-override)
       controller
     (let-alist pkg-alist
-      ;; Respect the package's update attribute if it is set and the controller is
-      ;; set to do respect package's update attributes.
+      ;; Respect the package's update attribute if it is set and the controller
+      ;; is set to do respect package's update attributes.
       (cond
        ((and respect-update .update)
         .update)
-       ;; Always prefer the unstable version when the remote is in the development
-       ;; directory.
+       ;; Always prefer the unstable version when the remote is in the
+       ;; development directory.
        ((and development-directory-override
              (not (symbolp remote))
              (f-dir-p remote)
-             (rem-ancestor-of-inclusive-p (f-canonical stp-development-directory)
-                                          (f-canonical remote)))
+             (-any (lambda (dir)
+                     (rem-ancestor-of-inclusive-p (f-canonical dir)
+                                                  (f-canonical remote)))
+                   (stp-development-directories)))
         'unstable)
        (t
         preferred-update)))))

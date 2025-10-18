@@ -194,7 +194,7 @@ This is slower than using incremental updates but it will detect
 packages installed with other package managers.")
 
 (defvar stp-headers-update-recompute-development-directory t
-  "When non-nil, always recompute features in `stp-development-directory'.")
+  "When non-nil, always recompute features in `stp-development-directories'.")
 
 (defun stp-headers-update-features (&optional quiet)
   "Update `stp-headers-installed-features'.
@@ -217,7 +217,7 @@ packages from outside of STP will not be detected."
              (new-paths (mapcan (-compose #'stp-compute-load-path #'stp-canonical-path)
                                 modified-packages))
              (dev-paths (and stp-headers-update-recompute-development-directory
-                             (stp-compute-load-paths stp-development-directory)))
+                             (mapcan #'stp-compute-load-paths (stp-development-directories))))
              (new-features (stp-headers-paths-features (append new-paths dev-paths))))
         (setq stp-headers-installed-features (--> stp-headers-installed-features
                                                   (cl-set-difference it stp-headers-uninstalled-features :test #'equal)

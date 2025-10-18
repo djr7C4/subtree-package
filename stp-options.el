@@ -155,7 +155,7 @@
       (do-reset :choices ,stp-transient-reset-choices)
       do-dependencies
       (do-audit :key "A")
-      do-toggle-update
+      (do-toggle-update :key "U")
       do-tag))
 
   (defvar stp-transient-action-specs

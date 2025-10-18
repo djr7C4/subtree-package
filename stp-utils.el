@@ -394,13 +394,21 @@ specific method."
                          :default default
                          :sort-fun #'identity)))
 
-(defvar stp-development-directory nil
-  "The directory that contains local repositories for packages you develop.")
+(defvar stp-development-directories nil
+  "A list of directories that contain local repositories you develop.")
+
+(defvar stp-fork-directory nil
+  "The directory to use for forks.
+When this is nil, `stp-source-directory' is used.")
+
+(defun stp-development-directories ()
+  (rem-at-end stp-development-directories stp-fork-directory))
 
 (defun stp-normalize-remote (remote)
   "Normalize REMOTE."
   ;; Use absolute paths for local repositories.
-  (let ((default-directory stp-development-directory))
+  (let ((default-directory (or (car (stp-development-directories))
+                               default-directory)))
     (if (f-exists-p remote)
         (setq remote (f-slash (f-full remote)))
       remote)))
@@ -413,7 +421,7 @@ specific method."
       (when remote
         (minibuffer-message "%s is invalid" remote))
       (setq remote
-            (let ((default-directory (or stp-development-directory
+            (let ((default-directory (or (car (stp-development-directories))
                                          default-directory)))
               (-> (rem-comp-read prompt
                                  #'completion-file-name-table
@@ -439,8 +447,7 @@ a remote needs to be selected.")
                 (if multiple
                     (cl-every #'valid-candidate-p (s-split crm-separator candidates))
                   (valid-candidate-p candidates))))
-    (let* ((default-directory (or stp-development-directory
-                                  default-directory))
+    (let* ((default-directory (or (stp-development-directories) default-directory))
            (new-remotes (rem-comp-read prompt
                                        (completion-table-in-turn known-remotes
                                                                  #'completion-file-name-table)
