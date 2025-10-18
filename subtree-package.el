@@ -1605,15 +1605,16 @@ confirmation."
              stp-source-directory)))
 
 (defun stp-find-package (pkg-name &optional file arg)
-  "Try to find FILE for PKG-NAME in the other local source location.
+  "Try to find FILE for PKG-NAME on the local filesystem.
 
-This is done by looking for a directory named PKG-NAME in a
-remote on the local filesystem, `stp-development-directories' or
-`stp-source-directory'. If more than one of these exists and does
-not contain the current file, the user will be prompted to choose
-between them. If FILE is non-nil, open the corresponding file in
-this directory. Otherwise (or with a prefix argument), open
-PKG-NAME.
+When in `stp-list-mode', open the main file for the package on
+the current line. Otherwise, look for candidates for the source
+code in `stp-development-directories', `stp-fork-directory' and
+`stp-source-directory'. If there is only one candidate or if
+there are exactly two candidates and one contains the current
+file, open the other candidate. Otherwise or if ARG is
+non-nil (interactivley with a prefix argument) prompt the user to
+choose between them.
 
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
@@ -1633,30 +1634,32 @@ development or for opening packages from `stp-list-mode'."
                              (and (f-dir-p dir)
                                   (not (f-same-p dir path))
                                   (not (f-ancestor-of-p (f-canonical dir) path))))
-                           (if (derived-mode-p 'stp-list-mode)
-                               (list (stp-full-path pkg-name))
-                               (append (and .remote (list .remote))
-                                       .other-remotes
-                                       (mapcar (lambda (dir)
-                                                 (f-slash (f-join dir pkg-name)))
-                                               (stp-development-directories))
-                                       (list (stp-full-path pkg-name)))))))
-        (setq dirs (->> (cl-remove-duplicates dirs :test #'f-same-p)
-                        (cl-remove-if (lambda (dir)
-                                        (rem-ancestor-of-inclusive-p (f-canonical dir) path)))))
+                           (append (and .remote (list .remote))
+                                   .other-remotes
+                                   (mapcar (lambda (dir)
+                                             (f-slash (f-join dir pkg-name)))
+                                           (stp-development-directories))
+                                   (list (stp-full-path pkg-name))))))
+        (setq dirs (cl-remove-duplicates dirs :test #'f-same-p))
         (if dirs
-            (let ((dir (f-full (if (cdr dirs)
-                                   (rem-comp-read "Directory: " dirs :require-match t)
-                                 (car dirs)))))
+            (let ((dir (f-full (cond
+                                ((and (not arg) (derived-mode-p 'stp-list-mode))
+                                 (stp-full-path pkg-name))
+                                ((and (not arg) (not (cdr dirs)))
+                                 (car dirs))
+                                ((and (not arg) (not (cddr dirs))
+                                      (car (cl-remove-if (lambda (dir)
+                                                           (rem-ancestor-of-inclusive-p (f-canonical dir) path))
+                                                         dirs))))
+                                (t
+                                 (rem-comp-read "Directory: " dirs :require-match t))))))
               (let (file-found
                     (default-directory dir)
                     (line (line-number-at-pos))
                     (column (current-column))
                     (window-line (rem-window-line-number-at-pos))
                     (old-buf (current-buffer)))
-                (find-file (if arg
-                               dir
-                             (or (setq file-found file) (stp-main-package-file pkg-name :relative t))))
+                (find-file (or (setq file-found file) (stp-main-package-file pkg-name :relative t)))
                 (when (and (not (with-current-buffer old-buf
                                   (derived-mode-p 'stp-list-mode)))
                            (not (rem-buffer-same-p old-buf)))
