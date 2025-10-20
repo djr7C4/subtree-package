@@ -895,10 +895,10 @@ in PKG-NAMES."
       (stp-msg "Successfully built info manuals for all packages"))))
 
 (cl-defun stp-list-update-load-path (&optional all)
-  "Reload the current package.
+  "Update the load path for the current package.
 
 When ALL is non-nil (interactively with a prefix argument),
-reload all packages."
+update the load path for all packages."
   (interactive "P")
   (if all
       (stp-update-load-paths)
