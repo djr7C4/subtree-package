@@ -941,8 +941,6 @@ extension added if necessary."
 (cl-defun stp-reload-once (pkg-name)
   "Reload all files for PKG-NAME."
   (let* ((pkg-path (stp-canonical-path pkg-name))
-         ;; Reload those features that were already loaded and correspond to
-         ;; files in the package.
          (files (mapcar #'f-no-ext (rem-elisp-files-to-load pkg-path :recursive t))))
     (cl-dolist (f files)
       (load f))))
