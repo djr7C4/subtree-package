@@ -941,6 +941,9 @@ extension added if necessary."
 (cl-defun stp-reload-once (pkg-name)
   "Reload all files for PKG-NAME that would be put in the load path."
   (let* ((pkg-path (stp-canonical-path pkg-name))
+         ;; The point of only loading what would be put in the load path is to
+         ;; avoid loading extra files such as tests. This is an issue when a
+         ;; full recursive load is performed.
          (pkg-load-paths (stp-compute-load-path pkg-path))
          (files (->> (rem-elisp-files-to-load pkg-path)
                      (-filter (lambda (file)
