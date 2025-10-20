@@ -939,9 +939,16 @@ extension added if necessary."
       (insert (rem-as-shell-command cmd)))))
 
 (cl-defun stp-reload-once (pkg-name)
-  "Reload all files for PKG-NAME."
+  "Reload all files for PKG-NAME that would be put in the load path."
   (let* ((pkg-path (stp-canonical-path pkg-name))
-         (files (mapcar #'f-no-ext (rem-elisp-files-to-load pkg-path :recursive t))))
+         (pkg-load-paths (stp-compute-load-path pkg-path))
+         (files (->> (rem-elisp-files-to-load pkg-path)
+                     (-filter (lambda (file)
+                                (-some (lambda (path)
+                                         (f-ancestor-of-p (f-canonical path)
+                                                          (f-canonical file)))
+                                       pkg-load-paths)))
+                     (mapcar #'f-no-ext))))
     (cl-dolist (f files)
       (load f))))
 
