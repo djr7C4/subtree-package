@@ -1397,6 +1397,12 @@ always stored as a tag.")
 
 (defun stp-list-version-field (pkg-name pkg-alist version-alist)
   (let-alist (map-merge 'alist pkg-alist version-alist)
+    (when (and .count-to-stable
+               .count-to-unstable
+               (> .count-to-stable .count-to-unstable))
+      (stp-msg "Warning: The detected latest stable version for %s is newer than the latest unstable version. This can happen when package authors change the primary branch (e.g. from master to main). To fix it, delete %s or run \"git symbolic-ref HEAD <branch>\" to set HEAD to the new branch."
+               pkg-name
+               (stp-git-cached-repo-path .remote)))
     (when (and stp-list-prefer-latest-stable (equal .count-to-stable 0))
       (setq .version .latest-stable))
     (if .version
