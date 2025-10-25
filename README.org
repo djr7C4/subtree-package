@@ -282,9 +282,11 @@ the previous state when an audit fails. =stp-audit-auto-reset= controls this
 behavior.
 * Installation
 Subtree package can manage itself as a package but first it needs to be
-installed along with its dependencies using other means. The simplest way is to
-run the bootstrap script from this repository in the top-level directory of the
-git repository for your Emacs configuration.
+installed along with its dependencies using other means. You can either use the
+bootstrap script or install use =package.el=.
+** Using the bootstrap script
+The simplest way is to run the bootstrap script from this repository in the
+top-level directory of the git repository for your Emacs configuration.
 
 #+begin_src bash
   cd <emacs-git-directory>
@@ -349,6 +351,19 @@ to initialize its internal cache. This will take a few moments. Once it has
 finished, run =M-x stp-repair-all= to initialize the package information
 database from the git repository. This will cause the packages installed by the
 bootstrap script to be recognized as STP packages.
+** Using package.el
+Alternatively, install a working instance of STP using =package.el=.
+
+#+begin_src emacs-lisp
+  (package-vc-install "https://github.com/djr7c4/rem.git")
+  (package-vc-install "https://github.com/djr7c4/subtree-package.git")
+  (add-to-list 'load-path (expand-file-name package-user-dir "rem"))
+  (add-to-list 'load-path (expand-file-name package-user-dir "subtree-package"))
+#+end_src emacs-lisp
+
+Then manually install all dependencies of STP from within STP. The requirements
+are listed in the file =bootstrap-requirements= in this repository. Once they
+are installed, you can remove the packages installed with =package.el=.
 * Comparison with other package managers
 The main strengths of STP are
 - It is highly interactive and works hard to avoid forcing you to leave Emacs
