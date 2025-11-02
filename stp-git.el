@@ -142,11 +142,11 @@ MIN-VERSION is the minimum required version."
 (defvar stp-git-read-update-show-stable-annotation t)
 
 (defun stp-git-stable-annotation (remote other-remotes)
-  (let* ((remotes (cons remote other-remotes))
-         (latest-stable (stp-git-latest-stable-version remote))
-         (commits-to-stable (and latest-stable (stp-git-count-remote-commits remotes "HEAD" latest-stable)))
-         (latest-timestamp (and latest-stable (stp-git-remote-timestamp remotes "HEAD")))
-         (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable))))
+  (when-let* ((remotes (cons remote other-remotes))
+              (latest-stable (stp-git-latest-stable-version remote))
+              (commits-to-stable (and latest-stable (stp-git-count-remote-commits remotes "HEAD" latest-stable)))
+              (latest-timestamp (and latest-stable (stp-git-remote-timestamp remotes "HEAD")))
+              (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable))))
     (format "%s %s" latest-stable (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp :keep-zero t))))
 
 (cl-defun stp-git-read-update (prompt &key default remote other-remotes)
@@ -163,7 +163,7 @@ how stale the latest stable version is."
                         ;; specified.
                         (list (format "stable%s" (if stable-annotation
                                                      (format "%s%s" stp-separator (s-trim stable-annotation))
-                                                   ""))
+                                                   (format "%s (no tags found)" stp-separator)))
                               "unstable")
                         :require-match t
                         :default default
