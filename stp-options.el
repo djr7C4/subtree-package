@@ -44,6 +44,8 @@
 (defclass stp-upgrade-operation-options (stp-additive-operation-options)
   ((do-toggle-update :initarg :do-toggle-update :initform (symbol-value stp-auto-toggle-update))))
 
+(defclass stp-install-or-upgrade-operation-options (stp-install-operation-options stp-upgrade-operation-options) ())
+
 (defclass stp-reinstall-operation-options (stp-additive-operation-options) ())
 
 (defclass stp-bump-operation-options (stp-basic-operation-options)

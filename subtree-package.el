@@ -477,7 +477,7 @@ If REFRESH is non-nil, refresh the package list afterwards."
            (when refresh
              (stp-list-refresh :quiet t)))
          table
-         :class 'stp-additive-operation-options)))))
+         :class 'stp-install-or-upgrade-operation-options)))))
 
 (defun stp-uninstall-package-group-command ()
   "Uninstall the package groups or packages."
