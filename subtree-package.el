@@ -1375,16 +1375,17 @@ version information updated."
 PKG-NAME is the package to check, PKG-ALIST is the alist for that
 package and VERSION-ALIST is its latest version information."
   (let-alist (map-merge 'alist pkg-alist version-alist)
-    (cl-ecase .method
-      (git
-       (stp-git-version-upgradable-p .count-to-stable .count-to-unstable .update))
-      (elpa
-       (stp-elpa-version-upgradable-p .count-to-stable))
-      (archive
-       (stp-archive-version-upgradable-p pkg-name .remote))
-      ;; URL packages are treated as never being upgradable but this isn't
-      ;; reliable since they have no version information available.
-      (url))))
+    (and (equal .count-from-version .version)
+         (cl-ecase .method
+           (git
+            (stp-git-version-upgradable-p .count-to-stable .count-to-unstable .update))
+           (elpa
+            (stp-elpa-version-upgradable-p .count-to-stable))
+           (archive
+            (stp-archive-version-upgradable-p pkg-name .remote))
+           ;; URL packages are treated as never being upgradable but this isn't
+           ;; reliable since they have no version information available.
+           (url)))))
 
 (defvar stp-list-prefer-latest-stable t
   "When non-nil, show the latest stable tag instead of an equivalent hash.
