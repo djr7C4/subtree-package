@@ -3,10 +3,11 @@ async 1.9.9
 cond-let 0.1.1
 dash 2.20.0
 emacs 29.1
+emacs 29
 f 0.21.0
 llama 1.0.0
 noflet 0.0.15
 queue 0.2
-rem 0.9.0
+rem 0.9.1
 s 1.13.0
 transient 0.10.0

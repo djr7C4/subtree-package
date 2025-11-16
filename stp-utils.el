@@ -32,7 +32,13 @@
 (defmacro stp-defmemoized (name args &rest body)
   (declare (indent 2) (doc-string 3) (debug defun))
   `(progn
-     (rem-defmemoize ,name ,args
+     ;; `cl-defun' is used instead of `rem-defmemoize' because memoization
+     ;; should only by active with an `stp-defmemoization' form. Not all
+     ;; commands wrap functions in `stp-defmemoization' and using memoization by
+     ;; default will lead to incorrect return values for functions that might
+     ;; compute a different value in calls that are not part of the same
+     ;; top-level.
+     (cl-defun ,name ,args
        ,@body)
      (add-to-list 'stp-memoized-functions ',name)))
 
@@ -51,9 +57,12 @@ each type per interactive command."
            (stp-memoization-active t))
        (unwind-protect
            (progn
-             (mapc #'rem-reset-memoization stp-memoized-functions)
+             (unless ,memoization-active-orig
+               (mapc #'rem-memoize stp-memoized-functions)
+               (mapc #'rem-reset-memoization stp-memoized-functions))
              ,@body)
          (unless ,memoization-active-orig
+           (mapc #'rem-unmemoize stp-memoized-functions)
            (mapc (-rpartial #'f-delete t) stp-git-synthetic-repos))))))
 
 (def-edebug-spec stp-with-memoization t)
