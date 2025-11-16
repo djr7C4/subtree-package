@@ -115,7 +115,7 @@ Names are strings and are sorted in alphabetical order."
        (-sort #'string<)))
 
 ;; This function is useful due to memoization.
-(stp-defmemoized stp-achive-get-descs (pkg-name)
+(stp-defmemoized stp-archive-get-descs (pkg-name)
   (map-elt package-archive-contents (intern pkg-name)))
 
 (defun stp-archive-get-desc (pkg-name archive)
@@ -124,14 +124,14 @@ Names are strings and are sorted in alphabetical order."
     (setq archive (symbol-name archive)))
   (cl-find-if (lambda (desc)
                 (string= (package-desc-archive desc) archive))
-              (stp-achive-get-descs pkg-name)))
+              (stp-archive-get-descs pkg-name)))
 
 (defun stp-archive-find-remotes (pkg-name)
   "Find remotes for PKG-NAME in `package-archive-contents'.
 
 The result is returned as an alist that maps valid remotes to
 methods."
-  (--> (stp-achive-get-descs pkg-name)
+  (--> (stp-archive-get-descs pkg-name)
        (mapcar (lambda (desc)
                  (map-elt (package-desc-extras desc) :url))
                it)
@@ -149,7 +149,7 @@ methods."
   (seq-sort-by (lambda (archive)
                  (cl-position archive (mapcar #'car package-archives) :test #'string=))
                #'<
-               (mapcar #'package-desc-archive (stp-achive-get-descs pkg-name))))
+               (mapcar #'package-desc-archive (stp-archive-get-descs pkg-name))))
 
 (defun stp-archive-url (desc)
   "Return the URL for the `package-desc' DESC."
