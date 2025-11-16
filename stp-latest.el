@@ -63,7 +63,7 @@
                      (and version-timestamp (list `(version-timestamp . ,version-timestamp)))
                      (and stable-timestamp (list `(stable-timestamp . ,stable-timestamp)))
                      (and unstable-timestamp (list `(unstable-timestamp . ,unstable-timestamp)))
-                     `((current-version . ,.version)
+                     `((count-from-version . ,.version)
                        (updated . ,timestamp))))))
         (elpa
          (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))

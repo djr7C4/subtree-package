@@ -1061,7 +1061,9 @@ number of packages to go backward."
   (let-alist (map-merge 'alist
                         (map-elt stp-latest-versions-cache pkg-name)
                         (stp-get-alist pkg-name))
-    (stp-version-upgradable-p pkg-name .method .remote .count-to-stable .count-to-unstable .update)))
+    (stp-version-upgradable-p pkg-name
+                              (stp-get-alist pkg-name)
+                              (map-elt stp-latest-versions-cache pkg-name))))
 
 (defun stp-list-next-upgradable (&optional n)
   "Go to the next package that can be upgraded.
@@ -1367,26 +1369,22 @@ version information updated."
                           it
                           :test #'equal)))
 
-(defun stp-version-upgradable-p (pkg-name method remote count-to-stable count-to-unstable update)
+(defun stp-version-upgradable-p (pkg-name pkg-alist version-alist)
   "Check if the package can be upgraded to a newer version.
 
-PKG-NAME is the package to check, METHOD is the method attribute
-for the package and REMOTE is the remote. COUNT-TO-STABLE is the
-number of versions from the current version to the latest stable
-version. COUNT-TO-UNSTABLE is the number of versions from the
-current version to the latest unstable version. When METHOD is
-\\='git, this is the number of commits. UPDATE is the update
-attribute for the package."
-  (cl-ecase method
-    (git
-     (stp-git-version-upgradable-p count-to-stable count-to-unstable update))
-    (elpa
-     (stp-elpa-version-upgradable-p count-to-stable))
-    (archive
-     (stp-archive-version-upgradable-p pkg-name remote))
-    ;; URL packages are treated as never being upgradable but this isn't
-    ;; reliable since they have no version information available.
-    (url)))
+PKG-NAME is the package to check, PKG-ALIST is the alist for that
+package and VERSION-ALIST is its latest version information."
+  (let-alist (map-merge 'alist pkg-alist version-alist)
+    (cl-ecase .method
+      (git
+       (stp-git-version-upgradable-p .count-to-stable .count-to-unstable .update))
+      (elpa
+       (stp-elpa-version-upgradable-p .count-to-stable))
+      (archive
+       (stp-archive-version-upgradable-p pkg-name .remote))
+      ;; URL packages are treated as never being upgradable but this isn't
+      ;; reliable since they have no version information available.
+      (url))))
 
 (defvar stp-list-prefer-latest-stable t
   "When non-nil, show the latest stable tag instead of an equivalent hash.
@@ -1399,17 +1397,18 @@ always stored as a tag.")
   (let-alist (map-merge 'alist pkg-alist version-alist)
     (when (and .count-to-stable
                .count-to-unstable
+               (equal .count-from-version .version)
                (> .count-to-stable .count-to-unstable))
       (stp-msg "Warning: The detected latest stable version for %s is newer than the latest unstable version. This can happen when package authors change the primary branch (e.g. from master to main). To fix it, delete %s or run \"git symbolic-ref HEAD <branch>\" to set HEAD to the new branch."
                pkg-name
                (stp-git-cached-repo-path .remote)))
     (when (and stp-list-prefer-latest-stable
                (equal .count-to-stable 0)
-               (string= .current-version .version))
+               (equal .count-from-version .version))
       (setq .version .latest-stable))
     (if .version
         (let ((version-string (stp-list-abbreviate-version .method .version)))
-          (setq version-string (if (stp-version-upgradable-p pkg-name .method .remote .count-to-stable .count-to-unstable .update)
+          (setq version-string (if (stp-version-upgradable-p pkg-name pkg-alist version-alist)
                                    (propertize version-string 'face stp-list-upgradable-face)
                                  version-string))
           (when (eq stp-annotated-version-type 'timestamp)
