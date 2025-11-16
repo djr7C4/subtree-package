@@ -85,8 +85,9 @@ never truncated.")
     (let ((inhibit-read-only t)
           (msg (apply #'message args)))
       (when stp-log-max
-        (insert msg "\n"))
-      (stp-truncate-log)
+        (stp-truncate-log))
+      (goto-char (point-max))
+      (insert msg "\n")
       msg)))
 
 ;; Based on `comint-truncate-buffer'.
