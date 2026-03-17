@@ -554,7 +554,6 @@ inserted."
   (save-excursion
     (save-match-data
       (stp-headers-update-elisp-filename-headers insert)
-      ;; Go to the prop line.
       (rem-ensure-prop-line)
       (beginning-of-line)
       (forward-comment 1)
@@ -574,12 +573,15 @@ inserted."
         (when insert
           (unless (lm-header "Author")
             (setq inserted t)
-            (goto-char (lm-copyright-mark))
+            (aif (lm-copyright-mark)
+                (goto-char it)
+              (error "Copyright header not found"))
             (end-of-line)
             (insert (format "\n\n;; Author: %s <%s>\n" user-full-name user-mail-address)))
           (unless (save-excursion (lm-header "Keywords"))
             (setq inserted t)
-            (insert ";; Keywords: TODO\n"))
+            (end-of-line)
+            (insert "\n;; Keywords: TODO\n"))
           (unless (save-excursion (or (lm-header "URL") (lm-header "Website")))
             (awhen (ignore-errors
                      (-> (stp-git-push-target)
@@ -603,7 +605,7 @@ inserted."
               (goto-char end)
               (skip-chars-backward rem-whitespace)
               (delete-region (point) end)
-              (insert "\n\n;;; Commentary: TODO\n")
+              (insert "\n\n;;; Commentary:\n\n;; TODO\n")
               (setq end (point)))
             (goto-char (point-min))
             (unless (re-search-forward "^;+ +Code:" end t)
