@@ -1644,7 +1644,9 @@ development or for opening packages from `stp-list-mode'."
                              (and (f-dir-p dir)
                                   (not (f-same-p dir path))
                                   (not (f-ancestor-of-p (f-canonical dir) path))))
-                           (append (and .remote (list .remote))
+                           ;; Ignore the remote when it is a symbol representing
+                           ;; a package archive.
+                           (append (and .remote (stringp .remote) (list .remote))
                                    .other-remotes
                                    (mapcar (lambda (dir)
                                              (f-slash (f-join dir pkg-name)))
