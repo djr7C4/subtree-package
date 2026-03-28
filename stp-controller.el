@@ -42,7 +42,7 @@ If it contains :audit, reset when an audit fails. If it contains
 is also allowed and is equivalent to \\='(:audit :error). A
 function is also permitted as for `stp-auto-commit'.")
 
-(defvar stp-audit-changes nil
+(defvar stp-audit-changes t
   "Show diffs whenever a package changes or new code is added.
 
 This is useful for security purposes since it prevents new code
