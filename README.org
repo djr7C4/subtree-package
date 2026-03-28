@@ -46,6 +46,7 @@ STP addresses all of these issues and much more.
    installed or upgraded and are automatically upgraded or installed as
    necessary.
 * Features
+
 ** Easily manage packages
 The main entry point to STP is =M-x stp-list= which shows all installed packages
 and has convenience bindings for
@@ -269,17 +270,17 @@ stp-headers-update-elisp-headers= to try to infer updated values of a number of
 elisp headers and automatically update them. In particular, this updates the
 requirements to the versions that are currently installed.
 ** Audit changes to packages
-STP supports auditing changes to packages as diffs before the code is loaded.
-This can improve security if you feel there is a risk of malicious code finding
-its way into packages. Add
+By default, changes to packages are presented to the user as diffs before the
+code is loaded. This helps mitigate supply chain attacks such as the recent one
+against the kubernetes.el but can be time consuming. Add
 
 #+begin_src emacs-lisp
-(setq stp-audit-changes t)
+(setq stp-audit-changes nil)
 #+end_src emacs-lisp
 
-to your configuration to enable this. By default, =git reset= is used to restore
-the previous state when an audit fails. =stp-audit-auto-reset= controls this
-behavior.
+to your configuration if you wish to disable this feature. By default, =git
+reset= is used to restore the previous state when an audit fails.
+=stp-audit-auto-reset= controls this behavior.
 * Installation
 Subtree package can manage itself as a package but first it needs to be
 installed along with its dependencies using other means. You can either use the
