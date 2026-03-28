@@ -135,9 +135,11 @@ Sometimes, the same git repository contains multiple packages that would be
 installed via =package.el= or using the archive method. An example is the =helm=
 repository which contains both the =helm= and =helm-core= packages. When
 installing via git only =helm= should be installed since =helm-core= corresponds
-to the same repository and would result in an extra copy. =C-c C-k= can be used
-to skip the installation of the current dependency once STP prompts the user to
-begin installing it.
+to the same repository and would result in an extra copy. Newer versions of STP
+will automatically detect circular dependencies and other instances of duplicate
+packages and only install one copy. Manually skipping one of the copies with
+=C-c C-k once STP prompts the user to begin installing it is still allowed but
+isn't necessary anymore.
 ** Mark packages as stable or unstable
 Stable releases are automatically detected from tags in git repositories or ELPA
 releases. Stable packages are only upgraded to other stable releases by default.
