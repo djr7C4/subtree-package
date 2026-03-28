@@ -39,7 +39,6 @@
 (require 'async nil t)
 (require 'find-lisp)
 (require 'info)
-(require 'memoize)
 (require 'queue nil t)
 (require 'stp-bootstrap)
 (require 'stp-utils)
