@@ -278,8 +278,8 @@ against the kubernetes.el but can be time consuming. Add
 (setq stp-audit-changes nil)
 #+end_src emacs-lisp
 
-to your configuration if you wish to disable this feature. By default, =git
-reset= is used to restore the previous state when an audit fails.
+to your configuration if you wish to disable this feature. By default,
+=git reset= is used to restore the previous state when an audit fails.
 =stp-audit-auto-reset= controls this behavior.
 * Installation
 Subtree package can manage itself as a package but first it needs to be
