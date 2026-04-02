@@ -228,11 +228,13 @@ how stale the latest stable version is."
   (car (stp-git-remote-tags-sorted remote)))
 
 (defun stp-git-latest-stable-version (remote)
-  (let ((path (stp-git-ensure-cached-repo remote)))
+  (let* ((stp-allow-bare-repository-override t)
+         (path (stp-git-ensure-cached-repo remote)))
     (stp-git-remote-latest-tag path)))
 
 (defun stp-git-latest-unstable-version (remote rev)
-  (let ((path (stp-git-ensure-cached-repo remote)))
+  (let* ((stp-allow-bare-repository-override t)
+         (path (stp-git-ensure-cached-repo remote)))
     (if (string= rev "HEAD")
         (stp-git-remote-head path)
       (car (rassoc rev (stp-git-remote-hash-head-alist path))))))
@@ -258,7 +260,8 @@ how stale the latest stable version is."
     (let ((default-directory git-root))
       ;; Install the package.
       (let* ((hash-p (stp-git-maybe-fetch remote version :no-new-tags t))
-             (cmd (append (list "git" "subtree" "add" "--prefix" prefix)
+             (cmd (append (stp-git-command)
+                          (list "subtree" "add" "--prefix" prefix)
                           (and squash (list "--squash"))
                           ;; When the version is a hash, don't provide a remote
                           ;; to git subtree add. This forces git to look for the
@@ -303,7 +306,8 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
                            "merge"
                          "pull"))
                (version-hash (stp-git-remote-rev-to-hash remote version))
-               (cmd (append (list "git" "subtree" action "--prefix" prefix)
+               (cmd (append (stp-git-command)
+                            (list "subtree" action "--prefix" prefix)
                             (and squash (list "--squash"))
                             ;; When the version is a hash, don't provide a
                             ;; remote since git subtree merge doesn't accept

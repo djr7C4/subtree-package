@@ -46,7 +46,6 @@ STP addresses all of these issues and much more.
    installed or upgraded and are automatically upgraded or installed as
    necessary.
 * Features
-
 ** Easily manage packages
 The main entry point to STP is =M-x stp-list= which shows all installed packages
 and has convenience bindings for
@@ -180,6 +179,13 @@ instead of the amount of time from the installed version, set
 
 Latest versions are considered stale when they haven't been updated for more
 than =stp-latest-versions-stale-interval= seconds and are highlighted in orange.
+
+Note that if you have =safe.bareRepository= set to =explicit= in your
+=.gitconfig= for security against malicious embedded bare repositories the
+commands for updating the latest versions will not work unless
+=stp-override-bare-repository= is non-nil. This allows STP to run git commands
+in the bare repositories that are used to cache the repositories of installed
+packages and should not pose a security risk.
 ** Choose between multiple remotes
 STP remembers all remotes that the user has entered when upgrading a package.
 These are available for the user to choose for future upgrades using completion.
