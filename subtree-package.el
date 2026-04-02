@@ -510,6 +510,10 @@ The function is called with the local path to the fork.")
              (remote (stp-choose-remote "Remote: " .remote .other-remotes)))
         (stp-fork pkg-name remote dir options)))))
 
+(defvar stp-fork-add-remote t
+  "Indicates if remotes for forks should be added to the list of
+remotes for the package.")
+
 (cl-defun stp-fork (pkg-name remote dir options)
   (with-slots (do-commit do-push)
       options
@@ -520,17 +524,18 @@ The function is called with the local path to the fork.")
         (error "The executable gh is required for forking"))
       (let ((default-directory dir))
         (rem-run-command (list "gh" "repo" "fork" "--clone" "--fork-name" pkg-name remote))
-        (let* ((default-directory (f-join dir pkg-name))
-               (remotes (-uniq (cl-list* (map-elt (stp-git-remotes) "origin")
-                                         remote
-                                         .remote
-                                         .other-remotes))))
-          (stp-set-attribute pkg-name 'remote (car remotes))
-          (stp-set-attribute pkg-name 'other-remotes (cdr remotes))
-          (stp-with-package-source-directory
-            (stp-write-info)
-            (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push))
-          (funcall stp-fork-action default-directory))))))
+        (when stp-fork-add-remote
+          (let* ((default-directory (f-join dir pkg-name))
+                 (remotes (-uniq (cl-list* (map-elt (stp-git-remotes) "origin")
+                                           remote
+                                           .remote
+                                           .other-remotes))))
+            (stp-set-attribute pkg-name 'remote (car remotes))
+            (stp-set-attribute pkg-name 'other-remotes (cdr remotes))
+            (stp-with-package-source-directory
+              (stp-write-info)
+              (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push))
+            (funcall stp-fork-action default-directory)))))))
 
 (cl-defun stp-reinstall-command (&key (refresh t))
   "Uninstall and reinstall a package interactively as the same version.
