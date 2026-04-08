@@ -555,6 +555,10 @@ When REFRESH is non-nil, refresh the package list afterwards."
           (when refresh
             (stp-list-refresh :quiet t)))))))
 
+(defvar stp-add-or-edit-package-group-keymap (define-keymap
+                                               "C-c C-a"
+                                               #'stp-insert-all-completion-candidates))
+
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group.
 
@@ -572,7 +576,8 @@ at the same time."
         (stp-add-or-edit-package-group group-name
                                        (stp-read-existing-name "Package name: "
                                                                :multiple t
-                                                               :table table)
+                                                               :table table
+                                                               :keymap stp-add-or-edit-package-group-keymap)
                                        options)))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names options)

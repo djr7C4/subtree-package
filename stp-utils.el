@@ -322,6 +322,14 @@ When METHOD is non-nil, only return packages with that method."
 (defvar stp-separator "  ")
 (defvar stp-candidate-separator stp-separator)
 
+(defvar stp-crm-separator-string ","
+  "This should match `crm-separator' but is a string and not a regexp.")
+
+(defun stp-insert-all-completion-candidates ()
+  "Insert all completion candidates in a `completing-read-multiple' session."
+  (interactive)
+  (insert (s-join stp-crm-separator-string (all-completions "" minibuffer-completion-table))))
+
 (defvar stp-read-name-history nil)
 
 (defun stp-default-name (remote)
@@ -337,17 +345,19 @@ default name for a repository like \"abc.el.git\" to be \"abc\"."
   "Read the name of a package using PROMPT with DEFAULT."
   (rem-read-from-mini prompt :history 'stp-read-name-history :initial-contents default))
 
-(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple (table (stp-info-names)))
+(cl-defun stp-read-existing-name (prompt &key (require-match t) multiple keymap (table (stp-info-names)))
   "Read the name of an installed package from TABLE using PROMPT.
 
 When REQUIRE-MATCH is non-nil, require a match in TABLE. When
 MULTIPLE is non-nil, `completing-read-multiple' is used to allow
-for the selection of multiple packages."
+for the selection of multiple packages. When KEYMAP is non-nil,
+its bindings will be active during completion."
   (rem-comp-read prompt
                  table
                  :require-match require-match
                  :history 'stp-read-name-history
-                 :multiple multiple))
+                 :multiple multiple
+                 :keymap keymap))
 
 (defvar stp-read-group-name-history nil)
 
