@@ -233,9 +233,9 @@ and then restore it after the fetch."
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
 
-(cl-defun stp-git-maybe-fetch (remote version &key force refspec no-new-tags)
+(cl-defun stp-git-maybe-fetch (remote version &key force refspec no-new-tags (memoize t))
   (when (and stp-subtree-fetch
-             (not (stp-git-valid-remote-ref-p remote version)))
+             (not (stp-git-valid-remote-ref-p remote version :memoize memoize)))
     (stp-git-fetch remote :force force :refspec refspec :no-new-tags no-new-tags)
     t))
 
