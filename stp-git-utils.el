@@ -118,10 +118,10 @@ security.")
   (and (stringp remote)
        (eql (car (rem-call-process-shell-command (format "git ls-remote -h '%s'" remote))) 0)))
 
-(cl-defun stp-git-valid-remote-ref-p (remote rev &optional ask-p)
+(cl-defun stp-git-valid-remote-ref-p (remote rev &key ask-p (memoize t))
   "Check if REV is a ref or a hash for a ref on REMOTE."
-  (and (or (member rev (stp-git-remote-tags remote t))
-           (member rev (stp-git-remote-heads remote))
+  (and (or (member rev (stp-git-remote-tags remote t :memoize memoize))
+           (member rev (stp-git-remote-heads remote :memoize memoize))
            ;; There is no way to check if hash exists on a remote (only refs) so
            ;; we ask the user.
            (and ask-p
@@ -571,14 +571,14 @@ not be memoized even within an `stp-with-memoization' form."
 Memoization is used when MEMOIZE is non-nil."
   (stp-git-remote-hash-alist remote :prefixes '("refs/tags/") :memoize memoize))
 
-(defun stp-git-remote-tags (remote &optional keep-dereferences)
-  (let ((tags (mapcar #'cdr (stp-git-remote-hash-tag-alist remote))))
+(cl-defun stp-git-remote-tags (remote &optional keep-dereferences &key (memoize t))
+  (let ((tags (mapcar #'cdr (stp-git-remote-hash-tag-alist remote :memoize memoize))))
     (if keep-dereferences
         tags
       (cl-remove-if (-partial #'s-ends-with-p "^{}") tags))))
 
-(defun stp-git-remote-tag-p (remote rev)
-  (member rev (stp-git-remote-tags remote t)))
+(cl-defun stp-git-remote-tag-p (remote rev &key (memoize t))
+  (member rev (stp-git-remote-tags remote t :memoize memoize)))
 
 (cl-defun stp-git-remote-hash-head-alist (remote &key (memoize t))
   "Return an alist that maps hashes to heads for REMOTE.
@@ -600,11 +600,11 @@ Memoization is used when MEMOIZE is non-nil."
   "Return HEAD for REMOTE."
   (car (rassoc "HEAD" (stp-git-remote-hash-alist remote :memoize memoize))))
 
-(defun stp-git-remote-heads (remote)
-  (mapcar #'cdr (stp-git-remote-hash-head-alist remote)))
+(cl-defun stp-git-remote-heads (remote &key (memoize t))
+  (mapcar #'cdr (stp-git-remote-hash-head-alist remote :memoize memoize)))
 
-(defun stp-git-remote-head-p (remote ref)
-  (member ref (stp-git-remote-heads remote)))
+(cl-defun stp-git-remote-head-p (remote ref &key (memoize t))
+  (member ref (stp-git-remote-heads remote :memoize memoize)))
 
 ;; Note that this will not work will minimal copies of a repositories created
 ;; using CLI options such as those used in `stp-git-count-remote-commits'.
@@ -691,8 +691,9 @@ Otherwise, return REV."
       tag
     (concat tag "^{}")))
 
-(defun stp-git-remote-dereferencable-tag-p (remote rev)
-  (car (rassoc (stp-git-tag-append-dereference rev) (stp-git-remote-hash-tag-alist remote))))
+(cl-defun stp-git-remote-dereferencable-tag-p (remote rev &key (memoize t))
+  (car (rassoc (stp-git-tag-append-dereference rev)
+               (stp-git-remote-hash-tag-alist remote :memoize memoize))))
 
 (cl-defun stp-git-remote-rev-to-tag (remote rev &key keep-dereference (memoize t))
   "If REV is a hash that corresponds to a tag on REMOTE, return the tag.

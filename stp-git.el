@@ -126,7 +126,7 @@ MIN-VERSION is the minimum required version."
       ;; Branches and hashes are exempt from this check.
       (setq versions (stp-filter-by-min-version min-version versions)))
     (setq versions (stp-git-versions-with-hashes remote versions))
-    (while (or (not version) (not (stp-git-valid-remote-ref-p remote version stp-git-warn-unknown-version)))
+    (while (or (not version) (not (stp-git-valid-remote-ref-p remote version :ask-p stp-git-warn-unknown-version)))
       (setq version (->> (rem-comp-read prompt
                                         versions
                                         :default default
