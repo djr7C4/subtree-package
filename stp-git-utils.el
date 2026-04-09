@@ -551,7 +551,7 @@ nil: show the changes from the index to the working tree"
 (stp-defmemoized stp-git-remote-hash-alist-memoized (remote)
   (stp-git-remote-hash-alist-basic remote))
 
-(stp-defmemoized stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p) (memoize t))
+(cl-defun stp-git-remote-hash-alist (remote &key (prefixes nil prefixes-supplied-p) (memoize t))
   "Return an alist that maps hashes to refs for REMOTE.
 
 If supplied, PREFIXES is a list of allowed prefixes. Matching
@@ -607,7 +607,7 @@ Memoization is used when MEMOIZE is non-nil."
   ;; Manually add HEAD instead of using the branch refs/heads/HEAD. This branch
   ;; should not exist as it is likely to create confusion but some repositories
   ;; may have created it by mistake.
-  (cons (cons (stp-git-remote-head remote) "HEAD")
+  (cons (cons (stp-git-remote-head remote :memoize memoize) "HEAD")
         ;; A few repositories have a branch that is named HEAD. This should be
         ;; ignored.
         (map-remove (lambda (_hash head)
@@ -616,9 +616,9 @@ Memoization is used when MEMOIZE is non-nil."
                                                :prefixes '("refs/heads/")
                                                :memoize memoize))))
 
-(defun stp-git-remote-head (remote)
+(cl-defun stp-git-remote-head (remote &key (memoize t))
   "Return HEAD for REMOTE."
-  (car (rassoc "HEAD" (stp-git-remote-hash-alist remote))))
+  (car (rassoc "HEAD" (stp-git-remote-hash-alist remote :memoize memoize))))
 
 (defun stp-git-remote-heads (remote)
   (mapcar #'cdr (stp-git-remote-hash-head-alist remote)))
@@ -653,7 +653,7 @@ returned."
   "Convert REV to a hash using REMOTE.
 
 Refs that do not match any hash will remain unchanged."
-  (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote))
+  (or (car (or (rassoc rev (stp-git-remote-hash-head-alist remote :memoize memoize))
                ;; Be aware that some remotes will not return hashes for
                ;; dereferenced tags in which case it will not be possible to
                ;; determine the hash for the tag. This is why there is a
