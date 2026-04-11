@@ -1099,8 +1099,13 @@ package and were installed as dependencies."))
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix new-version)
           operation
-        (let ((last-hash (stp-git-head))
-              (pkg-alist (stp-get-alist pkg-name)))
+        (let* ((last-hash (stp-git-head))
+               (pkg-path (stp-canonical-path pkg-name))
+               ;; We use `stp-git-rev-tree' instead of
+               ;; `stp-git-subtree-package-tree' so that it will work even if
+               ;; the package was not installed with git subtree.
+               (tree-hash (stp-git-rev-tree pkg-path "HEAD"))
+               (pkg-alist (stp-get-alist pkg-name)))
           (let-alist pkg-alist
             ;; Automatically determine missing other remotes for archive packages.
             (when (eq .method 'archive)
@@ -1126,7 +1131,7 @@ package and were installed as dependencies."))
                 ;; This can happen when the upgrade fails (for example because
                 ;; the user renamed the git subtree --prefix directory) and a
                 ;; reinstall is required. See `stp-git-upgrade'.
-                (unless (stp-git-hash= .version (stp-git-remote-rev-to-hash chosen-remote new-version))
+                (unless (stp-git-hash= tree-hash (stp-git-rev-tree pkg-path "HEAD"))
                   (stp-maybe-audit-changes pkg-name 'upgrade last-hash options)
                   ;; The call to `stp-get-attribute' can't be replaced with
                   ;; .version because the 'version attribute will have changed

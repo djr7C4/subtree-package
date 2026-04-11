@@ -445,7 +445,7 @@ git log."
   (let ((default-directory path))
     (rem-run-command (append (stp-git-command) (list "rev-parse" rev)))))
 
-(defun stp-git-commit-tree (path rev)
+(defun stp-git-rev-tree (path rev)
   "Get the git tree associated with REV in the repository at PATH."
   (stp-git-rev-parse path (format "%s^{tree}" rev)))
 
@@ -477,7 +477,7 @@ installed as a git subtree."
                               ;; avoid issues. If we didn't supply :no-new-tags
                               ;; t existing tags with the same name might get
                               ;; clobbered.
-                              (stp-git-commit-tree path (stp-git-remote-rev-to-hash remote rev))))
+                              (stp-git-rev-tree path (stp-git-remote-rev-to-hash remote rev))))
                        (error "Unable to find the merged git subtree"))))
     (and (not (string= tree last-tree))
          (list tree last-tree))))
