@@ -250,22 +250,24 @@ command should proceed.")
 (defun stp-audit-changes (pkg-name type last-hash do-reset)
   (unless (memq type '(install upgrade))
     (error "The type must be either 'install or 'upgrade"))
-  (stp-git-show-diff (list last-hash))
-  (unless (prog1
-              (yes-or-no-p "Are the changes to the package safe? ")
-            (stp-git-bury-diff-buffer))
-    (let ((reset (stp-maybe-call do-reset)))
-      (when (or (eq reset t) (memq :audit reset))
-        (stp-git-reset last-hash :mode 'hard))
-      (signal 'quit
-              (list (format "aborted %s %s due to a failed security audit%s"
-                            (if (eq type 'install)
-                                "installing"
-                              "upgrading")
-                            pkg-name
-                            (if reset
-                                ""
-                              ": use git reset to undo the suspicious commits")))))))
+  ;; Skip the audit when there are no changes.
+  (unless (stp-git-hash= last-hash (stp-git-head))
+    (stp-git-show-diff (list last-hash))
+    (unless (prog1
+                (yes-or-no-p "Are the changes to the package safe? ")
+              (stp-git-bury-diff-buffer))
+      (let ((reset (stp-maybe-call do-reset)))
+        (when (or (eq reset t) (memq :audit reset))
+          (stp-git-reset last-hash :mode 'hard))
+        (signal 'quit
+                (list (format "aborted %s %s due to a failed security audit%s"
+                              (if (eq type 'install)
+                                  "installing"
+                                "upgrading")
+                              pkg-name
+                              (if reset
+                                  ""
+                                ": use git reset to undo the suspicious commits"))))))))
 
 (defun stp-maybe-audit-changes (pkg-name type last-hash options)
   (with-slots (do-reset do-audit)
