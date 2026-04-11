@@ -1109,29 +1109,35 @@ package and were installed as dependencies."))
                   (elpa (stp-elpa-upgrade controller pkg-name chosen-remote new-version options))
                   (archive (stp-archive-upgrade controller pkg-name chosen-remote options))
                   (url (stp-url-upgrade controller pkg-name chosen-remote (or new-version (stp-url-read-version prompt)) options)))
-                (stp-maybe-audit-changes pkg-name 'upgrade last-hash options)
-                ;; The call to `stp-get-attribute' can't be replaced with
-                ;; .version because the 'version attribute will have changed
-                ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
-                ;; `stp-url-upgrade'.
-                (setq new-version (stp-get-attribute pkg-name 'version))
-                (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
-                (stp-update-requirements pkg-name)
-                (stp-write-info)
-                ;; Don't commit, push or perform push actions until the user
-                ;; resolves any merge conflicts.
-                (stp-upgrade-handle-merge-conflicts)
-                (let ((msg (format "Upgraded to version %s of %s"
-                                   (stp-abbreviate-remote-version .method chosen-remote new-version)
-                                   pkg-name)))
-                  (stp-git-commit msg :do-commit do-commit)
-                  (stp-msg msg))
-                (stp-headers-update-features)
-                (when (stp-maybe-call do-dependencies)
-                  (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
-                ;; Perform post actions for all packages after everything else.
-                (when (stp-maybe-call do-actions)
-                  (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options)))))))))))
+                ;; If the package wasn't changed we don't need to perform
+                ;; audits, update the package info or update other cached data.
+                ;; This can happen when the upgrade fails (for example because
+                ;; the user renamed the git subtree --prefix directory) and a
+                ;; reinstall is required. See `stp-git-upgrade'.
+                (unless (stp-git-hash= .version (stp-git-remote-rev-to-hash chosen-remote new-version))
+                  (stp-maybe-audit-changes pkg-name 'upgrade last-hash options)
+                  ;; The call to `stp-get-attribute' can't be replaced with
+                  ;; .version because the 'version attribute will have changed
+                  ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
+                  ;; `stp-url-upgrade'.
+                  (setq new-version (stp-get-attribute pkg-name 'version))
+                  (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
+                  (stp-update-requirements pkg-name)
+                  (stp-write-info)
+                  ;; Don't commit, push or perform push actions until the user
+                  ;; resolves any merge conflicts.
+                  (stp-upgrade-handle-merge-conflicts)
+                  (let ((msg (format "Upgraded to version %s of %s"
+                                     (stp-abbreviate-remote-version .method chosen-remote new-version)
+                                     pkg-name)))
+                    (stp-git-commit msg :do-commit do-commit)
+                    (stp-msg msg))
+                  (stp-headers-update-features)
+                  (when (stp-maybe-call do-dependencies)
+                    (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
+                  ;; Perform post actions for all packages after everything else.
+                  (when (stp-maybe-call do-actions)
+                    (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-or-upgrade-operation))
   (let ((class (if (member (oref operation pkg-name) (stp-info-names))
