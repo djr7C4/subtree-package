@@ -357,7 +357,8 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
                controller
                (stp-reinstall-operation :pkg-name pkg-name
                                         :new-version fallback-version
-                                        :options options))
+                                        :options options
+                                        :reportable nil))
               (setq set-pkg-info nil)))
             ;; If we get this far it means that either the merge succeeded or
             ;; there was a merge conflict which will be resolved manually by the

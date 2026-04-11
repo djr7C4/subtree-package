@@ -108,9 +108,11 @@ for `stp-auto-commit'.")
   ((pkg-name :initarg :pkg-name :initform nil)
    ;; This overrides the controller's options slot in `stp-execute' when
    ;; non-nil.
-   (options :initarg :options :initform nil)))
+   (options :initarg :options :initform nil)
+   (reportable :initarg :reportable :initform t)))
 
 (defclass stp-package-operation (stp-operation) ())
+
 (defclass stp-package-change-operation (stp-package-operation) ())
 
 (defclass stp-uninstall-operation (stp-package-change-operation) ())
@@ -141,6 +143,16 @@ The minimum is the version required by another package.")
 
 (defclass stp-reinstall-operation (stp-additive-operation)
   ((new-version :initarg :new-version :initform nil)))
+
+(cl-defgeneric stp-reportable (operation)
+  (:documentation
+   "Determine if the operation is reportable."))
+
+(cl-defmethod stp-reportable ((operation stp-operation))
+  (oref operation reportable))
+
+(cl-defmethod stp-reportable ((operation stp-install-or-upgrade-operation))
+  nil)
 
 (cl-defgeneric stp-validate-options (options)
   (:documentation
@@ -1143,11 +1155,11 @@ package and were installed as dependencies."))
   (let ((class (if (member (oref operation pkg-name) (stp-info-names))
                    'stp-upgrade-operation
                  'stp-install-operation)))
-    (stp-controller-prepend-operations controller (rem-change-class operation class))))
+    (stp-controller-prepend-operations controller (clone (rem-change-class operation class) :reportable t))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-reinstall-operation))
   (let ((options (stp-options controller operation)))
-    (with-slots (pkg-name new-version)
+    (with-slots (pkg-name new-version reportable)
         operation
       (when (and (stp-git-tree-package-modified-p pkg-name)
                  (not (yes-or-no-p (format "The package %s has been modified since the last commit in the working tree. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
@@ -1183,8 +1195,8 @@ package and were installed as dependencies."))
           (stp-controller-prepend-operations
            controller
            ;; Reinstalling will fail if the uninstall operation does not commit.
-           (stp-uninstall-operation :pkg-name pkg-name :options (clone options :do-commit t))
-           (stp-install-operation :pkg-name pkg-name :options options :pkg-alist pkg-alist)))))))
+           (stp-uninstall-operation :pkg-name pkg-name :options (clone options :do-commit t) :reportable reportable)
+           (stp-install-operation :pkg-name pkg-name :options options :pkg-alist pkg-alist :reportable reportable)))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-post-action-operation))
   (let ((options (stp-options controller operation)))
@@ -1204,10 +1216,16 @@ package and were installed as dependencies."))
                                                (s-capitalize verb)
                                                (gethash verb counts)
                                                word))
-                                     verbs)))))
+                                     verbs))))
+            (reportable-only (operations)
+              (-filter #'stp-reportable operations)))
     (let ((total (+ (length successful-operations)
                     (length skipped-operations)
                     (length failed-operations))))
+      ;; Filter out non-reportable operations.
+      (setq successful-operations (reportable-only successful-operations)
+            skipped-operations (reportable-only skipped-operations)
+            failed-operations (reportable-only failed-operations))
       (when successful-operations
         (stp-msg "Successfully completed %d operations:\n%s"
                  (length successful-operations)
