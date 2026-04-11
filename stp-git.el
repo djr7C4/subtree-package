@@ -348,11 +348,11 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
              ;; case, we attempt to uninstall the package and install the new
              ;; version instead.
              ((and stp-subtree-pull-fallback
-                   (yes-or-no-p (format "The command \"git subtree\" %s failed: %s. Uninstall and reinstall?" action output))
-                   (or (stp-maybe-call (oref options do-commit))
-                       (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
+                   (or (and (yes-or-no-p (format "The command \"git subtree\" %s failed: %s. Uninstall and reinstall?" action output))
+                            (or (stp-maybe-call (oref options do-commit))
+                                (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
+                       (user-error "Upgrade aborted by the user")))
               (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
-              nil
               (stp-controller-prepend-operations
                controller
                (stp-reinstall-operation :pkg-name pkg-name
