@@ -1551,7 +1551,7 @@ non-nil."
   (let* ((default-directory stp-source-directory)
          (exists (get-buffer stp-list-buffer-name))
          (buf (get-buffer-create stp-list-buffer-name)))
-    (pop-to-buffer-same-window buf)
+    (pop-to-buffer buf)
     (unless exists
       (stp-list-mode)
       (when (and (featurep 'async)
