@@ -329,6 +329,7 @@ representing archives."
                           (mapcar (fn (cons % 'elpa))
                                   (stp-elpa-package-urls pkg-name archives)))))
     (->> (append remotes archive-alist)
+         -uniq
          stp-sort-remotes
          (mapcar #'car))))
 
