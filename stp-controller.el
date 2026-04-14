@@ -988,7 +988,7 @@ package and were installed as dependencies."))
         (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
               (requirements (stp-get-attribute pkg-name 'requirements)))
           (let-alist (stp-get-alist pkg-name)
-            (if (eql (car (rem-call-process-shell-command (format "git rm -r '%s'" pkg-name))) 0)
+            (if (eql (car (rem-call-process-shell-command (rem-at-end (stp-git-command) "rm" "-r" pkg-name))) 0)
                 (progn
                   (f-delete pkg-name t)
                   (stp-delete-alist pkg-name)

@@ -100,11 +100,12 @@ security.")
          (file (f-relative path dir)))
     (unless (stp-git-root :path dir)
       (error "Not in a git repository"))
-    (let ((default-directory dir))
+    (let* ((default-directory dir)
+           (cmd (rem-at-end (stp-git-command) "ls-files" "--error-unmatch" file)))
       ;; `rem-call-process-shell-command' is more efficient than
       ;; `call-process-shell-command' because it does not load the shell's init
       ;; files.
-      (eql (car (rem-call-process-shell-command (format "git ls-files --error-unmatch \"%s\"" file))) 0))))
+      (eql (car (rem-call-process-shell-command cmd)) 0))))
 
 (defun stp-git-remotes ()
   (--> (rem-run-command (append (stp-git-command) '("remote" "-v")) :error t)
@@ -116,7 +117,8 @@ security.")
 (stp-defmemoized stp-git-valid-remote-p (remote)
   "Determine if REMOTE is a valid git repository."
   (and (stringp remote)
-       (eql (car (rem-call-process-shell-command (format "git ls-remote -h '%s'" remote))) 0)))
+       (let ((cmd (rem-at-end (stp-git-command) "ls-remote" "-h" remote)))
+         (eql (car (rem-call-process-shell-command cmd)) 0))))
 
 (cl-defun stp-git-valid-remote-ref-p (remote rev &key ask-p (memoize t))
   "Check if REV is a ref or a hash for a ref on REMOTE."
@@ -130,14 +132,16 @@ security.")
 
 (stp-defmemoized stp-git-valid-rev-p (path rev)
   "Check if REV is a valid git revision at the local PATH."
-  (let ((default-directory path))
-    (eql (car (rem-call-process-shell-command (format "git rev-parse --verify '%s'" rev))) 0)))
+  (let* ((default-directory path)
+         (cmd (rem-at-end (stp-git-command) "rev-parse" "--verify" rev)))
+    (eql (car (rem-call-process-shell-command cmd)) 0)))
 
 (defun stp-git-init (path)
   "Run \"git init\" on PATH."
-  (let ((default-directory path))
+  (let* ((default-directory path)
+         (cmd (rem-at-end (stp-git-command) "init")))
     (unless (stp-git-root)
-      (unless (eql (car (rem-call-process-shell-command "git init")) 0)
+      (unless (eql (car (rem-call-process-shell-command cmd)) 0)
         (error "The command \"git init\" failed")))))
 
 (cl-defun stp-git-add (path &key update)
@@ -150,10 +154,10 @@ When UPDATE is non-nil, only add changes to tracked files."
           (list path ".")
         (list (f-dirname path) (f-filename path)))
     (let ((default-directory (f-full dir)))
-      (rem-run-command (cl-list* (stp-git-command)
-                                 "add"
-                                 target
-                                 (rem-maybe-args "-u" update))
+      (rem-run-command (append (stp-git-command)
+                               '("add")
+                               (list target)
+                               (rem-maybe-args "-u" update))
                        :error t))))
 
 (defvar stp-git-synthetic-repos nil)
