@@ -1,5 +1,5 @@
 ;;; subtree-package.el --- Manage packages as git subtrees -*- lexical-binding: t; -*-
-;; Copyright (C) 2025 David J. Rosenbaum
+;; Copyright (C) 2025-2026 David J. Rosenbaum
 
 ;; Author: David J. Rosenbaum <djr7c4@gmail.com>
 ;; Keywords: convenience elisp git tools vc
@@ -12,9 +12,9 @@
 ;;   (emacs "29.1")
 ;;   (f "0.21.0")
 ;;   (queue "0.2")
-;;   (rem "0.9.1")
+;;   (rem "0.9.3")
 ;;   (s "1.13.0")
-;;   (transient "0.10.0"))
+;;   (transient "0.12.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of version 3 of the GNU General Public License, as
@@ -1652,7 +1652,7 @@ development or for opening packages from `stp-list-mode'."
                              ;; copy of the package that we are currently in.
                              (and (f-dir-p dir)
                                   (not (f-same-p dir path))
-                                  (not (f-ancestor-of-p (f-canonical dir) path))))
+                                  (not (rem-ancestor-of-p dir path))))
                            ;; Ignore the remote when it is a symbol representing
                            ;; a package archive.
                            (append (and .remote (stringp .remote) (list .remote))
@@ -1670,7 +1670,7 @@ development or for opening packages from `stp-list-mode'."
                                  (car dirs))
                                 ((and (not arg) (not (cddr dirs))
                                       (car (cl-remove-if (lambda (dir)
-                                                           (rem-ancestor-of-inclusive-p (f-canonical dir) path))
+                                                           (rem-ancestor-of-inclusive-p dir path))
                                                          dirs))))
                                 (t
                                  (rem-comp-read "Directory: " dirs :require-match t))))))

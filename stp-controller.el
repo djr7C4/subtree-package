@@ -236,8 +236,7 @@ corresponds to that line."
 It requires the repository to be clean when run inside
 `stp-source-directory'. Otherwise, it causes the user to be
 prompted."
-  (rem-ancestor-of-inclusive-p (f-canonical (stp-git-root))
-                               (f-canonical stp-source-directory)))
+  (rem-ancestor-of-inclusive-p (stp-git-root) stp-source-directory))
 
 (defvar stp-allow-unclean #'stp-unclean-fun
   "This variable determines the behavior when the git repository is unclean.
@@ -758,8 +757,7 @@ package alist and REMOTE is the remote.")
              (not (symbolp remote))
              (f-dir-p remote)
              (-any (lambda (dir)
-                     (rem-ancestor-of-inclusive-p (f-canonical dir)
-                                                  (f-canonical remote)))
+                     (rem-ancestor-of-inclusive-p dir remote))
                    (stp-development-directories)))
         'unstable)
        (t

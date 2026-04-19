@@ -8,6 +8,6 @@ f 0.21.0
 llama 1.0.0
 noflet 0.0.15
 queue 0.2
-rem 0.9.1
+rem 0.9.3
 s 1.13.0
-transient 0.10.0
+transient 0.12.0
