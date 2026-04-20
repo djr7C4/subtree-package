@@ -880,7 +880,7 @@ remote repositories for caching."
                           (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
                           (f-delete file))))))))
 
-(cl-defun stp-git-count-remote-commits (remotes rev rev2)
+(cl-defun stp-git-count-remote-commits (remotes rev rev2 &key stp-git-count-merge-commits (handle-unrelated t))
   "Count the number of commits from REV to REV2.
 
 This is similar to `stp-git-count-commits' for remote
@@ -892,7 +892,7 @@ of multiple repositories."
   ;; changed from stable to unstable for example.
   (let* ((stp-allow-bare-repository-override t)
          (path (stp-git-ensure-cached-repo remotes)))
-    (stp-git-count-commits path rev rev2)))
+    (stp-git-count-commits path rev rev2 :count-merges count-merges :handle-unrelated handle-unrelated)))
 
 (stp-defmemoized stp-git-timestamp (path rev)
   "Return the UNIX timestamp for when REV was commited at PATH."

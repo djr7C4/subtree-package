@@ -48,9 +48,9 @@
                 ;; commits. This is important since the installed version might
                 ;; be from any remote.
                 (commits-to-stable (and latest-stable
-                                        (stp-git-count-remote-commits remotes .version latest-stable)))
+                                        (stp-git-count-remote-commits remotes .version latest-stable :count-merges stp-git-count-merge-commits)))
                 (commits-to-unstable (and latest-unstable
-                                          (stp-git-count-remote-commits remotes .version latest-unstable)))
+                                          (stp-git-count-remote-commits remotes .version latest-unstable :count-merges stp-git-count-merge-commits)))
                 (version-timestamp (and .version (stp-git-remote-timestamp remotes .version)))
                 (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable)))
                 (unstable-timestamp (and latest-unstable (stp-git-remote-timestamp remotes latest-unstable))))

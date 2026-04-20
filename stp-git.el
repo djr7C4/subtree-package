@@ -140,11 +140,12 @@ MIN-VERSION is the minimum required version."
       version)))
 
 (defvar stp-git-read-update-show-stable-annotation t)
+(defvar stp-git-count-merge-commits nil)
 
 (defun stp-git-stable-annotation (remote other-remotes)
   (when-let* ((remotes (cons remote other-remotes))
               (latest-stable (stp-git-latest-stable-version remote))
-              (commits-to-stable (and latest-stable (stp-git-count-remote-commits remotes "HEAD" latest-stable)))
+              (commits-to-stable (and latest-stable (stp-git-count-remote-commits remotes "HEAD" latest-stable :count-merges stp-git-count-merge-commits)))
               (latest-timestamp (and latest-stable (stp-git-remote-timestamp remotes "HEAD")))
               (stable-timestamp (and latest-stable (stp-git-remote-timestamp remotes latest-stable))))
     (format "%s %s" latest-stable (stp-latest-version-annotation commits-to-stable stable-timestamp latest-timestamp :keep-zero t))))
