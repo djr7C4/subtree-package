@@ -719,7 +719,7 @@ Otherwise, return REV."
        (or (s-prefix-p hash hash2)
            (s-prefix-p hash2 hash))))
 
-(cl-defun stp-git-count-commits (path rev rev2 &key (handle-unrelated t))
+(cl-defun stp-git-count-commits (path rev rev2 &key count-merges (handle-unrelated t))
   "Count the number of commits from REV to REV2.
 
 More precisely, compute the number of commits M and N in
@@ -728,6 +728,9 @@ REV..REV2 and REV2..REV in the local git repository at PATH.
 If M is non-zero and N is zero, then return M. If M is zero and N
 is non-zero, return -N (this represents going backwards from REV2
 to REV). If both are non-zero, return a list of the form (M N).
+
+When COUNT-MERGES is non-nil, merge commits are included in the
+count. When it is nil they are ignored.
 
 If HANDLE-UNRELATED is non-nil, then nil will be returned if REV
 and REV2 do not share a common ancestor."
@@ -763,7 +766,10 @@ and REV2 do not share a common ancestor."
                 ;; into such a dev branch recently and should thus not be
                 ;; excluded. A better system is to delete and recreated such a
                 ;; dev branch from main instead of reusing it.
-                (let ((cmd (append (stp-git-command) (list "rev-list" "--count" (format "%s..%s" rev rev2)))))
+                (let ((cmd (append (stp-git-command)
+                                   (list "rev-list")
+                                   (and (not count-merges) (list "--no-merges"))
+                                   (list "--count" (format "%s..%s" rev rev2)))))
                   (string-to-number (rem-run-command cmd :error t)))))
       (let ((m (count-commits-forward rev rev2))
             (n (count-commits-forward rev2 rev)))
