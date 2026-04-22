@@ -880,7 +880,7 @@ remote repositories for caching."
                           (f-delete (s-chop-suffix stp-git-cached-repo-timestamp-suffix file) t)
                           (f-delete file))))))))
 
-(cl-defun stp-git-count-remote-commits (remotes rev rev2 &key stp-git-count-merge-commits (handle-unrelated t))
+(cl-defun stp-git-count-remote-commits (remotes rev rev2 &key count-merges (handle-unrelated t))
   "Count the number of commits from REV to REV2.
 
 This is similar to `stp-git-count-commits' for remote
