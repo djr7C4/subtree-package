@@ -217,9 +217,9 @@ corresponds to that line."
       (save-excursion
         (forward-line offset)
         (when (= (line-number-at-pos) (+ line offset))
-          (when-let ((pkg-name (save-excursion
-                                 (beginning-of-line)
-                                 (rem-plain-symbol-at-point))))
+          (when-let* ((pkg-name (save-excursion
+                                  (beginning-of-line)
+                                  (rem-plain-symbol-at-point))))
             (and (not (save-excursion
                         (beginning-of-line)
                         (bobp)))
@@ -1312,12 +1312,6 @@ package and were installed as dependencies."))
 ;;   ("fn7" . "rem-fn7")
 ;;   ("fn8" . "rem-fn8")
 ;;   ("fn9" . "rem-fn9")
-;;   ("fn10" . "rem-fn10")
-;;   ("and$" . "cond-let--and$")
-;;   ("and>" . "cond-let--and>")
-;;   ("and-let" . "cond-let--and-let")
-;;   ("if-let" . "cond-let--if-let")
-;;   ("when-let" . "cond-let--when-let")
-;;   ("while-let" . "cond-let--while-let"))
+;;   ("fn10" . "rem-fn10"))
 ;; End:
 ;;; stp-controller.el ends here

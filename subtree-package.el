@@ -1466,7 +1466,7 @@ asynchronously."
       (stp-archive-async-refresh :quiet quiet))
     (unless stp-emacsmirror-async-refresh-running
       (stp-emacsmirror-async-refresh :quiet quiet)))
-  (when-let ((buf (get-buffer stp-list-buffer-name)))
+  (when-let* ((buf (get-buffer stp-list-buffer-name)))
     (let ((win (get-buffer-window buf)))
       (with-current-buffer buf
         (let ((column (current-column))
@@ -1819,12 +1819,6 @@ current file."
 ;;   ("fn7" . "rem-fn7")
 ;;   ("fn8" . "rem-fn8")
 ;;   ("fn9" . "rem-fn9")
-;;   ("fn10" . "rem-fn10")
-;;   ("and$" . "cond-let--and$")
-;;   ("and>" . "cond-let--and>")
-;;   ("and-let" . "cond-let--and-let")
-;;   ("if-let" . "cond-let--if-let")
-;;   ("when-let" . "cond-let--when-let")
-;;   ("while-let" . "cond-let--while-let"))
+;;   ("fn10" . "rem-fn10"))
 ;; End:
 ;;; subtree-package.el ends here

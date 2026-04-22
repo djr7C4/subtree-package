@@ -1011,12 +1011,6 @@ NAME can be a symbol, a string or a list of the form (NAME VERSION)."
 ;;   ("fn7" . "rem-fn7")
 ;;   ("fn8" . "rem-fn8")
 ;;   ("fn9" . "rem-fn9")
-;;   ("fn10" . "rem-fn10")
-;;   ("and$" . "cond-let--and$")
-;;   ("and>" . "cond-let--and>")
-;;   ("and-let" . "cond-let--and-let")
-;;   ("if-let" . "cond-let--if-let")
-;;   ("when-let" . "cond-let--when-let")
-;;   ("while-let" . "cond-let--while-let"))
+;;   ("fn10" . "rem-fn10"))
 ;; End:
 ;;; stp-utils.el ends here
