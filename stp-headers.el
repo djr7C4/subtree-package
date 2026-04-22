@@ -527,7 +527,9 @@ insert them."
   (let ((requirements (--> (locate-library "rem")
                            (append (stp-headers-elisp-requirements)
                                    (stp-headers-elisp-file-requirements it))
-                           stp-sort-requirements)))
+                           stp-sort-requirements
+                           ;; This removes duplicate requirements.
+                           stp-headers-merge-elisp-requirements)))
     (with-temp-buffer
       (cl-dolist (requirement requirements)
         (dsb (pkg-sym version)
