@@ -1778,11 +1778,11 @@ current file."
   (with-eval-after-load "savehist"
     (defvar savehist-additional-variables)
     (cl-dolist (var '(stp-latest-versions-cache
-                   stp-archive-last-refreshed
-                   stp-headers-elisp-file-requirements-cache
-                   stp-headers-elisp-file-feature-cache
-                   stp-headers-installed-features
-                   stp-headers-versions))
+                      stp-archive-last-refreshed
+                      stp-headers-elisp-file-requirements-cache
+                      stp-headers-elisp-file-feature-cache
+                      stp-headers-installed-features
+                      stp-headers-versions))
       (add-to-list 'savehist-additional-variables var))))
 
 (defun stp-setup ()
