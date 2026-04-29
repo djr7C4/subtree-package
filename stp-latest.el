@@ -17,7 +17,7 @@
   "This indicates if latest versions should be computed asynchronously.")
 
 (defun stp-prune-cached-latest-versions (&optional pkg-name)
-  (let ((pkg-names (stp-info-names)))
+  (when-let* ((pkg-names (stp-info-names)))
     (if pkg-name
         (setq stp-latest-versions-cache (map-delete stp-latest-versions-cache pkg-name))
       (setq stp-latest-versions-cache (map-filter (lambda (pkg-name _pkg-alist)
