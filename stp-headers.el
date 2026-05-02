@@ -474,6 +474,7 @@ insert them."
                                             (cons `(emacs ,(format "%d.%d" emacs-major-version emacs-minor-version))
                                                   (stp-headers-elisp-requirements))
                                           (stp-headers-elisp-requirements)))
+                                stp-headers-merge-elisp-requirements
                                 stp-sort-requirements))
          (requirements-string (stp-headers-package-requirements-multiline new-requirements)))
     (if (save-excursion (lm-header "Package-Requires"))
