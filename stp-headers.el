@@ -422,23 +422,25 @@ was inserted."
               t)))))))
 
 (defun stp-headers-update-version-header (&optional insert)
-  (let ((header "Version: "))
+  (let ((header "Version: ")
+        (stable-version (and (stp-git-root)
+                             (stp-git-latest-stable-version (stp-git-root))))
+        version)
     (cl-flet ((insert-version (value)
-                (let ((version (and (stp-git-root)
-                                    (stp-git-latest-stable-version (stp-git-root)))))
-                  (insert (format ";; %s%s\n"
-                                  header
-                                  (or (and version
-                                           (s-join "." (stp-version-extract version)))
-                                      "TODO"))))
+                (insert (format "\n;; %s%s"
+                                header
+                                (or (and stable-version
+                                         (s-join "." (stp-version-extract stable-version)))
+                                    "TODO")))
                 value))
       (if (save-excursion (stp-headers-version))
           (save-excursion
             ;; Move point to the line with the version.
-            (stp-headers-version)
+            (setq version (stp-headers-version))
             (setq header (stp-headers-get-header))
-            (delete-line)
-            (insert-version nil))
+            (when (and stable-version (stp-version< version stable-version))
+              (delete-line)
+              (insert-version nil)))
         (when insert
           (insert-version t))))))
 
@@ -482,7 +484,7 @@ insert them."
             (insert requirements-string)
             nil))
       (when insert
-        (insert (format ";; Package-Requires: %s" requirements-string))))))
+        (insert (format "\n;; Package-Requires: %s" requirements-string))))))
 
 (defun stp-emacs-requirement-satisfied-p (pkg-name &optional version)
   (and (string= pkg-name "emacs")
@@ -560,44 +562,38 @@ inserted."
       (beginning-of-line)
       (forward-comment 1)
       (when (stp-headers-update-copyright-header insert)
-        ;; When a copyright header was added, make sure there is a blank line
-        ;; before it.
-        (beginning-of-line)
-        (unless (rem-looking-back-p (format "\\([%s]*[%s][%s]*[%s]\\)\\{0,2\\}"
-                                            rem-spaces
-                                            rem-newlines
-                                            rem-spaces
-                                            rem-newlines)
-                                    nil
-                                    t)
-          (replace-match "\n\n")))
+        (end-of-line))
       (let (inserted)
         (when insert
-          (unless (lm-header "Author")
+          (if (save-excursion (lm-header "Author"))
+              (lm-header "Author")
             (setq inserted t)
-            (aif (lm-copyright-mark)
+            (aif (save-excursion (lm-copyright-mark))
                 (goto-char it)
               (error "Copyright header not found"))
             (end-of-line)
-            (insert (format "\n\n;; Author: %s <%s>\n" user-full-name user-mail-address)))
-          (unless (save-excursion (lm-header "Keywords"))
+            (insert (format "\n;; Author: %s <%s>\n" user-full-name user-mail-address)))
+          (if (save-excursion (lm-header "Keywords"))
+              (lm-header "Keywords")
             (setq inserted t)
             (end-of-line)
-            (insert "\n;; Keywords: TODO\n"))
-          (unless (save-excursion (or (lm-header "URL") (lm-header "Website")))
+            (insert "\n;; Keywords: TODO"))
+          (if (save-excursion (or (lm-header "URL") (lm-header "Website")))
+              (or (lm-header "URL") (lm-header "Website"))
             (awhen (ignore-errors
                      (-> (stp-git-push-target)
                          stp-git-remote-url
                          stp-transform-remote))
               (setq inserted t)
-              (insert (format ";; URL: %s\n" it))))
+              (end-of-line)
+              (insert (format "\n;; URL: %s" it))))
           (when (stp-headers-update-version-header insert)
             (setq inserted t))
           (when (stp-headers-update-requirements-header insert)
             (setq inserted t))
           (unless (save-excursion (lm-header-multiline "Package-Requires"))
             (setq inserted t)
-            (insert ";; Package-Requires: ()"))
+            (insert ";;\n Package-Requires: ()"))
           (goto-char (point-min))
           ;; Skip past any comments and whitespace at the beginning of the file.
           (while (comment-forward))
