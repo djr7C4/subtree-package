@@ -468,7 +468,8 @@ insert them."
                                           (aif (assoc (car requirement) stp-headers-installed-features)
                                               it
                                             requirement))
-                                        (stp-headers-elisp-requirements))
+                                        (cons `(emacs ,(format "%d.%d" emacs-major-version emacs-minor-version))
+                                              (stp-headers-elisp-requirements)))
                                 stp-sort-requirements))
          (requirements-string (stp-headers-package-requirements-multiline new-requirements)))
     (if (save-excursion (lm-header "Package-Requires"))
@@ -591,9 +592,6 @@ inserted."
             (setq inserted t))
           (when (stp-headers-update-requirements-header insert)
             (setq inserted t))
-          (unless (save-excursion (lm-header-multiline "Package-Requires"))
-            (setq inserted t)
-            (insert ";;\n Package-Requires: ()"))
           (goto-char (point-min))
           ;; Skip past any comments and whitespace at the beginning of the file.
           (while (comment-forward))
