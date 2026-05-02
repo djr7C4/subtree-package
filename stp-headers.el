@@ -455,6 +455,8 @@ was inserted."
 
 (defvar stp-headers-ignored-requirements nil)
 
+(defvar stp-headers-update-emacs-requirement nil)
+
 (defun stp-headers-update-requirements-header (&optional insert)
   "Update the Package-Requires header in the current buffer.
 
@@ -468,8 +470,10 @@ insert them."
                                           (aif (assoc (car requirement) stp-headers-installed-features)
                                               it
                                             requirement))
-                                        (cons `(emacs ,(format "%d.%d" emacs-major-version emacs-minor-version))
-                                              (stp-headers-elisp-requirements)))
+                                        (if stp-headers-update-emacs-requirement
+                                            (cons `(emacs ,(format "%d.%d" emacs-major-version emacs-minor-version))
+                                                  (stp-headers-elisp-requirements))
+                                          (stp-headers-elisp-requirements)))
                                 stp-sort-requirements))
          (requirements-string (stp-headers-package-requirements-multiline new-requirements)))
     (if (save-excursion (lm-header "Package-Requires"))
