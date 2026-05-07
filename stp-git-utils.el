@@ -499,7 +499,7 @@ installed as a git subtree."
 (defun stp-git-diff (&optional hashes)
   (rem-run-command (append (stp-git-command) (cl-list* "diff" hashes)) :error t))
 
-(defvar stp-git-diff-buffer-name "*stp-git-diff*")
+(defvar stp-git-diff-buffer-name "*STP Git Diff*")
 
 (defun stp-git-show-diff (&optional hashes)
   "Display the differences between HASHES to the user.
