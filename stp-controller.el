@@ -265,7 +265,11 @@ command should proceed.")
   (unless (stp-git-hash= last-hash (stp-git-head))
     (stp-git-show-diff (list last-hash))
     (unless (prog1
-                (yes-or-no-p "Are the changes to the package safe? ")
+                ;; Treat `keyboard-quit' as nil. Otherwise,
+                ;; `stp-source-directory' will be left in an inconsistent state.
+                (condition-case nil
+                    (yes-or-no-p "Are the changes to the package safe? ")
+                  (quit nil))
               (stp-git-bury-diff-buffer))
       (let ((reset (stp-maybe-call do-reset)))
         (when (or (eq reset t) (memq :audit reset))
