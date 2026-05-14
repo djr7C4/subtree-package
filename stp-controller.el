@@ -963,7 +963,7 @@ operations being added to the controller."))
   (format "%s %s" (stp-operation-verb operation) (oref operation pkg-name)))
 
 (defun stp-options (controller operation)
-  (or (oref controller options) (oref operation options)))
+  (or (oref operation options) (oref controller options)))
 
 (cl-defgeneric stp-uninstall-requirements (controller requirements options)
   (:documentation
