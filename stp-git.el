@@ -373,12 +373,12 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
                   (progn
                     (stp-set-attribute pkg-name 'version version-hash)
                     (stp-set-attribute pkg-name 'branch version)
-                    (when do-toggle-update
+                    (when (stp-maybe-call do-toggle-update)
                       (stp-set-attribute pkg-name 'update 'unstable)))
                 ;; For tags or hashes, use the tag or hash.
                 (setq version (stp-git-normalize-version remote version))
                 (stp-set-attribute pkg-name 'version version)
-                (when do-toggle-update
+                (when (stp-maybe-call do-toggle-update)
                   (if (stp-git-remote-tag-p remote version)
                       ;; Tags do not have a branch to update from and are
                       ;; considered stable.
