@@ -999,6 +999,12 @@ package and were installed as dependencies."))
                 (progn
                   (f-delete pkg-name t)
                   (stp-delete-alist pkg-name)
+                  ;; Remove this package from all package groups.
+                  (cl-dolist (group-name (stp-get-info-group-names))
+                    (stp-set-info-group group-name
+                                        (cl-remove pkg-name
+                                                   (stp-get-info-group group-name)
+                                                   :test #'equal)))
                   (stp-write-info)
                   (cl-dolist (feature features)
                     (push feature stp-headers-uninstalled-features))
