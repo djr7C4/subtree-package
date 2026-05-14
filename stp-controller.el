@@ -55,6 +55,13 @@ a function as for `stp-auto-commit'.")
 This applies when installing, uninstalling, upgrading or
 reinstalling packages.")
 
+(defvar stp-always-upgrade-dependencies nil
+  "When non-nil, always upgrade the dependencies of packages.
+
+This occurs when a package is installed or upgraded. When nil,
+only the dependencies that need to be upgraded to satisfy the
+package's requirements will be upgraded.")
+
 (defvar stp-auto-toggle-update nil
   "When non-nil, set the update attribute when a git package is upgraded.
 
@@ -128,6 +135,7 @@ The minimum is the version required by another package.")
 
 (defclass stp-additive-operation (stp-package-change-operation stp-skippable-package-operation)
   ((dependency :initarg :dependency :initform nil)
+   (ignorable :initarg :ignorable :initform t)
    (min-version :initarg :min-version :initform nil)
    (enforce-min-version :initarg :enforce-min-version :initform (symbol-value 'stp-enforce-min-version))
    (prompt-prefix :initarg :prompt-prefix :initform "")))
@@ -967,9 +975,10 @@ package and were installed as dependencies."))
 ;; satisfied. This can happen when multiple packages that were installed have
 ;; the same dependency.
 (cl-defmethod stp-operate :around ((_controller stp-controller) (operation stp-additive-operation))
-  (with-slots (pkg-name dependency min-version)
+  (with-slots (pkg-name dependency ignorable min-version)
       operation
     (if (and dependency
+             ignorable
              ;; It isn't necessary to search the load path because we just
              ;; want to know if the package was already installed or
              ;; upgraded within STP.
@@ -1005,46 +1014,70 @@ package and were installed as dependencies."))
                   (stp-prune-cached-latest-versions pkg-name))
               (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))))
 
+(cl-defgeneric stp-controller-already-installed-or-upgraded-p (controller pkg-name))
+
+(cl-defmethod stp-controller-already-installed-or-upgraded-p ((controller stp-controller) pkg-name)
+  (cl-find-if (lambda (operation-result)
+                (cl-typep (plist-get operation-result :operation)
+                          '(or stp-install-operation stp-upgrade-operation)))
+              (oref controller history)))
+
 (cl-defgeneric stp-ensure-requirements (controller requirements options)
   (:documentation
    "Install or upgrade the REQUIREMENTS that are not currently satisfied."))
 
 (cl-defmethod stp-ensure-requirements ((controller stp-controller) requirements options)
   (stp-msg "Analyzing the load path for installed packages...")
-  (cl-dolist (requirement requirements)
-    ;; Also allow a list of package names.
-    (dsb (pkg-sym &optional version)
-        (ensure-list requirement)
-      (let* ((pkg-name (stp-symbol-package-name pkg-sym))
-             (prefix (format "[%s] " pkg-name)))
-        (cond
-         ((string= pkg-name "emacs")
-          (unless (stp-emacs-requirement-satisfied-p pkg-name version)
-            (error "Version %s of Emacs is required but %d.%d is installed"
-                   version
-                   emacs-major-version
-                   emacs-minor-version)))
-         ;; Do nothing when a requirement is ignored or a new enough
-         ;; version is installed.
-         ((stp-package-requirement-satisfied-p pkg-name version t))
-         ((not (member pkg-name (stp-info-names)))
-          (stp-controller-prepend-operations
-           controller
-           (stp-install-operation :pkg-name pkg-name
-                                  :options options
-                                  :prompt-prefix prefix
-                                  :min-version version
-                                  :dependency t)))
-         (t
-          ;; The dependency attribute is left as is when upgrading because
-          ;; the package might have been installed manually originally.
-          (stp-controller-prepend-operations
-           controller
-           (stp-upgrade-operation :pkg-name pkg-name
-                                  :options options
-                                  :prompt-prefix prefix
-                                  :min-version version
-                                  :dependency t))))))))
+  (with-slots (do-always-upgrade-dependencies)
+      options
+    (cl-dolist (requirement requirements)
+      ;; Also allow a list of package names.
+      (dsb (pkg-sym &optional version)
+          (ensure-list requirement)
+        (let* ((ignorable t)
+               (pkg-name (stp-symbol-package-name pkg-sym))
+               (prefix (format "[%s] " pkg-name)))
+          (cond
+           ((string= pkg-name "emacs")
+            (unless (stp-emacs-requirement-satisfied-p pkg-name version)
+              (error "Version %s of Emacs is required but %d.%d is installed"
+                     version
+                     emacs-major-version
+                     emacs-minor-version)))
+           ;; Do nothing when a requirement is ignored or a new enough version
+           ;; is installed unless dependencies should always be upgraded and the
+           ;; package has not already been installed or upgraded.
+           ((and (stp-package-requirement-satisfied-p pkg-name version t)
+                 (or (not do-always-upgrade-dependencies)
+                     ;; Don't upgrade dependencies that aren't STP packages.
+                     ;; This will include dependencies that are actually
+                     ;; included in the main repository of the package (e.g.
+                     ;; helm-core in helm).
+                     (not (member pkg-name (stp-info-names)))
+                     ;; Don't allow skipping the upgrade.
+                     (setq ignorable nil)
+                     ;; Don't upgrade dependencies again if the user has already
+                     ;; upgraded them with this controller.
+                     (stp-controller-already-installed-or-upgraded-p controller pkg-name))))
+           ((not (member pkg-name (stp-info-names)))
+            (stp-controller-prepend-operations
+             controller
+             (stp-install-operation :pkg-name pkg-name
+                                    :options options
+                                    :prompt-prefix prefix
+                                    :min-version version
+                                    :dependency t)))
+           (t
+            ;; The dependency attribute is left as is when upgrading because the
+            ;; package might have been installed manually originally.
+            (stp-controller-prepend-operations
+             controller
+             (stp-upgrade-operation :pkg-name pkg-name
+                                    :options options
+                                    :prompt-prefix prefix
+                                    :ignorable ignorable
+                                    :min-version version
+                                    :dependency t)))))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-operation))
   (let ((options (stp-options controller operation)))

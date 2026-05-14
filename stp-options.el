@@ -37,7 +37,8 @@
 (defclass stp-audit-operation-options (stp-operation-options)
   ((do-audit :initarg :do-audit :initform (symbol-value 'stp-audit-changes))))
 
-(defclass stp-additive-operation-options (stp-package-change-operation-options stp-audit-operation-options stp-action-operation-options) ())
+(defclass stp-additive-operation-options (stp-package-change-operation-options stp-audit-operation-options stp-action-operation-options)
+  ((do-always-upgrade-dependencies :initarg :do-always-upgrade-dependencies :initform (symbol-value 'stp-always-upgrade-dependencies))))
 
 (defclass stp-install-operation-options (stp-additive-operation-options) ())
 
@@ -116,10 +117,7 @@
 
   (defun stp-transient-toggle-bindings (slots &rest args)
     (mapcar (fn (apply #'stp-transient-toggle-binding
-                       (append (if (consp %)
-                                   %
-                                 (list %))
-                               args)))
+                       (append (ensure-list %) args)))
             slots))
 
   (cl-defun stp-transient-hide-group-p (slots &key (invert t))
@@ -156,6 +154,7 @@
       do-lock
       (do-reset :choices ,stp-transient-reset-choices)
       do-dependencies
+      do-always-upgrade-dependencies
       (do-audit :key "A")
       (do-toggle-update :key "U")
       do-tag))

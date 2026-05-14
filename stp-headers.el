@@ -493,9 +493,9 @@ insert them."
         (insert (format "\n;; Package-Requires: %s" requirements-string))))))
 
 (defun stp-emacs-requirement-satisfied-p (pkg-name &optional version)
-  (and (or (not version))
-       (string= pkg-name "emacs")
-       (version< version (format "%d.%d" emacs-major-version emacs-minor-version))))
+  (or (not version)
+      (and (string= pkg-name "emacs")
+           (version< version (format "%d.%d" emacs-major-version emacs-minor-version)))))
 
 (defun stp-installed-p (pkg-name)
   (f-dir-p (stp-full-path pkg-name)))
