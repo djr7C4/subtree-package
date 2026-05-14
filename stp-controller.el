@@ -1077,7 +1077,7 @@ package and were installed as dependencies."))
            ;; is installed unless dependencies should always be upgraded and the
            ;; package has not already been installed or upgraded.
            ((and (stp-package-requirement-satisfied-p pkg-name version t)
-                 (or (not do-always-upgrade-dependencies)
+                 (or (not (stp-maybe-call do-always-upgrade-dependencies))
                      ;; Don't upgrade dependencies that aren't STP packages.
                      ;; This will include dependencies that are actually
                      ;; included in the main repository of the package (e.g.
