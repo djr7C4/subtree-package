@@ -183,7 +183,7 @@ repository. Return the path to the repository."
     dir))
 
 (cl-defun stp-git-commit (msg &key (do-commit t))
-  (when do-commit
+  (when (stp-maybe-call do-commit)
     (when (stp-git-merge-conflict-p)
       (error "Committing is not possible due to %s"
              (if (> (length (stp-git-conflicted-files)) 1)
@@ -244,7 +244,7 @@ and then restore it after the fetch."
     t))
 
 (cl-defun stp-git-push (&key (do-push t) all tags)
-  (when do-push
+  (when (stp-maybe-call do-push)
     (if (or all tags (stp-git-unpushed-p))
         (progn
           (rem-run-command (append (stp-git-command)
@@ -258,7 +258,7 @@ and then restore it after the fetch."
       (stp-msg "There is nothing to push. Skipping..."))))
 
 (cl-defun stp-git-commit-push (msg &key (do-commit t) (do-push t) all tags)
-  (when do-commit
+  (when (stp-maybe-call do-commit)
     (stp-git-commit msg)
     ;; Pushing does not make sense if we did not commit earlier.
     (stp-git-push :do-push do-push :all all :tags tags)))
