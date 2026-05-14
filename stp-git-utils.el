@@ -195,8 +195,9 @@ repository. Return the path to the repository."
                                (list "commit" "--allow-empty-message")
                                ;; Don't specify a message when it is nil. This
                                ;; is mainly useful when amending.
-                               (when msg
-                                 (list "-am" msg))
+                               (if msg
+                                   (list "-am" msg)
+                                 (list "-C" "HEAD"))
                                (rem-maybe-args "--amend" amend))
                        :error t))))
 
