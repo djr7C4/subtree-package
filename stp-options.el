@@ -17,8 +17,8 @@
   ((do-lock :initarg :do-lock :initform (symbol-value 'stp-auto-lock))))
 
 (defclass stp-controlled-operation-options (stp-operation-options)
-  ((controller-class :initarg :controller-class :initform (symbol-value stp-default-controller-class))
-   (make-controller-args :initarg :make-controller-args :initform (symbol-value stp-default-controller-args))))
+  ((controller-class :initarg :controller-class :initform (symbol-value 'stp-default-controller-class))
+   (make-controller-args :initarg :make-controller-args :initform (symbol-value 'stp-default-controller-args))))
 
 (defclass stp-package-change-operation-options (stp-package-operation-options stp-controlled-operation-options)
   ((do-reset :initarg :do-reset :initform (symbol-value 'stp-auto-reset))
@@ -43,7 +43,7 @@
 (defclass stp-install-operation-options (stp-additive-operation-options) ())
 
 (defclass stp-upgrade-operation-options (stp-additive-operation-options)
-  ((do-toggle-update :initarg :do-toggle-update :initform (symbol-value stp-auto-toggle-update))))
+  ((do-toggle-update :initarg :do-toggle-update :initform (symbol-value 'stp-auto-toggle-update))))
 
 (defclass stp-install-or-upgrade-operation-options (stp-install-operation-options stp-upgrade-operation-options) ())
 
