@@ -1264,6 +1264,8 @@ package and were installed as dependencies."))
         options
       (let ((last-hash (stp-git-head))
             operation)
+        ;; Preserve order when there is already some history.
+        (setf history (reverse history))
         (while (setq operation (pop operations))
           (condition-case err
               (let ((status (stp-operate controller operation)))
