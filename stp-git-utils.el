@@ -192,7 +192,11 @@ repository. Return the path to the repository."
     (if (stp-git-clean-p)
         (stp-msg "There are no changes to commit. Skipping...")
       (rem-run-command (append (stp-git-command)
-                               (list "commit" "--allow-empty-message" "-am" msg)
+                               (list "commit" "--allow-empty-message")
+                               ;; Don't specify a message when it is nil. This
+                               ;; is mainly useful when amending.
+                               (when msg
+                                 (list "-am" msg))
                                (rem-maybe-args "--amend" amend))
                        :error t))))
 
