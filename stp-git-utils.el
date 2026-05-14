@@ -182,7 +182,7 @@ repository. Return the path to the repository."
     (push dir stp-git-synthetic-repos)
     dir))
 
-(cl-defun stp-git-commit (msg &key (do-commit t))
+(cl-defun stp-git-commit (msg &key (do-commit t) amend)
   (when (stp-maybe-call do-commit)
     (when (stp-git-merge-conflict-p)
       (error "Committing is not possible due to %s"
@@ -191,7 +191,10 @@ repository. Return the path to the repository."
                "a merge conflict")))
     (if (stp-git-clean-p)
         (stp-msg "There are no changes to commit. Skipping...")
-      (rem-run-command (append (stp-git-command) (list "commit" "--allow-empty-message" "-am" msg)) :error t))))
+      (rem-run-command (append (stp-git-command)
+                               (list "commit" "--allow-empty-message" "-am" msg)
+                               (rem-maybe-args "--amend" amend))
+                       :error t))))
 
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
