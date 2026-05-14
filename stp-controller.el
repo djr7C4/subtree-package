@@ -924,6 +924,17 @@ package alist and REMOTE is the remote.")
            ,skip-form)
          ,result))))
 
+(defvar stp-pre-install-functions nil)
+(defvar stp-post-install-functions nil)
+(defvar stp-pre-upgrade-functions nil)
+(defvar stp-post-upgrade-functions nil)
+(defvar stp-pre-uninstall-functions nil)
+(defvar stp-post-uninstall-functions nil)
+(defvar stp-pre-reinstall-functions nil)
+(defvar stp-post-reinstall-functions nil)
+(defvar stp-pre-action-functions nil)
+(defvar stp-post-action-functions nil)
+
 (cl-defgeneric stp-operate (controller operation)
   (:documentation
    "Perform OPERATION using CONTROLLER. This may result in additional
@@ -996,6 +1007,7 @@ package and were installed as dependencies."))
         options
       (with-slots (pkg-name remove-from-groups)
           operation
+        (run-hook-with-args 'stp-pre-uninstall-functions pkg-name)
         (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
               (requirements (stp-get-attribute pkg-name 'requirements)))
           (let-alist (stp-get-alist pkg-name)
@@ -1023,7 +1035,8 @@ package and were installed as dependencies."))
                   (when (stp-maybe-call do-dependencies)
                     (stp-uninstall-requirements controller requirements options))
                   (stp-prune-cached-latest-versions pkg-name))
-              (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))))))
+              (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))
+        (run-hook-with-args 'stp-post-uninstall-functions pkg-name)))))
 
 (cl-defgeneric stp-controller-already-installed-or-upgraded-p (controller pkg-name))
 
@@ -1096,6 +1109,7 @@ package and were installed as dependencies."))
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix dependency)
           operation
+        (run-hook-with-args 'stp-pre-install-functions pkg-name)
         (let* ((pkg-alist (or (oref operation pkg-alist)
                               (stp-controller-get-package controller pkg-name prompt-prefix min-version enforce-min-version)))
                (last-hash (stp-git-head)))
@@ -1132,7 +1146,8 @@ package and were installed as dependencies."))
                 (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
               ;; Perform post actions for all packages after everything else.
               (when (stp-maybe-call do-actions)
-                (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))))))
+                (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))
+        (run-hook-with-args 'stp-post-install-functions pkg-name)))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-upgrade-operation))
   (let ((options (stp-options controller operation)))
@@ -1140,6 +1155,7 @@ package and were installed as dependencies."))
         options
       (with-slots (pkg-name min-version enforce-min-version prompt-prefix new-version)
           operation
+        (run-hook-with-args 'stp-pre-upgrade-functions pkg-name)
         (let* ((last-hash (stp-git-head))
                (pkg-path (stp-canonical-path pkg-name))
                ;; We use `stp-git-rev-tree' instead of
@@ -1195,7 +1211,8 @@ package and were installed as dependencies."))
                     (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
                   ;; Perform post actions for all packages after everything else.
                   (when (stp-maybe-call do-actions)
-                    (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))))))))
+                    (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))))
+        (run-hook-with-args 'stp-post-upgrade-functions pkg-name)))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-or-upgrade-operation))
   (let ((class (if (member (oref operation pkg-name) (stp-info-names))
@@ -1207,6 +1224,7 @@ package and were installed as dependencies."))
   (let ((options (stp-options controller operation)))
     (with-slots (pkg-name new-version reportable)
         operation
+      (run-hook-with-args 'stp-pre-reinstall-functions pkg-name)
       (when (and (stp-git-tree-package-modified-p pkg-name)
                  (not (yes-or-no-p (format "The package %s has been modified since the last commit in the working tree. Reinstalling will delete these changes. Do you wish to proceed?" pkg-name))))
         (user-error "Reinstall aborted"))
@@ -1244,13 +1262,16 @@ package and were installed as dependencies."))
            ;; Don't remove the package from package groups if it is being
            ;; reinstalled.
            (stp-uninstall-operation :pkg-name pkg-name :options (clone options :do-commit t) :reportable reportable :remove-from-groups nil)
-           (stp-install-operation :pkg-name pkg-name :options options :pkg-alist pkg-alist :reportable reportable)))))))
+           (stp-install-operation :pkg-name pkg-name :options options :pkg-alist pkg-alist :reportable reportable))))
+      (run-hook-with-args 'stp-post-reinstall-functions pkg-name))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-post-action-operation))
   (let ((options (stp-options controller operation)))
     (with-slots (pkg-name)
         operation
-      (stp-post-actions pkg-name options))))
+      (run-hook-with-args 'stp-pre-action-functions pkg-name)
+      (stp-post-actions pkg-name options)
+      (run-hook-with-args 'stp-post-action-functions pkg-name))))
 
 (cl-defgeneric stp-report-operations (controller))
 
