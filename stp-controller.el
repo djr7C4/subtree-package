@@ -664,7 +664,8 @@ INTERACTIVE-P is non-nil when the function is called interactively."
 (defclass stp-controller ()
   ((errors :initform nil)
    (options :initarg :options)
-   (operations :initarg :operations :initform nil)))
+   (operations :initarg :operations :initform nil)
+   (history :initarg :history :initform nil)))
 
 (defclass stp-interactive-controller (stp-controller) ())
 
@@ -672,6 +673,11 @@ INTERACTIVE-P is non-nil when the function is called interactively."
   ((preferred-update :initarg :preferred-update :initform 'stable)
    (respect-update :initarg :respect-update :initform t)
    (development-directory-override :initarg :development-directory-override :initform 'unstable)))
+
+(cl-defgeneric stp-controller-filter-history (controller status))
+
+(cl-defmethod stp-controller-filter-history ((controller stp-controller) status)
+  (-filter (fn (eq (plist-get % :status) status)) (oref controller history)))
 
 (defvar stp-default-controller-class 'stp-auto-controller)
 (defvar stp-default-controller-args nil)
@@ -1213,10 +1219,14 @@ package and were installed as dependencies."))
         operation
       (stp-post-actions pkg-name options))))
 
-(defun stp-report-operations (successful-operations skipped-operations failed-operations)
+(cl-defgeneric stp-report-operations (controller))
+
+(cl-defmethod stp-report-operations ((controller stp-controller))
   (cl-flet ((breakdown (operations word)
               (let ((counts (make-hash-table :test #'equal))
-                    (verbs (mapcar #'stp-operation-verb operations)))
+                    (verbs (mapcar (-compose #'stp-operation-verb
+                                             (-rpartial #'plist-get :operation))
+                                   operations)))
                 (cl-dolist (verb verbs)
                   (cl-incf (gethash verb counts 0)))
                 (setq verbs (-sort #'string< (-uniq verbs)))
@@ -1227,10 +1237,15 @@ package and were installed as dependencies."))
                                                word))
                                      verbs))))
             (reportable-only (operations)
-              (-filter (fn (stp-reportable (if (consp %) (car %) %))) operations)))
-    (let ((total (+ (length successful-operations)
-                    (length skipped-operations)
-                    (length failed-operations))))
+              (-filter (-compose #'stp-reportable
+                                 (-rpartial #'plist-get :operation))
+                       operations)))
+    (let* ((successful-operations (stp-controller-filter-history controller 'succeed))
+           (skipped-operations (stp-controller-filter-history controller 'skip))
+           (failed-operations (stp-controller-filter-history controller 'fail))
+           (total (+ (length successful-operations)
+                     (length skipped-operations)
+                     (length failed-operations))))
       ;; Filter out non-reportable operations.
       (setq successful-operations (reportable-only successful-operations)
             skipped-operations (reportable-only skipped-operations)
@@ -1243,10 +1258,10 @@ package and were installed as dependencies."))
         (stp-msg "%d/%d operations failed:\n%s"
                  (length failed-operations)
                  total
-                 (breakdown (mapcar #'car failed-operations) "failed"))
-        (cl-dolist (cell failed-operations)
-          (dsb (operation . err)
-              cell
+                 (breakdown failed-operations "failed"))
+        (cl-dolist (operation-result failed-operations)
+          (dsb (&key operation err &allow-other-keys)
+              operation-result
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
         (pop-to-buffer stp-log-buffer-name)))))
 
@@ -1255,26 +1270,25 @@ package and were installed as dependencies."))
    "Execute the operations for CONTROLLER."))
 
 (cl-defmethod stp-execute ((controller stp-controller))
-  (with-slots (options operations)
+  "Execute the operations stored in the operations slot of CONTROLLER."
+  (with-slots (options operations history)
       controller
     (with-slots (do-push do-lock do-reset)
         options
       (let ((last-hash (stp-git-head))
-            operation
-            failed-operations
-            skipped-operations
-            successful-operations)
+            operation)
         (while (setq operation (pop operations))
           (condition-case err
-              (progn
+              (let ((status (stp-operate controller operation)))
                 (stp-ensure-prerequistites controller operation)
-                (cl-case (stp-operate controller operation)
-                  (skip (push operation skipped-operations))
-                  (ignore)
-                  (t (push operation successful-operations))))
-            (error (push (cons operation err) failed-operations))))
+                (unless (memq status '(skip ignore))
+                  (setq status 'succeed))
+                (push (list :operation operation :status status) history))
+            (error (push (list :operation operation :status 'fail :err err) history))))
+        (setf history (reverse history))
         ;; Resetting should be done before pushing or locking if an error occurred.
-        (let ((reset (stp-maybe-call do-reset)))
+        (let ((failed-operations (stp-controller-filter-history controller 'fail))
+              (reset (stp-maybe-call do-reset)))
           (when (and failed-operations (or (eq reset t) (memq :error reset)))
             (stp-msg "Resetting due to %s"
                      (if (cdr failed-operations)
@@ -1284,7 +1298,7 @@ package and were installed as dependencies."))
         (stp-git-push :do-push (stp-maybe-call do-push))
         (when (stp-maybe-call do-lock)
           (stp-update-lock-file))
-        (stp-report-operations successful-operations skipped-operations failed-operations)))))
+        (stp-report-operations controller)))))
 
 (defun stp-execute-operations (operations options &rest args)
   (stp-execute (apply #'stp-make-controller options :operations operations args)))
