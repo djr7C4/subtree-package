@@ -1657,9 +1657,14 @@ version of package and a local copy of git repository used for
 development or for opening packages from `stp-list-mode'."
   (interactive (if (derived-mode-p 'stp-list-mode)
                    (list (stp-list-package-on-line) nil current-prefix-arg)
-                 (append (stp-split-current-package) (list current-prefix-arg))))
+                 (append (with-current-buffer (or (buffer-base-buffer)
+                                                  (current-buffer))
+                           (stp-split-current-package))
+                         (list current-prefix-arg))))
   (stp-refresh-info)
-  (let ((path (f-canonical (or buffer-file-name default-directory))))
+  (let ((path (f-canonical (or (buffer-file-name (or (buffer-base-buffer)
+                                                     (current-buffer)))
+                               default-directory))))
     (let-alist (stp-get-alist pkg-name)
       ;; Prefer a remote on the local filesystem or in
       ;; `stp-development-directories'. If neither of these exists, fallback on
