@@ -268,19 +268,24 @@ command should proceed.")
              (user-error "Aborted: the repository is unclean"))
         (yes-or-no-p "The git repo is unclean. Proceed anyway?"))))
 
+(defun stp-user-audit (pkg-name _diff-buf)
+  (prog1
+      ;; Treat `keyboard-quit' as nil. Otherwise,
+      ;; `stp-source-directory' will be left in an inconsistent state.
+      (condition-case nil
+          (yes-or-no-p "Are the changes to the package safe? ")
+        (quit nil))
+    (stp-git-bury-diff-buffer)))
+
+(defvar stp-audit-function #'stp-user-audit)
+
 (defun stp-audit-changes (pkg-name type last-hash do-reset)
   (unless (memq type '(install upgrade))
     (error "The type must be either 'install or 'upgrade"))
   ;; Skip the audit when there are no changes.
   (unless (stp-git-hash= last-hash (stp-git-head))
     (stp-git-show-diff (list last-hash))
-    (unless (prog1
-                ;; Treat `keyboard-quit' as nil. Otherwise,
-                ;; `stp-source-directory' will be left in an inconsistent state.
-                (condition-case nil
-                    (yes-or-no-p "Are the changes to the package safe? ")
-                  (quit nil))
-              (stp-git-bury-diff-buffer))
+    (unless (funcall stp-audit-function pkg-name (get-buffer stp-git-diff-buffer-name))
       (let ((reset (stp-maybe-call do-reset)))
         (when (or (eq reset t) (memq :audit reset))
           (stp-git-reset last-hash :mode 'hard))
