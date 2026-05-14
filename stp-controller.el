@@ -662,8 +662,7 @@ INTERACTIVE-P is non-nil when the function is called interactively."
 ;; preferring the latest stable or unstable. It also handles callbacks to
 ;; higher-level code (such as requesting that dependencies be installed).
 (defclass stp-controller ()
-  ((errors :initform nil)
-   (options :initarg :options)
+  ((options :initarg :options)
    (operations :initarg :operations :initform nil)
    (history :initarg :history :initform nil)))
 
@@ -700,17 +699,6 @@ with `stp-default-controller-args').")
   (dsb (class default-args)
       (stp-make-controller-get-class-args options)
     (apply class :options options (map-merge 'plist default-args args))))
-
-(cl-defgeneric stp-controller-append-errors (controller pkg-name &rest errors)
-  (:documentation
-   "Append the specified error messages (strings) to CONTROLLER's
-list of error messages. These will be reported to the user after
-all operations are completed."))
-
-(cl-defmethod stp-controller-append-errors ((controller stp-controller) pkg-name &rest new-errors)
-  (with-slots (errors)
-      controller
-    (setq errors (append errors (mapcar (fn (cons pkg-name %)) new-errors)))))
 
 (cl-defgeneric stp-controller-append-operations (controller &rest operations)
   (:documentation
@@ -1032,11 +1020,10 @@ package and were installed as dependencies."))
         (cond
          ((string= pkg-name "emacs")
           (unless (stp-emacs-requirement-satisfied-p pkg-name version)
-            (->> (format "Version %s of Emacs is required but %d.%d is installed"
-                         version
-                         emacs-major-version
-                         emacs-minor-version)
-                 (stp-controller-append-errors pkg-name controller))))
+            (error "Version %s of Emacs is required but %d.%d is installed"
+                   version
+                   emacs-major-version
+                   emacs-minor-version)))
          ;; Do nothing when a requirement is ignored or a new enough
          ;; version is installed.
          ((stp-package-requirement-satisfied-p pkg-name version t))
