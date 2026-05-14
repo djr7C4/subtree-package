@@ -122,7 +122,9 @@ for `stp-auto-commit'.")
 
 (defclass stp-package-change-operation (stp-package-operation) ())
 
-(defclass stp-uninstall-operation (stp-package-change-operation) ())
+(defclass stp-uninstall-operation (stp-package-change-operation)
+  ((remove-from-groups :initarg :remove-from-groups :initform t)))
+
 (defclass stp-post-action-operation (stp-package-operation) ())
 
 (defclass stp-skippable-package-operation (stp-package-operation)
@@ -986,11 +988,13 @@ package and were installed as dependencies."))
         'ignore
       (cl-call-next-method))))
 
+(defvar stp-remove-uninstalled-packages-from-groups t)
+
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-uninstall-operation))
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-dependencies)
         options
-      (with-slots (pkg-name)
+      (with-slots (pkg-name remove-from-groups)
           operation
         (let ((features (stp-headers-directory-features (stp-full-path pkg-name)))
               (requirements (stp-get-attribute pkg-name 'requirements)))
@@ -1000,11 +1004,12 @@ package and were installed as dependencies."))
                   (f-delete pkg-name t)
                   (stp-delete-alist pkg-name)
                   ;; Remove this package from all package groups.
-                  (cl-dolist (group-name (stp-get-info-group-names))
-                    (stp-set-info-group group-name
-                                        (cl-remove pkg-name
-                                                   (stp-get-info-group group-name)
-                                                   :test #'equal)))
+                  (when (and stp-remove-uninstalled-packages-from-groups remove-from-groups)
+                    (cl-dolist (group-name (stp-get-info-group-names))
+                      (stp-set-info-group group-name
+                                          (cl-remove pkg-name
+                                                     (stp-get-info-group group-name)
+                                                     :test #'equal))))
                   (stp-write-info)
                   (cl-dolist (feature features)
                     (push feature stp-headers-uninstalled-features))
@@ -1236,7 +1241,9 @@ package and were installed as dependencies."))
           (stp-controller-prepend-operations
            controller
            ;; Reinstalling will fail if the uninstall operation does not commit.
-           (stp-uninstall-operation :pkg-name pkg-name :options (clone options :do-commit t) :reportable reportable)
+           ;; Don't remove the package from package groups if it is being
+           ;; reinstalled.
+           (stp-uninstall-operation :pkg-name pkg-name :options (clone options :do-commit t) :reportable reportable :remove-from-groups nil)
            (stp-install-operation :pkg-name pkg-name :options options :pkg-alist pkg-alist :reportable reportable)))))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-post-action-operation))
