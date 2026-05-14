@@ -176,14 +176,14 @@ Signal an appropriate error if they are not."))
 (cl-defmethod stp-validate-options ((options stp-basic-operation-options))
   (with-slots (do-commit do-push)
       options
-    (when (and (not do-commit) do-push)
+    (when (and (not (stp-maybe-call do-commit)) (stp-maybe-call do-push))
       (user-error "Pushing without committing is not allowed")))
   (cl-call-next-method))
 
 (cl-defmethod stp-validate-options ((options stp-bump-operation-options))
   (with-slots (do-commit do-tag)
       options
-    (when (and (not do-commit) do-tag)
+    (when (and (not (stp-maybe-call do-commit)) (stp-maybe-call do-tag))
       (user-error "Tagging without committing is not allowed"))
     (cl-call-next-method)))
 
