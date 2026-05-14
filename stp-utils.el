@@ -131,7 +131,7 @@ and returns non-nil if all of the results are non-nil."
                     (if (functionp value)
                         (apply value args)
                       value))
-                  args))
+                  values))
     (cl-every #'identity values)))
 
 (defun stp-maybe-call (value &rest args)
