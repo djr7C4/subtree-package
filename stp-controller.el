@@ -161,7 +161,7 @@ The minimum is the version required by another package.")
 (cl-defmethod stp-reportable ((operation stp-operation))
   (oref operation reportable))
 
-(cl-defmethod stp-reportable ((operation stp-install-or-upgrade-operation))
+(cl-defmethod stp-reportable ((_operation stp-install-or-upgrade-operation))
   nil)
 
 (cl-defgeneric stp-validate-options (options)
@@ -268,7 +268,7 @@ command should proceed.")
              (user-error "Aborted: the repository is unclean"))
         (yes-or-no-p "The git repo is unclean. Proceed anyway?"))))
 
-(defun stp-user-audit (pkg-name _diff-buf)
+(defun stp-user-audit (_pkg-name _diff-buf)
   (prog1
       ;; Treat `keyboard-quit' as nil. Otherwise,
       ;; `stp-source-directory' will be left in an inconsistent state.
@@ -490,7 +490,7 @@ non-nil if there were no errors."
                  (and allow-naive-byte-compile
                       (let ((default-directory pkg-path))
                         (stp-msg "Attempting to byte compile files in %s..." pkg-path)
-                        (condition-case err
+                        (condition-case nil
                             (progn
                               ;; Put the messages from `byte-recompile-directory' in
                               ;; output-buffer.
@@ -505,8 +505,7 @@ non-nil if there were no errors."
                                 (byte-recompile-directory pkg-path 0)
                                 (stp-reload-once pkg-name))
                               t)
-                          (error (ignore err)
-                                 (stp-msg "Byte-compiling %s failed" pkg-path)
+                          (error (stp-msg "Byte-compiling %s failed" pkg-path)
                                  nil)))))))
         ;; Return success or failure
         (if success
@@ -1045,7 +1044,7 @@ package and were installed as dependencies."))
 
 (cl-defgeneric stp-controller-already-installed-or-upgraded-p (controller pkg-name))
 
-(cl-defmethod stp-controller-already-installed-or-upgraded-p ((controller stp-controller) pkg-name)
+(cl-defmethod stp-controller-already-installed-or-upgraded-p ((controller stp-controller) _pkg-name)
   (cl-find-if (lambda (operation-result)
                 (cl-typep (plist-get operation-result :operation)
                           '(or stp-install-operation stp-upgrade-operation)))
