@@ -159,7 +159,7 @@
       (do-toggle-update :key "U")
       do-tag))
 
-  (defvar stp-transient-action-specs
+  (defvar stp-transient-post-action-specs
     (cons 'do-actions
           (mapcar (fn (rem-at-end (ensure-list %) :action t))
                   '(do-update-load-path
@@ -182,9 +182,9 @@
           [["Options"
             :if ,(stp-transient-hide-group-p stp-transient-option-specs :invert nil)
             ,@(stp-transient-toggle-bindings stp-transient-option-specs)]
-           ["Actions"
-            :if ,(stp-transient-hide-group-p stp-transient-action-specs :invert nil)
-            ,@(stp-transient-toggle-bindings (cdr stp-transient-action-specs))]]
+           ["Post actions"
+            :if ,(stp-transient-hide-group-p stp-transient-post-action-specs :invert nil)
+            ,@(stp-transient-toggle-bindings (cdr stp-transient-post-action-specs))]]
           ["Commands"
            ("RET"
             (lambda ()
