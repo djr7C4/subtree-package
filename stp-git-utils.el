@@ -525,7 +525,7 @@ nil: show the changes from the index to the working tree"
       (goto-char (point-min))
       (read-only-mode 1)
       (diff-mode))
-    (pop-to-buffer buf)))
+    (display-buffer buf)))
 
 (defun stp-git-bury-diff-buffer ()
   (when-let* ((buf (get-buffer stp-git-diff-buffer-name))
