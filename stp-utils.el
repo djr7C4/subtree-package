@@ -67,6 +67,8 @@ each type per interactive command."
 
 (def-edebug-spec stp-with-memoization t)
 
+(define-error 'stp-redundant-upgrade-error "Redundant upgrade" 'user-error)
+
 ;; This is required for Emacs 30+. The fix is merged upstream in the development
 ;; version and should be remove here once there is a tagged release.
 (defvar stp-async-inject-variables-exclude-regexp "-abbrev-table\\'")

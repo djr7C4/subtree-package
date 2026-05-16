@@ -329,11 +329,14 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
                     ;; versions being the same if the versions were specified in
                     ;; different ways (e.g. as a hash instead of a tag).
                     (string= version (stp-get-attribute pkg-name 'version)))
-            (user-error "Commit %s of %s is already installed"
-                        (if (stp-git-hash= version version-hash)
-                            (stp-git-abbreviate-hash version-hash)
-                          (format "%s (%s)" (stp-git-abbreviate-hash version-hash) version))
-                        pkg-name))
+            (signal 'stp-redundant-upgrade-error
+                    (list (format "commit %s of %s is already installed"
+                                  (if (stp-git-hash= version version-hash)
+                                      (stp-git-abbreviate-hash version-hash)
+                                    (format "%s (%s)"
+                                            (stp-git-abbreviate-hash version-hash)
+                                            version))
+                                  pkg-name))))
           (dsb (exit-code output)
               (rem-run-command cmd :return 'both)
             (cond

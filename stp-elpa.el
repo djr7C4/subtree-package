@@ -141,7 +141,7 @@ to the CONTROLLER is needed."
         (old-version (stp-get-attribute pkg-name 'version)))
     (when (and (eq action 'upgrade)
                (string= old-version new-version))
-      (user-error "Version %s of %s is already installed" old-version pkg-name))
+      (signal 'stp-redundant-upgrade-error (list (format "version %s of %s is already installed" old-version pkg-name))))
     (stp-url-install-or-upgrade-basic controller pkg-name url new-version action options :set-remote nil)
     (stp-set-attribute pkg-name 'remote remote)
     (when (eq action 'install)

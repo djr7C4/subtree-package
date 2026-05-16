@@ -39,8 +39,8 @@ The value can also be a function as for `stp-auto-commit'.")
 
 If it contains :audit, reset when an audit fails. If it contains
 :error, reset when errors occur. Instead of a list, the value t
-is also allowed and is equivalent to \\='(:audit :error). A
-function is also permitted as for `stp-auto-commit'.")
+is also allowed and is equivalent to \\='(:audit :error). The
+value can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-audit-changes t
   "Show diffs whenever a package changes or new code is added.
@@ -60,21 +60,23 @@ reinstalling packages.")
 
 This occurs when a package is installed or upgraded. When nil,
 only the dependencies that need to be upgraded to satisfy the
-package's requirements will be upgraded.")
+package's requirements will be upgraded. The value can also be a
+function as for `stp-auto-commit'.")
 
 (defvar stp-auto-toggle-update nil
   "When non-nil, set the update attribute when a git package is upgraded.
 
 This is useful when the update attribute is stable but an
-unstable version is installed or vice versa.")
+unstable version is installed or vice versa. The value can also
+be a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-post-actions t
   "When non-nil, automatically perform post actions.
 
-The value can also be a function as for `stp-auto-commit'. Post
-actions can be individually enabled or disabled via
+Post actions can be individually enabled or disabled via
 `stp-auto-update-load-path', `stp-auto-load', `stp-auto-build',
-`stp-auto-build-info' and `stp-auto-update-info-directories'.")
+`stp-auto-build-info' and `stp-auto-update-info-directories'. The
+value can also be a function as for `stp-auto-commit'.")
 
 (defvar stp-auto-tag t
   "When non-nil, tag the commit when bumping to a new version.
@@ -1323,6 +1325,17 @@ package and were installed as dependencies."))
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
         (display-buffer stp-log-buffer-name)))))
 
+(defvar stp-ignore-redundant-upgrades (fn (eq this-command 'stp-install-or-upgrade-package-group-command))
+  "When non-nil, ignore errors that occur when an upgrade is redundant.
+
+Such errors occur when the same version that the user attempted
+to upgrade to is already installed. These errors will still be
+logged. The value can also be a function as for
+`stp-auto-commit'.
+
+By default, redundant errors are ignored when the command run is
+`stp-install-or-upgrade-package-group-command'.")
+
 (cl-defgeneric stp-execute (controller)
   (:documentation
    "Execute the operations for CONTROLLER."))
@@ -1344,6 +1357,12 @@ package and were installed as dependencies."))
                 (unless (memq status '(skip ignore))
                   (setq status 'succeed))
                 (push (list :operation operation :status status) history))
+            (stp-redundant-upgrade-error
+             (if (stp-maybe-call stp-ignore-redundant-upgrades)
+                 (progn
+                   (stp-msg "Skipping upgrade: %s" (cadr err))
+                   (push (list :operation operation :status 'ignore :err err) history))
+               (push (list :operation operation :status 'fail :err err) history)))
             (error (push (list :operation operation :status 'fail :err err) history))))
         (setf history (reverse history))
         ;; Resetting should be done before pushing or locking if an error occurred.
