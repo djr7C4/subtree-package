@@ -1321,7 +1321,7 @@ package and were installed as dependencies."))
           (dsb (&key operation err &allow-other-keys)
               operation-result
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
-        (pop-to-buffer stp-log-buffer-name)))))
+        (display-buffer stp-log-buffer-name)))))
 
 (cl-defgeneric stp-execute (controller)
   (:documentation
