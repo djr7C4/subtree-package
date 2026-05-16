@@ -184,24 +184,23 @@ repository. Return the path to the repository."
     (push dir stp-git-synthetic-repos)
     dir))
 
-(cl-defun stp-git-commit (msg &key (do-commit t) amend)
-  (when (stp-maybe-call do-commit)
-    (when (stp-git-merge-conflict-p)
-      (error "Committing is not possible due to %s"
-             (if (> (length (stp-git-conflicted-files)) 1)
-                 "merge conflicts"
-               "a merge conflict")))
-    (if (stp-git-clean-p)
-        (stp-msg "There are no changes to commit. Skipping...")
-      (rem-run-command (append (stp-git-command)
-                               (list "commit" "--allow-empty-message")
-                               ;; Don't specify a message when it is nil. This
-                               ;; is mainly useful when amending.
-                               (if msg
-                                   (list "-am" msg)
-                                 (list "-C" "HEAD"))
-                               (rem-maybe-args "--amend" amend))
-                       :error t))))
+(cl-defun stp-git-commit (msg &key amend)
+  (when (stp-git-merge-conflict-p)
+    (error "Committing is not possible due to %s"
+           (if (> (length (stp-git-conflicted-files)) 1)
+               "merge conflicts"
+             "a merge conflict")))
+  (if (stp-git-clean-p)
+      (stp-msg "There are no changes to commit. Skipping...")
+    (rem-run-command (append (stp-git-command)
+                             (list "commit" "--allow-empty-message")
+                             ;; Don't specify a message when it is nil. This
+                             ;; is mainly useful when amending.
+                             (if msg
+                                 (list "-am" msg)
+                               (list "-C" "HEAD"))
+                             (rem-maybe-args "--amend" amend))
+                     :error t)))
 
 (defvar stp-subtree-fetch t
   "This allows hashes to be resolved when installing or upgrading.")
@@ -253,25 +252,26 @@ and then restore it after the fetch."
     (stp-git-fetch remote :force force :refspec refspec :no-new-tags no-new-tags)
     t))
 
-(cl-defun stp-git-push (&key (do-push t) all tags)
-  (when (stp-maybe-call do-push)
-    (if (or all tags (stp-git-unpushed-p))
-        (progn
-          (rem-run-command (append (stp-git-command)
-                                   '("push")
-                                   (rem-maybe-args "--all" all))
-                           :error t)
-          ;; When the --tags argument is used, only tags are pushed so this is
-          ;; done as a separate command.
-          (when tags
-            (rem-run-command (append (stp-git-command) '("push" "--tags")) :error t)))
-      (stp-msg "There is nothing to push. Skipping..."))))
+(cl-defun stp-git-push (&key all tags)
+  (if (or all tags (stp-git-unpushed-p))
+      (progn
+        (rem-run-command (append (stp-git-command)
+                                 '("push")
+                                 (rem-maybe-args "--all" all))
+                         :error t)
+        ;; When the --tags argument is used, only tags are pushed so this is
+        ;; done as a separate command.
+        (when tags
+          (rem-run-command (append (stp-git-command) '("push" "--tags")) :error t)))
+    (stp-msg "There is nothing to push. Skipping...")))
 
-(cl-defun stp-git-commit-push (msg &key (do-commit t) (do-push t) all tags)
-  (when (stp-maybe-call do-commit)
+;; This is a higher-level function than `stp-git-commit' and `stp-git-push'.
+;; Unlike those functions, it calls do-commit and do-push as needed.
+(cl-defun stp-git-commit-push (name msg options &key all tags)
+  (when (stp-maybe-call (oref options do-commit) name options)
     (stp-git-commit msg)
     ;; Pushing does not make sense if we did not commit earlier.
-    (stp-git-push :do-push do-push :all all :tags tags)))
+    (stp-git-push :all all :tags tags)))
 
 (cl-defun stp-git-reset (revision &key mode)
   (let* ((mode-flags '((soft . "--soft")

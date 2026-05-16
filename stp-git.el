@@ -353,7 +353,7 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
              ;; version instead.
              ((and stp-subtree-pull-fallback
                    (or (and (yes-or-no-p (format "The command \"git subtree\" %s failed: %s. Uninstall and reinstall?" action output))
-                            (or (stp-maybe-call (oref options do-commit))
+                            (or (stp-maybe-call (oref options do-commit) pkg-name options)
                                 (yes-or-no-p "Auto commits are disabled but an auto commit is required after uninstalling. Auto commit anyway?")))
                        (user-error "Upgrade aborted by the user")))
               (stp-msg "git subtree %s failed. Attempting to uninstall and reinstall..." action)
@@ -376,12 +376,12 @@ OPTIONS are used when a callback to the CONTROLLER is needed."
                   (progn
                     (stp-set-attribute pkg-name 'version version-hash)
                     (stp-set-attribute pkg-name 'branch version)
-                    (when (stp-maybe-call do-toggle-update)
+                    (when (stp-maybe-call do-toggle-update pkg-name options)
                       (stp-set-attribute pkg-name 'update 'unstable)))
                 ;; For tags or hashes, use the tag or hash.
                 (setq version (stp-git-normalize-version remote version))
                 (stp-set-attribute pkg-name 'version version)
-                (when (stp-maybe-call do-toggle-update)
+                (when (stp-maybe-call do-toggle-update pkg-name options)
                   (if (stp-git-remote-tag-p remote version)
                       ;; Tags do not have a branch to update from and are
                       ;; considered stable.

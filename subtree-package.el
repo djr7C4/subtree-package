@@ -451,7 +451,8 @@ If REFRESH is non-nil, refresh the package list afterwards."
     (funcall fun pkg-names (clone options :do-commit t :do-push nil :do-lock nil))
     (with-slots (do-push do-lock)
         options
-      (stp-git-push :do-push (stp-maybe-call do-push))
+      (when (stp-maybe-call do-push)
+        (stp-git-push))
       (when (stp-maybe-call do-lock)
         (stp-update-lock-file))
       (when refresh
@@ -535,7 +536,7 @@ remotes for the package.")
             (stp-set-attribute pkg-name 'other-remotes (cdr remotes))
             (stp-with-package-source-directory
               (stp-write-info)
-              (stp-git-commit-push (format "Added the remote for the fork of %s" pkg-name) :do-commit do-commit :do-push do-push))
+              (stp-git-commit-push pkg-name (format "Added the remote for the fork of %s" pkg-name) options))
             (funcall stp-fork-action default-directory)))))))
 
 (cl-defun stp-reinstall-command (&key (refresh t))
@@ -588,14 +589,14 @@ at the same time."
       (setq pkg-names (-sort #'string< (-uniq pkg-names)))
       (stp-set-info-group group-name pkg-names)
       (stp-write-info)
-      (stp-git-commit-push (format "%s the package group %s"
+      (stp-git-commit-push group-name
+                           (format "%s the package group %s"
                                    (if exists-p
                                        "Edited"
                                      "Added")
                                    group-name)
-                           :do-commit do-commit
-                           :do-push do-push)
-      (when (stp-maybe-call do-lock)
+                           options)
+      (when (stp-maybe-call do-lock group-name options)
         (stp-update-lock-file)))))
 
 (defun stp-delete-package-group-command ()
@@ -612,10 +613,8 @@ at the same time."
       options
     (stp-delete-info-group group-name)
     (stp-write-info)
-    (stp-git-commit-push (format "Deleted the package group %s" group-name)
-                         :do-commit do-commit
-                         :do-push do-push)
-    (when (stp-maybe-call do-lock)
+    (stp-git-commit-push group-name (format "Deleted the package group %s" group-name) options)
+    (when (stp-maybe-call do-lock group-name options)
       (stp-update-lock-file))))
 
 (defun stp-repair-command ()
@@ -645,10 +644,8 @@ When REFRESH is non-nil, refresh the package list afterwards."
                        :quiet nil
                        :pkg-names (list pkg-name))
       (stp-write-info)
-      (stp-git-commit-push (format "Repaired the source package %s" pkg-name)
-                           :do-commit do-commit
-                           :do-push do-push)
-      (when (stp-maybe-call do-lock pkg-name)
+      (stp-git-commit-push pkg-name (format "Repaired the source package %s" pkg-name) options)
+      (when (stp-maybe-call do-lock pkg-name options)
         (stp-update-lock-file))
       (when refresh
         (stp-list-refresh :quiet t)))))
@@ -676,9 +673,7 @@ REFRESH controls whether to refresh the package list afterwards."
     (stp-repair-info (clone options :do-commit nil :do-push nil :do-lock nil)
                      :quiet nil)
     (stp-write-info)
-    (stp-git-commit-push (format "Repaired source packages")
-                         :do-commit do-commit
-                         :do-push do-push)
+    (stp-git-commit-push nil (format "Repaired source packages") options)
     (when (stp-maybe-call do-lock)
       (stp-update-lock-file))
     (when refresh
@@ -725,14 +720,14 @@ refresh package list afterwards."
                 (stp-set-attribute pkg-name 'other-remotes new-other-remotes)
               (stp-delete-attribute pkg-name 'other-remotes))
             (stp-write-info)
-            (stp-git-commit-push (if stp-edit-remotes-long-commit-msg
+            (stp-git-commit-push pkg-name
+                                 (if stp-edit-remotes-long-commit-msg
                                      (format "Set remote to %s and other remotes to %S for %s"
                                              new-remote
                                              new-other-remotes
                                              pkg-name)
                                    (format "Edited the remotes for %s" pkg-name))
-                                 :do-commit do-commit
-                                 :do-push do-push)
+                                 options)
             (when (stp-maybe-call do-lock pkg-name)
               (stp-update-lock-file))
             (when refresh
@@ -772,9 +767,7 @@ REFRESH controls whether to refresh the package list afterwards."
                       (stp-set-attribute pkg-name 'branch .branch))
                   (stp-delete-attribute pkg-name 'branch))
                 (stp-write-info)
-                (stp-git-commit-push msg
-                                     :do-commit do-commit
-                                     :do-push do-push)
+                (stp-git-commit-push pkg-name msg options)
                 (when (stp-maybe-call do-lock pkg-name)
                   (stp-update-lock-file))
                 (when refresh
@@ -803,9 +796,7 @@ package requires it rather than explicitly by the user."
             (stp-delete-attribute pkg-name 'dependency)
           (stp-set-attribute pkg-name 'dependency t))
         (stp-write-info)
-        (stp-git-commit-push msg
-                             :do-commit do-commit
-                             :do-push do-push)
+        (stp-git-commit-push pkg-name msg options)
         (when (stp-maybe-call do-lock pkg-name)
           (stp-update-lock-file))
         (stp-msg msg)))))
@@ -1772,12 +1763,13 @@ current file."
               ;; just bumping the version in this commit.
               (unless clean
                 (setq msg (rem-read-from-mini "Commit message: " :initial-contents msg)))
-              (stp-git-commit msg :do-commit t))
+              (stp-git-commit msg))
             (when (stp-maybe-call do-tag)
               (let ((tag (concat "v" new-version)))
                 (stp-git-tag tag (stp-git-head default-directory))
                 (stp-msg "Added the git tag %s for %s" tag (stp-git-root :transform #'f-full))))
-            (stp-git-push :do-push (stp-maybe-call do-push) :tags t)))))))
+            (when (stp-maybe-call do-push)
+              (stp-git-push :tags t))))))))
 
 (defun stp-savehist-setup ()
   "Configure savehist to save subtree-package variables."

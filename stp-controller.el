@@ -18,10 +18,14 @@
 
 Note that even if this is omitted, some operations (such as
 subtree operations) inherently involve commits and this cannot be
-disabled. When this variable is a function it will be called with
-the name of the current package to determine the value when it is
-needed. If there is no current package, no arguments will be
-passed.")
+disabled. When this variable is a function, it should take zero
+or two arguments.
+
+When it is called with two arguments they are the name of the
+current package or group and the options object for the current
+operation. The function is called with no arguments in contexts
+where there is no current package or group. The return value
+determines the effective value of the variable.")
 
 (defvar stp-auto-push t
   "When non-nil, automatically push commits.
@@ -281,14 +285,14 @@ command should proceed.")
 
 (defvar stp-audit-function #'stp-user-audit)
 
-(defun stp-audit-changes (pkg-name type last-hash do-reset)
+(defun stp-audit-changes (pkg-name type last-hash options)
   (unless (memq type '(install upgrade))
     (error "The type must be either 'install or 'upgrade"))
   ;; Skip the audit when there are no changes.
   (unless (stp-git-hash= last-hash (stp-git-head))
     (stp-git-show-diff (list last-hash))
     (unless (funcall stp-audit-function pkg-name (get-buffer stp-git-diff-buffer-name))
-      (let ((reset (stp-maybe-call do-reset)))
+      (let ((reset (stp-maybe-call (oref options do-reset) pkg-name options)))
         (when (or (eq reset t) (memq :audit reset))
           (stp-git-reset last-hash :mode 'hard))
         (signal 'quit
@@ -304,8 +308,8 @@ command should proceed.")
 (defun stp-maybe-audit-changes (pkg-name type last-hash options)
   (with-slots (do-reset do-audit)
       options
-      (when (stp-maybe-call do-audit pkg-name)
-        (stp-audit-changes pkg-name type last-hash do-reset))))
+      (when (stp-maybe-call do-audit pkg-name options)
+        (stp-audit-changes pkg-name type last-hash options))))
 
 (defun stp-upgrade-handle-merge-conflicts ()
   (let ((first t))
@@ -419,17 +423,17 @@ remote or archive. Archives are represented as symbols."
                do-build-info
                do-update-info-directories)
       options
-    (when (stp-maybe-call do-update-load-path pkg-name)
+    (when (stp-maybe-call do-update-load-path pkg-name options)
       (stp-update-load-path (stp-full-path pkg-name)))
-    (when (stp-maybe-call do-build pkg-name)
+    (when (stp-maybe-call do-build pkg-name options)
       (stp-build pkg-name))
-    (when (stp-maybe-call do-load pkg-name)
+    (when (stp-maybe-call do-load pkg-name options)
       (condition-case err
           (stp-reload pkg-name)
         (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
-    (when (stp-maybe-call do-build-info pkg-name)
+    (when (stp-maybe-call do-build-info pkg-name options)
       (stp-build-info pkg-name))
-    (when (stp-maybe-call do-update-info-directories pkg-name)
+    (when (stp-maybe-call do-update-info-directories pkg-name options)
       (stp-update-info-directories pkg-name))))
 
 (defvar stp-build-output-buffer-name "*STP Build Output*")
@@ -1035,10 +1039,11 @@ package and were installed as dependencies."))
                   (let ((msg (format "Uninstalled version %s of %s"
                                      (stp-abbreviate-remote-version .method .remote .version)
                                      pkg-name)))
-                    (stp-git-commit msg :do-commit do-commit)
+                    (when (stp-maybe-call do-commit pkg-name options)
+                      (stp-git-commit msg))
                     (stp-msg msg))
                   (stp-headers-update-features)
-                  (when (stp-maybe-call do-dependencies)
+                  (when (stp-maybe-call do-dependencies pkg-name options)
                     (stp-uninstall-requirements controller requirements options))
                   (stp-prune-cached-latest-versions pkg-name))
               (error "Failed to remove %s. This can happen when there are uncommitted changes in the git repository" pkg-name))))
@@ -1078,7 +1083,7 @@ package and were installed as dependencies."))
            ;; is installed unless dependencies should always be upgraded and the
            ;; package has not already been installed or upgraded.
            ((and (stp-package-requirement-satisfied-p pkg-name version t)
-                 (or (not (stp-maybe-call do-always-upgrade-dependencies))
+                 (or (not (stp-maybe-call do-always-upgrade-dependencies pkg-name options))
                      ;; Don't upgrade dependencies that aren't STP packages.
                      ;; This will include dependencies that are actually
                      ;; included in the main repository of the package (e.g.
@@ -1142,16 +1147,17 @@ package and were installed as dependencies."))
               (let ((msg (format "Installed version %s of %s"
                                  (stp-abbreviate-remote-version .method .remote .version)
                                  pkg-name)))
-                (stp-git-commit msg :do-commit do-commit)
+                (when (stp-maybe-call do-commit pkg-name options)
+                  (stp-git-commit msg))
                 (stp-msg msg))
               ;; Features need to be updated before resolving dependencies. For
               ;; this reason, handling feature updates in a `stp-operate' :after
               ;; method doesn't work well.
               (stp-headers-update-features)
-              (when (stp-maybe-call do-dependencies)
+              (when (stp-maybe-call do-dependencies pkg-name options)
                 (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
               ;; Perform post actions for all packages after everything else.
-              (when (stp-maybe-call do-actions)
+              (when (stp-maybe-call do-actions pkg-name options)
                 (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))
         (run-hook-with-args 'stp-post-install-functions pkg-name options)))))
 
@@ -1210,13 +1216,14 @@ package and were installed as dependencies."))
                   (let ((msg (format "Upgraded to version %s of %s"
                                      (stp-abbreviate-remote-version .method chosen-remote new-version)
                                      pkg-name)))
-                    (stp-git-commit msg :do-commit do-commit)
+                    (when (stp-maybe-call do-commit pkg-name options)
+                      (stp-git-commit msg))
                     (stp-msg msg))
                   (stp-headers-update-features)
-                  (when (stp-maybe-call do-dependencies)
+                  (when (stp-maybe-call do-dependencies pkg-name options)
                     (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
                   ;; Perform post actions for all packages after everything else.
-                  (when (stp-maybe-call do-actions)
+                  (when (stp-maybe-call do-actions pkg-name options)
                     (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))))
         (run-hook-with-args 'stp-post-upgrade-functions pkg-name options)))))
 
@@ -1325,13 +1332,14 @@ package and were installed as dependencies."))
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
         (display-buffer stp-log-buffer-name)))))
 
-(defvar stp-ignore-redundant-upgrades (fn (eq this-command 'stp-install-or-upgrade-package-group-command))
+(defvar stp-ignore-redundant-upgrades (lambda (&optional _name _options)
+                                        (eq this-command 'stp-install-or-upgrade-package-group-command))
   "When non-nil, ignore errors that occur when an upgrade is redundant.
 
 Such errors occur when the same version that the user attempted
 to upgrade to is already installed. These errors will still be
-logged. The value can also be a function as for
-`stp-auto-commit'.
+logged. The value can also be a function that takes no arguments
+similar to `stp-auto-commit'.
 
 By default, redundant errors are ignored when the command run is
 `stp-install-or-upgrade-package-group-command'.")
@@ -1358,7 +1366,7 @@ By default, redundant errors are ignored when the command run is
                   (setq status 'succeed))
                 (push (list :operation operation :status status) history))
             (stp-redundant-upgrade-error
-             (if (stp-maybe-call stp-ignore-redundant-upgrades)
+             (if (stp-maybe-call stp-ignore-redundant-upgrades (oref operation pkg-name) (stp-options controller operation))
                  (progn
                    (stp-msg "Skipping upgrade: %s" (cadr err))
                    (push (list :operation operation :status 'ignore :err err) history))
@@ -1374,7 +1382,8 @@ By default, redundant errors are ignored when the command run is
                          "errors"
                        "an error"))
             (stp-git-reset last-hash :mode 'hard)))
-        (stp-git-push :do-push (stp-maybe-call do-push))
+        (when (stp-maybe-call do-push)
+          (stp-git-push))
         (when (stp-maybe-call do-lock)
           (stp-update-lock-file))
         (stp-report-operations controller)))))
