@@ -219,25 +219,28 @@ will become cluttered with tags for remotes of packages. These
 tags won't have a clear meaning on the local repository unless it
 is for this specific package. For example, there could be a
 v2.0.0 tag for chatgpt-shell but v2.0.0 doesn't have much meaning
-without even knowing which packages it is for. Git doesn't seem
-to provide a way to do this so we copy .git/refs/tags beforehand
-and then restore it after the fetch."
+without even knowing which package it is for. Git doesn't seem to
+provide a way to do this so we copy .git/refs/tags beforehand and
+then restore it after the fetch."
   (let* ((git-root (stp-git-root))
-         (tags-dir-tmp (when no-new-tags
-                         (make-temp-file "git-tags" t)))
-         (tags-dir (car (-filter #'f-dir-p (list (f-join git-root ".git/refs/tags")
-                                                 ;; Handle bare repositories.
-                                                 (f-join git-root "refs/tags"))))))
+         (tags-dir-tmp (and no-new-tags (make-temp-file "git-tags" t)))
+         (tags-dir (or (car (-filter #'f-dir-p (list (f-join git-root ".git/refs/tags")
+                                                     ;; Handle bare repositories.
+                                                     (f-join git-root "refs/tags"))))
+                       (error "No tags directory found at %s" git-root))))
     (unwind-protect
         (let ((cmd (append (stp-git-command)
                            '("fetch" "--atomic" "--tags")
                            (and force (list "--force"))
                            (list remote)
                            (and refspec (list refspec)))))
-          (when no-new-tags
-            (f-copy-contents tags-dir tags-dir-tmp))
+          (when (and no-new-tags tags-dir)
+            ;; Backup all tags.
+            (cl-dolist (path (f-entries tags-dir))
+              (f-move path (f-join tags-dir-tmp (f-relative path tags-dir))))
+            (f-delete tags-dir t))
           (rem-run-command cmd :error t)
-          (when no-new-tags
+          (when (and no-new-tags tags-dir)
             (f-delete tags-dir t)
             (f-move tags-dir-tmp tags-dir)))
       (when no-new-tags
