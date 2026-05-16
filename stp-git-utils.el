@@ -144,10 +144,12 @@ security.")
       (unless (eql (car (rem-call-process-shell-command cmd)) 0)
         (error "The command \"git init\" failed")))))
 
-(cl-defun stp-git-add (path &key update)
+(cl-defun stp-git-add (path &key force update)
   "Run \"git add\" on PATH.
 
-When UPDATE is non-nil, only add changes to tracked files."
+When FORCE is non-nil, the file will be added even if it is
+ignored. When UPDATE is non-nil, only add changes to tracked
+files."
   (dsb (dir target)
       (if (f-dir-p path)
           ;; This allows path to be the top-level of a git repository.
@@ -157,7 +159,7 @@ When UPDATE is non-nil, only add changes to tracked files."
       (rem-run-command (append (stp-git-command)
                                '("add")
                                (list target)
-                               (rem-maybe-args "-u" update))
+                               (rem-maybe-args "-u" update "-f" force))
                        :error t))))
 
 (defvar stp-git-synthetic-repos nil)
