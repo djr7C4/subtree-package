@@ -1332,8 +1332,7 @@ package and were installed as dependencies."))
             (stp-msg "%s failed: %s" (s-capitalize (stp-describe operation)) err)))
         (display-buffer stp-log-buffer-name)))))
 
-(defvar stp-ignore-redundant-upgrades (lambda (&optional _name _options)
-                                        (eq this-command 'stp-install-or-upgrade-package-group-command))
+(defvar stp-ignore-redundant-upgrades t
   "When non-nil, ignore errors that occur when an upgrade is redundant.
 
 Such errors occur when the same version that the user attempted
