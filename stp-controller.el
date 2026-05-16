@@ -934,16 +934,55 @@ package alist and REMOTE is the remote.")
            ,skip-form)
          ,result))))
 
-(defvar stp-pre-install-functions nil)
-(defvar stp-post-install-functions nil)
-(defvar stp-pre-upgrade-functions nil)
-(defvar stp-post-upgrade-functions nil)
-(defvar stp-pre-uninstall-functions nil)
-(defvar stp-post-uninstall-functions nil)
-(defvar stp-pre-reinstall-functions nil)
-(defvar stp-post-reinstall-functions nil)
-(defvar stp-pre-action-functions nil)
-(defvar stp-post-action-functions nil)
+(defvar stp-pre-install-functions nil
+  "Abnormal hook run before installing a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-post-install-functions nil
+  "Abnormal hook run after installing a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-pre-upgrade-functions nil
+  "Abnormal hook run before upgrading a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-post-upgrade-functions nil
+  "Abnormal hook run after upgrading a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-pre-uninstall-functions nil
+  "Abnormal hook run before uninstalling a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-post-uninstall-functions nil
+  "Abnormal hook run after uninstalling a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-pre-reinstall-functions nil
+  "Abnormal hook run before reinstalling a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-post-reinstall-functions nil
+  "Abnormal hook run after reinstalling a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-pre-action-functions nil
+  "Abnormal hook run before performing an action on a package.
+
+It is called with the package name and the current options.")
+
+(defvar stp-post-action-functions nil
+  "Abnormal hook run after performing an action on a package.
+
+It is called with the package name and the current options.")
 
 (cl-defgeneric stp-operate (controller operation)
   (:documentation
