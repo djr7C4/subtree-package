@@ -417,7 +417,10 @@ was inserted."
               nil)
           (when insert
             (let ((pt (point)))
-              (insert (format "Copyright (C) %s %s" current-year user-full-name))
+              (insert (format "Copyright (C) %s %s %s"
+                              current-year
+                              user-full-name
+                              user-mail-address))
               (comment-region pt (point))
               t)))))))
 
