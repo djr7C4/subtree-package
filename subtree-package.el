@@ -350,64 +350,61 @@ When REFRESH is non-nil, refresh the package list afterwards."
   ;; `stp-install-command' and `stp-install' are separate functions so that
   ;; `stp-command-args' will be called within the same memoization block (which
   ;; greatly improves efficiency).
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (stp-archive-ensure-loaded)
-        (stp-emacsmirror-ensure-loaded)
-        ;; Allow the user to toggle options before reading the package.
-        (let* ((options (stp-command-options :class 'stp-install-operation-options))
-               (controller (stp-make-controller options)))
-          (dsb (pkg-name pkg-alist)
-              ;; This needs to be inside `stp-with-memoization' for efficiency
-              ;; reasons so it is here instead of in the interactive spec.
-              (stp-command-args :controller controller
-                                :read-pkg-alist t
-                                :existing-pkg nil
-                                :line-pkg nil)
-            (stp-controller-append-operations controller
-                                              (stp-install-operation :pkg-name pkg-name
-                                                                     :pkg-alist pkg-alist))
-            (stp-execute controller)
-            (stp-update-cached-latest pkg-name)
-            (when refresh
-              (stp-list-refresh :quiet t))))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (stp-archive-ensure-loaded)
+      (stp-emacsmirror-ensure-loaded)
+      ;; Allow the user to toggle options before reading the package.
+      (let* ((options (stp-command-options :class 'stp-install-operation-options))
+             (controller (stp-make-controller options)))
+        (dsb (pkg-name pkg-alist)
+            ;; This needs to be inside `stp-with-memoization' for efficiency
+            ;; reasons so it is here instead of in the interactive spec.
+            (stp-command-args :controller controller
+                              :read-pkg-alist t
+                              :existing-pkg nil
+                              :line-pkg nil)
+          (stp-controller-append-operations controller
+                                            (stp-install-operation :pkg-name pkg-name
+                                                                   :pkg-alist pkg-alist))
+          (stp-execute controller)
+          (stp-update-cached-latest pkg-name)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (cl-defun stp-uninstall-command (&key (refresh t))
   "Uninstall a package interactively.
 
 If REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (let ((options (stp-command-options :class 'stp-uninstall-operation-options)))
-          (dsb (pkg-name)
-              (stp-command-args)
-            (stp-execute-operations (list (stp-uninstall-operation :pkg-name pkg-name))
-                                    options)
-            (when refresh
-              (stp-list-refresh :quiet t))))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (let ((options (stp-command-options :class 'stp-uninstall-operation-options)))
+        (dsb (pkg-name)
+            (stp-command-args)
+          (stp-execute-operations (list (stp-uninstall-operation :pkg-name pkg-name))
+                                  options)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (cl-defun stp-upgrade-command (&key (refresh t))
   "Upgrade a package interactively.
 
 If REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (let ((options (stp-command-options :class 'stp-upgrade-operation-options)))
-          (dsb (pkg-name)
-              (stp-command-args)
-            (stp-execute-operations (list (stp-upgrade-operation :pkg-name pkg-name))
-                                    options)
-            (stp-update-cached-latest pkg-name)
-            (when refresh
-              (stp-list-refresh :quiet t))))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (let ((options (stp-command-options :class 'stp-upgrade-operation-options)))
+        (dsb (pkg-name)
+            (stp-command-args)
+          (stp-execute-operations (list (stp-upgrade-operation :pkg-name pkg-name))
+                                  options)
+          (stp-update-cached-latest pkg-name)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (defun stp-check-requirements ()
   "Report any unsatisfied requirements of STP packages to the user."
@@ -465,38 +462,36 @@ If REFRESH is non-nil, refresh the package list afterwards."
 
 If REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (let ((table (completion-table-in-turn (stp-get-info-group-names)
-                                               (stp-info-names)
-                                               (stp-package-candidate-names))))
-          (stp-package-group-command
-           (lambda (pkg-names options)
-             (stp-execute-operations
-              (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
-              options)
-             (mapc #'stp-update-cached-latest pkg-names)
-             (when refresh
-               (stp-list-refresh :quiet t)))
-           table
-           :class 'stp-install-or-upgrade-operation-options))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (let ((table (completion-table-in-turn (stp-get-info-group-names)
+                                             (stp-info-names)
+                                             (stp-package-candidate-names))))
+        (stp-package-group-command
+         (lambda (pkg-names options)
+           (stp-execute-operations
+            (mapcar (fn (stp-install-or-upgrade-operation :pkg-name %)) pkg-names)
+            options)
+           (mapc #'stp-update-cached-latest pkg-names)
+           (when refresh
+             (stp-list-refresh :quiet t)))
+         table
+         :class 'stp-install-or-upgrade-operation-options)))))
 
 (defun stp-uninstall-package-group-command ()
   "Uninstall the package groups or packages."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (let ((stp-requirements-toplevel nil)
-              (table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
-          (stp-package-group-command
-           (lambda (pkg-names options)
-             (stp-execute-operations
-              (mapcar (fn (stp-uninstall-operation :pkg-name %)) pkg-names)
-              options))
-           table
-           :class 'stp-uninstall-operation-options))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (let ((stp-requirements-toplevel nil)
+            (table (completion-table-in-turn (stp-get-info-group-names) (stp-info-names))))
+        (stp-package-group-command
+         (lambda (pkg-names options)
+           (stp-execute-operations
+            (mapcar (fn (stp-uninstall-operation :pkg-name %)) pkg-names)
+            options))
+         table
+         :class 'stp-uninstall-operation-options)))))
 
 (defvar stp-fork-action #'find-file-other-window
   "The action to execute after a fork is created.
@@ -548,19 +543,18 @@ remotes for the package.")
 
 When REFRESH is non-nil, refresh the package list afterwards."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (let ((options (stp-command-options :class 'stp-reinstall-operation-options)))
-          (dsb (pkg-name version)
-              (stp-command-args :pkg-version t)
-            (stp-execute-operations
-             (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
-             options)
-            (stp-update-cached-latest pkg-name)
-            (when refresh
-              (stp-list-refresh :quiet t))))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (let ((options (stp-command-options :class 'stp-reinstall-operation-options)))
+        (dsb (pkg-name version)
+            (stp-command-args :pkg-version t)
+          (stp-execute-operations
+           (list (stp-reinstall-operation :pkg-name pkg-name :new-version version))
+           options)
+          (stp-update-cached-latest pkg-name)
+          (when refresh
+            (stp-list-refresh :quiet t)))))))
 
 (defvar stp-add-or-edit-package-group-keymap (define-keymap
                                                "C-c C-a"
@@ -573,20 +567,19 @@ This allows the user to easily upgrade multiple related packages
 at the same time."
   (interactive)
   (stp-ensure-no-merge-conflicts)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (let* ((options (stp-command-options))
-               (group-name (stp-read-group-name "Group: "))
-               (pkg-names (stp-get-info-group group-name))
-               (table (completion-table-in-turn pkg-names (stp-info-names))))
-          (stp-add-or-edit-package-group group-name
-                                         (stp-read-existing-name "Package name: "
-                                                                 :multiple t
-                                                                 :table table
-                                                                 :keymap stp-add-or-edit-package-group-keymap)
-                                         options))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (let* ((options (stp-command-options))
+             (group-name (stp-read-group-name "Group: "))
+             (pkg-names (stp-get-info-group group-name))
+             (table (completion-table-in-turn pkg-names (stp-info-names))))
+        (stp-add-or-edit-package-group group-name
+                                       (stp-read-existing-name "Package name: "
+                                                               :multiple t
+                                                               :table table
+                                                               :keymap stp-add-or-edit-package-group-keymap)
+                                       options)))))
 
 (cl-defun stp-add-or-edit-package-group (group-name pkg-names options)
   (with-slots (do-commit do-push do-lock)
@@ -609,11 +602,10 @@ at the same time."
   "Remove a package group."
   (interactive)
   (stp-ensure-no-merge-conflicts)
-  (save-selected-window
-    (stp-with-memoization
-      (stp-refresh-info)
-      (let ((options (stp-command-options)))
-        (stp-delete-package-group (stp-read-group-name "Group: ") options)))))
+  (stp-with-memoization
+    (stp-refresh-info)
+    (let ((options (stp-command-options)))
+      (stp-delete-package-group (stp-read-group-name "Group: ") options))))
 
 (cl-defun stp-delete-package-group (group-name options)
   (with-slots (do-commit do-push do-lock)
@@ -633,15 +625,14 @@ With a universal prefix argument, allow command options to be
 toggled via an interactive transient menu. If the prefix argument
 is negative, repair all packages as for `stp-repair-all-command'."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (if (< (prefix-numeric-value current-prefix-arg) 0)
-            (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
-          (let ((options (stp-command-options :toggle-p (fn (consp current-prefix-arg)))))
-            (apply #'stp-repair
-                   (rem-at-end (stp-command-args) options))))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (if (< (prefix-numeric-value current-prefix-arg) 0)
+          (stp-repair-all-command :toggle-p (fn (consp current-prefix-arg)))
+        (let ((options (stp-command-options :toggle-p (fn (consp current-prefix-arg)))))
+          (apply #'stp-repair
+                 (rem-at-end (stp-command-args) options)))))))
 
 (cl-defun stp-repair (pkg-name options &key (refresh t))
   "Repair the package named PKG-NAME using OPTIONS.
@@ -669,12 +660,11 @@ When TOGGLE-P is non-nil (interactively with a universal prefix
 argument), allow command options to be toggled via an interactive
 transient menu."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (stp-repair-all (apply #'stp-command-options
-                               (rem-maybe-kwd-args toggle-p toggle-p-provided-p)))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (stp-repair-all (apply #'stp-command-options
+                             (rem-maybe-kwd-args toggle-p toggle-p-provided-p))))))
 
 (cl-defun stp-repair-all (options &key (refresh t))
   "Repair the stored package information for all packages.
@@ -698,11 +688,10 @@ REFRESH controls whether to refresh the package list afterwards."
   "Edit the stored remotes of a package."
   (interactive)
   (stp-ensure-no-merge-conflicts)
-  (save-selected-window
-    (stp-with-memoization
-      (stp-refresh-info)
-      (let ((options (stp-command-options)))
-        (apply #'stp-edit-remotes (rem-at-end (stp-command-args) options))))))
+  (stp-with-memoization
+    (stp-refresh-info)
+    (let ((options (stp-command-options)))
+      (apply #'stp-edit-remotes (rem-at-end (stp-command-args) options)))))
 
 (defvar stp-edit-remotes-long-commit-msg nil)
 
@@ -756,11 +745,10 @@ refresh package list afterwards."
 (defun stp-toggle-update-command ()
   "Toggle the update attribute of a package interactively."
   (interactive)
-  (save-selected-window
-    (stp-with-memoization
-      (stp-refresh-info)
-      (let ((options (stp-command-options)))
-        (apply #'stp-toggle-update (rem-at-end (stp-command-args) options))))))
+  (stp-with-memoization
+    (stp-refresh-info)
+    (let ((options (stp-command-options)))
+      (apply #'stp-toggle-update (rem-at-end (stp-command-args) options)))))
 
 (cl-defun stp-toggle-update (pkg-name options &key (refresh t))
   "Toggle the update attribute for the package named PKG-NAME.
@@ -800,9 +788,8 @@ REFRESH controls whether to refresh the package list afterwards."
 This indicates that the packages was installed because another
 package requires it rather than explicitly by the user."
   (interactive)
-  (save-selected-window
-    (let ((options (stp-command-options)))
-      (apply #'stp-toggle-dependency (rem-at-end (stp-command-args) options)))))
+  (let ((options (stp-command-options)))
+    (apply #'stp-toggle-dependency (rem-at-end (stp-command-args) options))))
 
 (cl-defun stp-toggle-dependency (pkg-name options)
   (when pkg-name
@@ -829,11 +816,10 @@ package requires it rather than explicitly by the user."
 These include building, updating info directories loading the
 package and updating the load path."
   (interactive)
-  (save-selected-window
-    (stp-with-memoization
-      (stp-refresh-info)
-      (let ((options (stp-command-options :class 'stp-action-operation-options)))
-        (stp-post-actions (stp-list-read-name "Package name: ") options)))))
+  (stp-with-memoization
+    (stp-refresh-info)
+    (let ((options (stp-command-options :class 'stp-action-operation-options)))
+      (stp-post-actions (stp-list-read-name "Package name: ") options))))
 
 (defun stp-lock-file-watcher (event)
   (let ((action (cadr event)))
@@ -854,12 +840,11 @@ compilation will be performed even when no build system is
 present. The meaning of `stp-allow-naive-byte-compile' is
 inverted with a prefix argument."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (stp-build (stp-list-read-name "Package name: ")
-                   (xor stp-allow-naive-byte-compile current-prefix-arg))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (stp-build (stp-list-read-name "Package name: ")
+                 (xor stp-allow-naive-byte-compile current-prefix-arg)))))
 
 (defvar stp-build-blacklist nil
   "The list of packages that should not be built by `stp-build-all'.
@@ -874,14 +859,13 @@ present. The meaning of `stp-allow-naive-byte-compile' is
 inverted with a prefix argument. Packages in
 `stp-build-blacklist' will not be built."
   (interactive)
-  (save-selected-window
-    (stp-with-package-source-directory
-      (stp-with-memoization
-        (stp-refresh-info)
-        (stp-build-all (cl-set-difference (stp-filesystem-names)
-                                          stp-build-blacklist
-                                          :test #'equal)
-                       (xor stp-allow-naive-byte-compile current-prefix-arg))))))
+  (stp-with-package-source-directory
+    (stp-with-memoization
+      (stp-refresh-info)
+      (stp-build-all (cl-set-difference (stp-filesystem-names)
+                                        stp-build-blacklist
+                                        :test #'equal)
+                     (xor stp-allow-naive-byte-compile current-prefix-arg)))))
 
 (defun stp-build-all (&optional pkg-names allow-naive-byte-compile)
   "Build all packages.
