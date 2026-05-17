@@ -184,7 +184,9 @@ repository. Return the path to the repository."
     (push dir stp-git-synthetic-repos)
     dir))
 
-(cl-defun stp-git-commit (msg &key amend)
+(cl-defun stp-git-commit (msg &key amend allow-detached)
+  (unless (or allow-detached (stp-git-current-branch))
+    (error "Refusing to commit because HEAD is detached"))
   (when (stp-git-merge-conflict-p)
     (error "Committing is not possible due to %s"
            (if (> (length (stp-git-conflicted-files)) 1)
