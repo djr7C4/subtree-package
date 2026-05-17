@@ -327,6 +327,10 @@ When METHOD is non-nil, only return packages with that method."
 (defvar stp-crm-separator-string ","
   "This should match `crm-separator' but is a string and not a regexp.")
 
+(defvar stp-edit-list-keymap (define-keymap
+                               "C-c C-a"
+                               #'stp-insert-all-completion-candidates))
+
 (defun stp-insert-all-completion-candidates ()
   "Insert all completion candidates in a `completing-read-multiple' session."
   (interactive)
@@ -461,7 +465,7 @@ a remote needs to be selected.")
 
 (defvar stp-remote-history nil)
 
-(cl-defun stp-comp-read-remote (prompt known-remotes &key default multiple (normalize t))
+(cl-defun stp-comp-read-remote (prompt known-remotes &key default multiple keymap (normalize t))
   (cl-labels ((valid-candidate-p (candidate)
                 (or (member candidate known-remotes)
                     (f-dir-p candidate)))
@@ -481,7 +485,8 @@ a remote needs to be selected.")
                                        ;; will be 'file which will cause https://
                                        ;; to be replaced with / during completion.
                                        :metadata '((category . nil))
-                                       :multiple multiple)))
+                                       :multiple multiple
+                                       :keymap keymap)))
       (cond
        ((null normalize)
         new-remotes)

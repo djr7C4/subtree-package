@@ -557,9 +557,7 @@ When REFRESH is non-nil, refresh the package list afterwards."
           (when refresh
             (stp-list-refresh :quiet t)))))))
 
-(defvar stp-add-or-edit-package-group-keymap (define-keymap
-                                               "C-c C-a"
-                                               #'stp-insert-all-completion-candidates))
+(defvar stp-add-or-edit-package-group-keymap (define-keymap :parent stp-edit-list-keymap))
 
 (defun stp-add-or-edit-package-group-command ()
   "Add or edit a package group.
@@ -690,6 +688,8 @@ REFRESH controls whether to refresh the package list afterwards."
 
 (defvar stp-edit-remotes-long-commit-msg nil)
 
+(defvar stp-add-remotes-keymap (define-keymap :parent stp-edit-list-keymap))
+
 (cl-defun stp-edit-remotes (pkg-name options &key (refresh t))
   "Edit the remote and other-remotes attributes of PKG-NAME.
 
@@ -702,7 +702,12 @@ refresh package list afterwards."
       options
     (let-alist (stp-get-alist pkg-name)
       (if (and pkg-name .remote (not (eq .method 'archive)))
-          (let* ((new-remotes (stp-comp-read-remote "Remotes: " (cons .remote .other-remotes) :default .remote :multiple t))
+          (let* ((new-remotes
+                  (stp-comp-read-remote "Remotes: "
+                                        (cons .remote .other-remotes)
+                                        :default .remote
+                                        :multiple t
+                                        :keymap stp-add-remotes-keymap))
                  (new-remote (car new-remotes))
                  (new-other-remotes (cdr new-remotes))
                  (invalid-remotes (-filter (lambda (remote)
