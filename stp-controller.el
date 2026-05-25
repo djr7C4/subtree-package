@@ -1204,7 +1204,7 @@ package and were installed as dependencies."))
   (let ((options (stp-options controller operation)))
     (with-slots (do-commit do-actions do-dependencies do-audit)
         options
-      (with-slots (pkg-name min-version enforce-min-version prompt-prefix new-version)
+      (with-slots (pkg-name min-version enforce-min-version prompt-prefix)
           operation
         (run-hook-with-args 'stp-pre-upgrade-functions pkg-name options)
         (let* ((last-hash (stp-git-head))
@@ -1213,7 +1213,10 @@ package and were installed as dependencies."))
                ;; `stp-git-subtree-package-tree' so that it will work even if
                ;; the package was not installed with git subtree.
                (tree-hash (stp-git-rev-tree pkg-path "HEAD"))
-               (pkg-alist (stp-get-alist pkg-name)))
+               (pkg-alist (stp-get-alist pkg-name))
+               ;; Use a binding for new-version instead of `with-slots' above so
+               ;; that the operation isn't changed when the variable is set.
+               (new-version (oref operation new-version)))
           (let-alist pkg-alist
             ;; Automatically determine missing other remotes for archive packages.
             (when (eq .method 'archive)
@@ -1234,36 +1237,53 @@ package and were installed as dependencies."))
                   (elpa (stp-elpa-upgrade controller pkg-name chosen-remote new-version options))
                   (archive (stp-archive-upgrade controller pkg-name chosen-remote options))
                   (url (stp-url-upgrade controller pkg-name chosen-remote (or new-version (stp-url-read-version prompt)) options)))
-                ;; If the package wasn't changed we don't need to perform
-                ;; audits, update the package info or update other cached data.
-                ;; This can happen when the upgrade fails (for example because
-                ;; the user renamed the git subtree --prefix directory) and a
-                ;; reinstall is required. See `stp-git-upgrade'.
-                (unless (stp-git-hash= tree-hash (stp-git-rev-tree pkg-path "HEAD"))
-                  (stp-maybe-audit-changes pkg-name 'upgrade last-hash options)
-                  ;; The call to `stp-get-attribute' can't be replaced with
-                  ;; .version because the 'version attribute will have changed
-                  ;; after the call to `stp-git-upgrade', `stp-elpa-upgrade' or
-                  ;; `stp-url-upgrade'.
-                  (setq new-version (stp-get-attribute pkg-name 'version))
-                  (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
-                  (stp-update-requirements pkg-name)
-                  (stp-write-info)
-                  ;; Don't commit, push or perform push actions until the user
-                  ;; resolves any merge conflicts.
-                  (stp-upgrade-handle-merge-conflicts)
-                  (let ((msg (format "Upgraded to version %s of %s"
-                                     (stp-abbreviate-remote-version .method chosen-remote new-version)
-                                     pkg-name)))
-                    (when (stp-maybe-call do-commit pkg-name options)
-                      (stp-git-commit msg))
-                    (stp-msg msg))
-                  (stp-headers-update-features)
-                  (when (stp-maybe-call do-dependencies pkg-name options)
-                    (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options))
-                  ;; Perform post actions for all packages after everything else.
-                  (when (stp-maybe-call do-actions pkg-name options)
-                    (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options))))))))
+                (setq new-version (stp-get-attribute pkg-name 'version))
+                (let ((trees-equal (stp-git-hash= tree-hash (stp-git-rev-tree pkg-path "HEAD"))))
+                  ;; If the package wasn't changed we don't need to perform
+                  ;; audits, update the package info or update other cached
+                  ;; data. This can happen when the upgrade fails (for example
+                  ;; because the user renamed the git subtree --prefix
+                  ;; directory) and a reinstall is required. See
+                  ;; `stp-git-upgrade'.
+                  (unless (and trees-equal
+                               ;; The new version needs to be compared with the
+                               ;; old one in addition to comparing the git trees
+                               ;; since there could be an empty commit.
+                               ;;
+                               ;; The result of the `stp-get-attribute' call can
+                               ;; be different from .version because the
+                               ;; 'version attribute will have changed after the
+                               ;; call to `stp-git-upgrade', `stp-elpa-upgrade',
+                               ;; `stp-archive-upgrade' or `stp-url-upgrade' if
+                               ;; it was successful.
+                               (string= .version new-version))
+                    (unless trees-equal
+                      (stp-maybe-audit-changes pkg-name 'upgrade last-hash options))
+                    (stp-update-remotes pkg-name chosen-remote .remote .other-remotes)
+                    (unless trees-equal
+                      (stp-update-requirements pkg-name))
+                    (stp-write-info)
+                    ;; Don't commit, push or perform push actions until the user
+                    ;; resolves any merge conflicts.
+                    (stp-upgrade-handle-merge-conflicts)
+                    ;; We should still commit when the trees are the same
+                    ;; because the package info might have changed when if there
+                    ;; are empty commits.
+                    (let ((msg (format "Upgraded to version %s of %s"
+                                       (stp-abbreviate-remote-version .method chosen-remote new-version)
+                                       pkg-name)))
+                      (when (stp-maybe-call do-commit pkg-name options)
+                        (stp-git-commit msg))
+                      (stp-msg msg))
+                    (unless trees-equal
+                      (stp-headers-update-features)
+                      (when (stp-maybe-call do-dependencies pkg-name options)
+                        (stp-ensure-requirements controller (stp-get-attribute pkg-name 'requirements) options)))
+                    ;; Perform post actions for all packages after everything
+                    ;; else.
+                    (when (and (not trees-equal)
+                               (stp-maybe-call do-actions pkg-name options))
+                      (stp-controller-append-operations controller (stp-post-action-operation :pkg-name pkg-name :options options)))))))))
         (run-hook-with-args 'stp-post-upgrade-functions pkg-name options)))))
 
 (cl-defmethod stp-operate ((controller stp-controller) (operation stp-install-or-upgrade-operation))
