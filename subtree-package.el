@@ -1352,7 +1352,8 @@ version information updated."
               "U" #'stp-install-or-upgrade-package-group-command
               "v" #'stp-list-update-latest-version
               "V" #'stp-list-update-latest-versions
-              "RET" #'stp-find-package)
+              "RET" #'stp-find-package
+              "C-x 4 RET" #'stp-find-package-other-window)
 
 (defun stp-list-annotated-latest-version (method version count version-timestamp latest-timestamp)
   (and version
@@ -1620,7 +1621,15 @@ confirmation."
              deleted-dirs
              stp-source-directory)))
 
-(defun stp-find-package (pkg-name &optional file arg)
+(cl-defun stp-find-package-args (&optional (find-file-fun #'find-file))
+  (if (derived-mode-p 'stp-list-mode)
+      (list (stp-list-package-on-line) nil find-file-fun current-prefix-arg)
+    (append (with-current-buffer (or (buffer-base-buffer)
+                                     (current-buffer))
+              (stp-split-current-package))
+            (list find-file-fun current-prefix-arg))))
+
+(defun stp-find-package (pkg-name &optional file find-file-fun always-choose)
   "Try to find FILE for PKG-NAME on the local filesystem.
 
 When in `stp-list-mode', open the main file for the package on
@@ -1628,19 +1637,14 @@ the current line. Otherwise, look for candidates for the source
 code in `stp-development-directories', `stp-fork-directory' and
 `stp-source-directory'. If there is only one candidate or if
 there are exactly two candidates and one contains the current
-file, open the other candidate. Otherwise or if ARG is
-non-nil (interactivley with a prefix argument) prompt the user to
+file, open the other candidate. Otherwise or if ALWAYS-CHOOSE is
+non-nil (interactively with a prefix argument) prompt the user to
 choose between them.
 
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
 development or for opening packages from `stp-list-mode'."
-  (interactive (if (derived-mode-p 'stp-list-mode)
-                   (list (stp-list-package-on-line) nil current-prefix-arg)
-                 (append (with-current-buffer (or (buffer-base-buffer)
-                                                  (current-buffer))
-                           (stp-split-current-package))
-                         (list current-prefix-arg))))
+  (interactive (stp-find-package-args))
   (stp-refresh-info)
   (let ((path (f-canonical (or (buffer-file-name (or (buffer-base-buffer)
                                                      (current-buffer)))
@@ -1666,11 +1670,11 @@ development or for opening packages from `stp-list-mode'."
         (setq dirs (cl-remove-duplicates dirs :test #'f-same-p))
         (if dirs
             (let ((dir (f-full (cond
-                                ((and (not arg) (derived-mode-p 'stp-list-mode))
+                                ((and (not always-choose) (derived-mode-p 'stp-list-mode))
                                  (stp-full-path pkg-name))
-                                ((and (not arg) (not (cdr dirs)))
+                                ((and (not always-choose) (not (cdr dirs)))
                                  (car dirs))
-                                ((and (not arg) (not (cddr dirs))
+                                ((and (not always-choose) (not (cddr dirs))
                                       (car (cl-remove-if (lambda (dir)
                                                            (rem-ancestor-of-inclusive-p dir path))
                                                          dirs))))
@@ -1682,7 +1686,7 @@ development or for opening packages from `stp-list-mode'."
                     (column (current-column))
                     (window-line (rem-window-line-number-at-pos))
                     (old-buf (current-buffer)))
-                (find-file (or (setq file-found file) (stp-main-package-file pkg-name :relative t)))
+                (funcall find-file-fun (or (setq file-found file) (stp-main-package-file pkg-name :relative t)))
                 (when (and (not (with-current-buffer old-buf
                                   (derived-mode-p 'stp-list-mode)))
                            (not (rem-buffer-same-p old-buf)))
@@ -1692,6 +1696,13 @@ development or for opening packages from `stp-list-mode'."
                   (rem-goto-line-column line column t)
                   (rem-move-current-window-line-to-pos window-line))))
           (stp-msg "%s was not found in the local filesystem" pkg-name))))))
+
+(defun stp-find-package-other-window (pkg-name &optional file find-file-fun always-choose)
+  "Find FILE for PKG-NAME in the other window.
+
+See `stp-find-package' for details."
+  (interactive (stp-find-package-args #'find-file-other-window))
+  (stp-find-package pkg-name file find-file-fun always-choose))
 
 (defun stp-unnecessary-dependencies-command (&optional delete)
   "Inform the user about dependencies that are no longer required.
