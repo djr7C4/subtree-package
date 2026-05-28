@@ -430,7 +430,7 @@ remote or archive. Archives are represented as symbols."
     (when (stp-maybe-call do-load pkg-name options)
       (condition-case err
           (stp-reload pkg-name)
-        (error (display-warning 'STP "Error while loading %s modules: %s" pkg-name (error-message-string err)))))
+        (error (display-warning '(stp controller) (format "Error while loading %s modules: %s" pkg-name (error-message-string err))))))
     (when (stp-maybe-call do-build-info pkg-name options)
       (stp-build-info pkg-name))
     (when (stp-maybe-call do-update-info-directories pkg-name options)

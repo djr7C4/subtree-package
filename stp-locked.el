@@ -24,7 +24,7 @@
            (output (cadr data))
            (head-hash (string-trim output)))
       (unless (= exit-code 0)
-        (warn "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code output)
+        (display-warning '(stp locked) (format "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code output))
         (throw 'ret nil))
       ;; If the locked version is already checked out then we don't need to do
       ;; anything.
@@ -43,7 +43,7 @@
                    (output (cadr data))
                    (rev (string-trim output)))
               (unless (= exit-code 0)
-                (warn "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code output)
+                (display-warning '(stp locked) (format "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code) output)
                 (throw 'ret nil))
               (let* ((rev-string (if (string= rev hash)
                                      rev
@@ -55,12 +55,12 @@
                      (exit-code (car data))
                      (output (cadr data)))
                 (unless (= exit-code 0)
-                  (warn "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code output)
+                  (display-warning '(stp locked) (format "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code output))
                   (throw 'ret nil))
                 (unless quiet
                   ;; `stp-msg' might not be available.
                   (message "Checked out the locked revision %s of %s" rev-string stp-source-directory))))
-          (warn "%s is missing: unable to restore the locked version of %s" stp-lock-file stp-source-directory))))))
+          (display-warning '(stp locked) (format "%s is missing: unable to restore the locked version of %s" stp-lock-file stp-source-directory)))))))
 
 (provide 'stp-locked)
 
