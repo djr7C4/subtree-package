@@ -1674,10 +1674,10 @@ development or for opening packages from `stp-list-mode'."
                                  (stp-full-path pkg-name))
                                 ((and (not always-choose) (not (cdr dirs)))
                                  (car dirs))
-                                ((and (not always-choose) (not (cddr dirs))
-                                      (car (cl-remove-if (lambda (dir)
-                                                           (rem-ancestor-of-inclusive-p dir path))
-                                                         dirs))))
+                                ((and (not always-choose) (not (cddr dirs)))
+                                 (car (cl-remove-if (lambda (dir)
+                                                      (rem-ancestor-of-inclusive-p dir path))
+                                                    dirs)))
                                 (t
                                  (rem-comp-read "Directory: " dirs :require-match t))))))
               (let (file-found
