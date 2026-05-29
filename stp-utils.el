@@ -430,6 +430,25 @@ When this is nil, `stp-source-directory' is used.")
 (defun stp-development-directories ()
   (rem-at-end stp-development-directories stp-fork-directory))
 
+(defvar stp-preferred-directories nil
+  "A list of development directories to prefer to prioritize.
+
+This affects the order in which directories are presented to the
+user in `stp-find-package'.")
+
+(defun stp-preferred-directory-index (dir)
+  (cl-position-if (-rpartial #'rem-ancestor-of-inclusive-p dir) stp-preferred-directories))
+
+(defun stp-in-preferred-directory-p (dir)
+  (and (stp-preferred-directory-index dir) t))
+
+(defun stp-sort-directories-by-preference (dirs)
+  (-sort (fn (< (or (stp-preferred-directory-index %1)
+                    most-positive-fixnum)
+                (or (stp-preferred-directory-index %2)
+                    most-positive-fixnum)))
+         dirs))
+
 (defun stp-normalize-remote (remote)
   "Normalize REMOTE."
   ;; Use absolute paths for local repositories.

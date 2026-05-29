@@ -1632,6 +1632,11 @@ confirmation."
 (defun stp-find-package (pkg-name &optional file find-file-fun always-choose)
   "Try to find FILE for PKG-NAME on the local filesystem.
 
+When `stp-preferred-directories' is non-nil and
+contains a copy of the package that the current source file
+belongs to, use that copy. Earlier entries in
+`stp-preferred-directories' take precedence.
+
 When in `stp-list-mode', open the main file for the package on
 the current line. Otherwise, look for candidates for the source
 code in `stp-development-directories', `stp-fork-directory' and
@@ -1653,23 +1658,29 @@ development or for opening packages from `stp-list-mode'."
       ;; Prefer a remote on the local filesystem or in
       ;; `stp-development-directories'. If neither of these exists, fallback on
       ;; the copy of the package in `stp-source-directory'.
-      (let ((dirs (-filter (lambda (dir)
-                             ;; Ignore directories that do not exist and the
-                             ;; copy of the package that we are currently in.
-                             (and (f-dir-p dir)
-                                  (not (f-same-p dir path))
-                                  (not (rem-ancestor-of-p dir path))))
-                           ;; Ignore the remote when it is a symbol representing
-                           ;; a package archive.
-                           (append (and .remote (stringp .remote) (list .remote))
-                                   (-filter #'stringp .other-remotes)
-                                   (mapcar (lambda (dir)
-                                             (f-slash (f-join dir pkg-name)))
-                                           (stp-development-directories))
-                                   (list (stp-full-path pkg-name))))))
-        (setq dirs (cl-remove-duplicates dirs :test #'f-same-p))
+      (let* ((dirs (-->
+                    ;; Ignore the remote when it is a symbol representing a
+                    ;; package archive.
+                    (append (and .remote (stringp .remote) (list .remote))
+                            (-filter #'stringp .other-remotes)
+                            (mapcar (lambda (dir)
+                                      (f-slash (f-join dir pkg-name)))
+                                    (stp-development-directories))
+                            (list (stp-full-path pkg-name)))
+                    (-filter (lambda (dir)
+                               ;; Ignore directories that do not exist and the
+                               ;; copy of the package that we are currently in.
+                               (and (f-dir-p dir)
+                                    (not (f-same-p dir path))
+                                    (not (rem-ancestor-of-p dir path))))
+                             it)
+                    (cl-remove-duplicates it :test #'f-same-p)
+                    (stp-sort-directories-by-preference it)))
+             (preferred-dirs (-filter #'stp-in-preferred-directory-p dirs)))
         (if dirs
             (let ((dir (f-full (cond
+                                ((and (not always-choose) preferred-dirs)
+                                 (car preferred-dirs))
                                 ((and (not always-choose) (derived-mode-p 'stp-list-mode))
                                  (stp-full-path pkg-name))
                                 ((and (not always-choose) (not (cdr dirs)))
