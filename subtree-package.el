@@ -1662,7 +1662,7 @@ development or for opening packages from `stp-list-mode'."
                            ;; Ignore the remote when it is a symbol representing
                            ;; a package archive.
                            (append (and .remote (stringp .remote) (list .remote))
-                                   .other-remotes
+                                   (-filter #'stringp .other-remotes)
                                    (mapcar (lambda (dir)
                                              (f-slash (f-join dir pkg-name)))
                                            (stp-development-directories))
