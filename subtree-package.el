@@ -37,6 +37,7 @@
 
 (require 'align)
 (require 'async nil t)
+(require 'find-func)
 (require 'info)
 (require 'queue nil t)
 (require 'stp-bootstrap)
@@ -1622,14 +1623,21 @@ confirmation."
 
 (cl-defun stp-find-package-args (&optional (find-file-fun #'find-file))
   (if (derived-mode-p 'stp-list-mode)
-      (list (stp-list-package-on-line) nil find-file-fun current-prefix-arg)
+      (list (stp-list-package-on-line) nil find-file-fun (equal current-prefix-arg '(16)))
     (append (with-current-buffer (or (buffer-base-buffer)
                                      (current-buffer))
-              (stp-split-current-package))
-            (list find-file-fun current-prefix-arg))))
+              (or (and (or (equal current-prefix-arg '(16))
+                           (not current-prefix-arg))
+                       (stp-current-package))
+                  (list (stp-read-existing-name "Package name: ") nil)))
+            (list find-file-fun (equal current-prefix-arg '(16))))))
 
 (defun stp-find-package (pkg-name &optional file find-file-fun always-choose)
   "Try to find FILE for PKG-NAME on the local filesystem.
+
+Interactively, if no package exists for the current buffer or
+with a universal prefix argument, read the name of a package and
+use that.
 
 When `stp-preferred-directories' is non-nil and
 contains a copy of the package that the current source file
@@ -1642,8 +1650,8 @@ code in `stp-development-directories', `stp-fork-directory' and
 `stp-source-directory'. If there is only one candidate or if
 there are exactly two candidates and one contains the current
 file, open the other candidate. Otherwise or if ALWAYS-CHOOSE is
-non-nil (interactively with a prefix argument) prompt the user to
-choose between them.
+non-nil (interactively with two prefix arguments) prompt the user
+to choose between them.
 
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
@@ -1690,22 +1698,26 @@ development or for opening packages from `stp-list-mode'."
                                                     dirs)))
                                 (t
                                  (rem-comp-read "Directory: " dirs :require-match t))))))
-              (let (file-found
+              (let ((file-used (or file (stp-main-package-file pkg-name :relative t)))
                     (default-directory dir)
                     (line (line-number-at-pos))
                     (column (current-column))
                     (window-line (rem-window-line-number-at-pos))
                     (old-buf (current-buffer)))
-                (funcall find-file-fun (or (setq file-found file) (stp-main-package-file pkg-name :relative t)))
-                (when (and (not (with-current-buffer old-buf
-                                  (derived-mode-p 'stp-list-mode)))
-                           (not (rem-buffer-same-p old-buf)))
-                  (stp-msg "Files differ. Line and column may not be preserved"))
+                (funcall find-file-fun file-used)
+                (if (and (not (with-current-buffer old-buf
+                                (derived-mode-p 'stp-list-mode)))
+                         (equal file file-used)
+                         (not (rem-buffer-same-p old-buf)))
+                    (stp-msg "Found %s. Files differ. Line and column may not be preserved" (f-abbrev (f-join dir file-used)))
+                  (stp-msg "Found %s" (f-abbrev (f-join dir file-used))))
                 ;; Go to the corresponding line in the file if possible.
-                (when file-found
+                (when file
                   (rem-goto-line-column line column t)
                   (rem-move-current-window-line-to-pos window-line))))
-          (stp-msg "%s was not found in the local filesystem" pkg-name))))))
+          (if (stp-current-package)
+              (stp-msg "Another copy of %s was not found in the local filesystem" pkg-name)
+            (stp-msg "%s was not found in the local filesystem" pkg-name)))))))
 
 (defun stp-find-package-other-window (pkg-name &optional file find-file-fun always-choose)
   "Find FILE for PKG-NAME in the other window.

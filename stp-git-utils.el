@@ -75,20 +75,23 @@ security.")
 (defun stp-git-command ()
   (append (list "git") (stp-git-flags)))
 
-(defun stp-split-current-package ()
+(defun stp-current-package ()
   "Return the name of the package and the relative path to the current file."
   (stp-refresh-info)
-  (let ((path (or buffer-file-name default-directory)))
-    (dsb (pkg-name k)
-        (->> (stp-info-names)
-             (mapcar (lambda (pkg-name)
-                       (list pkg-name
-                             (->> path
-                                  (s-matched-positions-all (regexp-quote (concat "/" (stp-relative-path pkg-name))))
-                                  last
-                                  caar))))
-             (cl-find-if #'cadr))
-      (list pkg-name (apply #'f-join (cddr (f-split (substring path k))))))))
+  (let ((path (or (buffer-file-name (or (buffer-base-buffer)
+                                        (current-buffer)))
+                  default-directory)))
+    (awhen (->> (stp-info-names)
+                (mapcar (lambda (pkg-name)
+                          (list pkg-name
+                                (->> path
+                                     (s-matched-positions-all (regexp-quote (concat "/" (stp-relative-path pkg-name))))
+                                     last
+                                     caar))))
+                (cl-find-if #'cadr))
+      (dsb (pkg-name k)
+          it
+      (list pkg-name (apply #'f-join (cddr (f-split (substring path k)))))))))
 
 (defun stp-git-tracked-p (path)
   "Determine if the file at PATH in a git repository is tracked."
