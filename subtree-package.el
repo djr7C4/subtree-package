@@ -37,7 +37,6 @@
 
 (require 'align)
 (require 'async nil t)
-(require 'find-lisp)
 (require 'info)
 (require 'queue nil t)
 (require 'stp-bootstrap)
