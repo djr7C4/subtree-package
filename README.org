@@ -96,8 +96,8 @@ following to your =~/.emacs.d/init.el=.
 
   (setq stp-default-controller-class 'stp-interative-controller)
 #+end_src
-It is also possible to define your own custom policy by defining a subclass of
-=stp-controller=.
+For more control, you can set =stp-default-controller-args=. It is also possible
+to define your own custom policy by defining a subclass of =stp-controller=.
 ** Freely edit installed packages
 Packages installed in =stp-source-directory= can be freely modified. If you
 later upgrade the package to a newer version, any conflicts that arise due to
@@ -297,31 +297,21 @@ The variables =stp-pre-install-functions=, =stp-post-install-functions=,
 custom functions before and after STP operations.
 * Installation
 Subtree package can manage itself as a package but first it needs to be
-bootstrapped. The simplest way to do this is with =package.el=.
+bootstrapped. The simplest way is to clone
+=https://github.com/djr7C4/stp-packages= and configure STP to recognize it as
+the directory for installed packages.
+
+Alternatively, instead of cloning the =stp-packages= repository you can create
+an =stp-packages= directory yourself and manually install STP and its
+dependencies as git subtrees (using =git subtree add= with =--squash=) within
+=stp-packages/package-source=. To initialize STP's package database, you'll need
+to use =M-x stp-repair-all= once you've installed all the dependencies and STP.
+
+With either method, you'll need to copy the following bootstraping code into
+=~/.emacs.d/early-init.el=.
 
 #+begin_src emacs-lisp
-  (require 'package)
-  (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
-  (package-vc-install "https://github.com/djr7c4/rem.git")
-  (package-vc-install "https://github.com/djr7c4/subtree-package.git")
-  (add-to-list 'load-path (expand-file-name "rem" package-user-dir))
-  (add-to-list 'load-path (expand-file-name "subtree-package" package-user-dir))
-  ,#+end_src emacs-lisp
-
-  You can then manually install STP from within STP. This will also automatically
-  install all of the dependencies of STP as STP packages. Finally, remove the
-  packages installed with =package.el= from =M-x list-packages=.
-
-  STP requires that you install the =atool= CLI utility if you wish to install
-  archive, ELPA and compressed URL packages. Additionally, to support certain
-  non-essential features, the =async= and =queue= packages are required. A few
-  optional features require the =gh= CLI utility.
-
-  Once you've installed STP, put the bootstraping code in
-  =~/.emacs.d/early-init.el=.
-
-  ,#+begin_src emacs-lisp
-  (setq stp-source-directory "<path/to/package-source>"
+  (setq stp-source-directory "<path-to-stp-packages>/package-source"
         stp-info-file (expand-file-name "../stp-pkg-info.eld" stp-source-directory))
 
   (require 'stp-locked (expand-file-name "subtree-package/stp-locked.el" stp-source-directory))
@@ -338,12 +328,6 @@ In your =~/.emacs.d/init.el=, add the following code.
 #+begin_src emacs-lisp
   (require 'stp)
 
-  ;; By default, STP is highly interactive and prompts the user quite a bit for
-  ;; maximum control. The following enables the auto controller which keeps
-  ;; prompts to a minimum.
-  (setq stp-default-controller-class 'stp-auto-controller
-        stp-default-controller-args '(:preferred-update stable))
-
   (keymap-global-set "C-c P" #'stp-list)
 
   ;; Improve performance by adding various variables to
@@ -355,9 +339,14 @@ In your =~/.emacs.d/init.el=, add the following code.
   (savehist-mode 1)
   (stp-setup)
 
-  (keymap-global-set "C-c O" #'stp-find-package)
+  (keymap-global-set "C-c o" #'stp-find-package)
   (keymap-global-set "C-c P" #'stp-list)
 #+end_src
+
+STP requires that you install the =atool= CLI utility if you wish to install
+archive, ELPA and compressed URL packages. Additionally, to support certain
+non-essential features, the =async= and =queue= packages are required. A few
+optional features require the =gh= CLI utility.
 
 * Comparison with other package managers
 The main strengths of STP are
