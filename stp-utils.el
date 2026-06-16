@@ -16,6 +16,7 @@
 
 ;;; Code:
 
+(require 'anaphora)
 (require 'crm)
 (require 'cl-lib)
 (require 'eieio)
