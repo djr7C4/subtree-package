@@ -1,6 +1,8 @@
+* What is it
+Subtree package (STP) is a package manager for Emacs that is designed to
+provided maximum control to power users and elisp developers while being highly
+configurable and convenient. Packages are installed and managed as git subtrees.
 * Demos
-** Installing STP with the bootstrap script
-#+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/stp-bootstrap.gif" width="80%" />
 ** Installing packages
 *** Using transient to select the auto controller
 #+HTML: <img src="https://raw.githubusercontent.com/djr7C4/readme-files/main/stp/transient-auto-controller.gif" width="80%" />
@@ -13,6 +15,7 @@
 
 Go to [[https://github.com/djr7C4/subtree-package?tab=readme-ov-file#installation][installation]] if you're ready to install STP or check out the [[https://github.com/djr7C4/subtree-package?tab=readme-ov-file#comparison-with-other-package-managers][comparison]]
 with other package managers!
+
 * Motivation
 Anyone with a sufficiently complex Emacs configuration knows that upgrading
 installed packages can break one's configuration. Therefore, it is important to
@@ -307,7 +310,7 @@ dependencies as git subtrees (using =git subtree add= with =--squash=) within
 =stp-packages/package-source=. To initialize STP's package database, you'll need
 to use =M-x stp-repair-all= once you've installed all the dependencies and STP.
 
-With either method, you'll need to copy the following bootstraping code into
+With either method, you'll need to copy the following bootstrap code into
 =~/.emacs.d/early-init.el=.
 
 #+begin_src emacs-lisp
@@ -317,8 +320,6 @@ With either method, you'll need to copy the following bootstraping code into
   (require 'stp-locked (expand-file-name "subtree-package/stp-locked.el" stp-source-directory))
   (require 'stp-bootstrap (expand-file-name "subtree-package/stp-bootstrap.el" stp-source-directory))
 
-  ;; Set up dependencies for STP itself.
-  (stp-bootstrap)
   ;; Add installed packages to the load path.
   (stp-update-load-paths)
 #+end_src
@@ -327,8 +328,6 @@ In your =~/.emacs.d/init.el=, add the following code.
 
 #+begin_src emacs-lisp
   (require 'stp)
-
-  (keymap-global-set "C-c P" #'stp-list)
 
   ;; Improve performance by adding various variables to
   ;; `savehist-additional-variables' in order to avoid repeating expensive
@@ -339,7 +338,7 @@ In your =~/.emacs.d/init.el=, add the following code.
   (savehist-mode 1)
   (stp-setup)
 
-  (keymap-global-set "C-c o" #'stp-find-package)
+(keymap-global-set "C-c o" #'stp-find-package)
   (keymap-global-set "C-c P" #'stp-list)
 #+end_src
 
