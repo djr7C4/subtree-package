@@ -8,6 +8,7 @@
 ;; Package-Requires: (
 ;;   (anaphora "1.0.4")
 ;;   (async "1.9.9")
+;;   (cond-let "0.2.2")
 ;;   (dash "2.20.0")
 ;;   (emacs "29.1")
 ;;   (f "0.21.0")
