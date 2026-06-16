@@ -3,7 +3,7 @@
 ;;; Code:
 
 (defvar stp-source-directory (expand-file-name "package-source/" user-emacs-directory)
-  "The directory in which STP packages installed.")
+  "The directory in which STP packages are installed.")
 
 (defvar stp-lock-file (expand-file-name "stp-pkg-lock.eld" user-emacs-directory))
 
