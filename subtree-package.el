@@ -1830,7 +1830,6 @@ current file."
 (provide 'subtree-package)
 
 ;; Local Variables:
-;; eval: (add-hook 'stp-headers-update-hook #'stp-headers-write-bootstrap-requirements nil t)
 ;; read-symbol-shorthands: (
 ;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")

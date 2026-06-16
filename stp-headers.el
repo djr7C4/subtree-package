@@ -535,20 +535,6 @@ insert them."
 
 (defvar stp-headers-bootstrap-requirements-file "bootstrap-requirements")
 
-(defun stp-headers-write-bootstrap-requirements ()
-  (let ((requirements (--> (locate-library "rem")
-                           (append (stp-headers-elisp-requirements)
-                                   (stp-headers-elisp-file-requirements it))
-                           stp-sort-requirements
-                           ;; This removes duplicate requirements.
-                           stp-headers-merge-elisp-requirements)))
-    (with-temp-buffer
-      (cl-dolist (requirement requirements)
-        (dsb (pkg-sym version)
-            requirement
-          (insert (format "%s %s\n" pkg-sym version))))
-      (write-file stp-headers-bootstrap-requirements-file))))
-
 (defvar stp-headers-update-hook nil
   "Hook to run after headers are updated.")
 
