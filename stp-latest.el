@@ -130,7 +130,7 @@ When ASYNC is non-nil, perform the computation asynchronously."
                 (error-message
                  (if (>= tries max-tries)
                      (unless quiet
-                       (stp-msg "Getting the latest version of %s failed %d times: skipping..." pkg-name tries))
+                       (stp-msg "Skipping after getting the latest version of %s failed %d times: %s" pkg-name tries error-message))
                    (cl-incf tries)
                    (unless quiet
                      (stp-msg "Getting the latest version of %s failed (%d/%d): %s" pkg-name tries max-tries error-message))
