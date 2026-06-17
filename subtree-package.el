@@ -1267,7 +1267,7 @@ version information updated."
                          (updated-pkgs
                           (stp-msg "Updated the latest version for %s" (car pkg-names)))
                          (t
-                          (stp-msg "Failed to update the latest version for %s" (car pkg-names)))))))
+                          (stp-msg "Failed to update the latest version for %1$s: evaluate (stp-latest-version \"%1$s\") to produce the error" (car pkg-names)))))))
             (unless quiet-toplevel
               (let ((async-string (if async " asynchronously" "")))
                 (if plural

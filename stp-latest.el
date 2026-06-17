@@ -69,7 +69,7 @@
          (let* ((latest-stable (stp-elpa-latest-version pkg-name .remote))
                 (versions-to-stable (and latest-stable (stp-elpa-count-versions pkg-name .remote .version latest-stable))))
            (unless latest-stable
-             (error "Failed to get the latest stable version for %s" pkg-name))
+             (error "Failed to get the latest stable version for %1$s: evaluate (stp-latest-version \"%1$s\") to produce the error" pkg-name))
            ;; Occasionally, it is possible we may run into a package when
            ;; versions-to-stable is nil because the current version is invalid and
            ;; does not appear in the list of versions on ELPA.
