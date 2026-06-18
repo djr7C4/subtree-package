@@ -355,8 +355,13 @@ When REFRESH is non-nil, refresh the package list afterwards."
       (stp-refresh-info)
       (stp-archive-ensure-loaded)
       (stp-emacsmirror-ensure-loaded)
-      ;; Allow the user to toggle options before reading the package.
-      (let* ((options (stp-command-options :class 'stp-install-operation-options))
+      ;; Allow the user to toggle options before reading the package. Because
+      ;; install operations can create upgrade operations when an existing
+      ;; package needs to be upgraded to satisfy the dependencies of the package
+      ;; being installed, `stp-install-or-upgrade-operation-options' is used
+      ;; instead of `stp-install-operation-options'. This prevents errors that
+      ;; would otherwise result in upgrade operations due to missing slots.
+      (let* ((options (stp-command-options :class 'stp-install-or-upgrade-operation-options))
              (controller (stp-make-controller options)))
         (dsb (pkg-name pkg-alist)
             ;; This needs to be inside `stp-with-memoization' for efficiency
@@ -397,7 +402,7 @@ If REFRESH is non-nil, refresh the package list afterwards."
   (stp-with-package-source-directory
     (stp-with-memoization
       (stp-refresh-info)
-      (let ((options (stp-command-options :class 'stp-upgrade-operation-options)))
+      (let ((options (stp-command-options :class 'stp-install-or-upgrade-operation-options)))
         (dsb (pkg-name)
             (stp-command-args)
           (stp-execute-operations (list (stp-upgrade-operation :pkg-name pkg-name))
