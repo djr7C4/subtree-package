@@ -541,8 +541,8 @@ remotes for the package.")
             (stp-set-attribute pkg-name 'other-remotes (cdr remotes))
             (stp-with-package-source-directory
               (stp-write-info)
-              (stp-git-commit-push pkg-name (format "Added the remote for the fork of %s" pkg-name) options))
-            (funcall stp-fork-action default-directory)))))))
+              (stp-git-commit-push pkg-name (format "Added the remote for the fork of %s" pkg-name) options))))
+        (funcall stp-fork-action (f-join dir pkg-name))))))
 
 (cl-defun stp-reinstall-command (&key (refresh t))
   "Uninstall and reinstall a package interactively as the same version.
