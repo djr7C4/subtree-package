@@ -353,6 +353,7 @@ representing archives."
                           (mapcar (fn (cons % 'elpa))
                                   (stp-elpa-package-urls pkg-name archives)))))
     (->> (append remotes archive-alist)
+         (mapcar (-compose #'stp-transform-remote #'car))
          -uniq
          stp-sort-remotes
          (mapcar #'car))))
@@ -394,6 +395,7 @@ remote or archive. Archives are represented as symbols."
                                          (stp-comp-read-remote
                                           "Remote or archive: "
                                           (->> (append remotes archive-alist)
+                                               -uniq
                                                stp-sort-remotes
                                                (mapcar #'car))))))
             (cons pkg-name (and remote-or-archive

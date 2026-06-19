@@ -116,7 +116,7 @@ is non-nil."
 The result is an alist that maps remotes to methods."
   (->> (stp-emacsmirror-package-repositories)
        (-filter (fn (string= pkg-name (car %))))
-       (mapcar (fn (cons (cdr %) 'git)))))
+       (mapcar (fn (cons (stp-transform-remote (cdr %)) 'git)))))
 
 (defun stp-emacsmirror-remote-mirror (remote)
   "Return the mirror that matches REMOTE."
