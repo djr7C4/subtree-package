@@ -280,16 +280,16 @@ stp-headers-update-elisp-headers= to try to infer updated values of a number of
 elisp headers and automatically update them. In particular, this updates the
 requirements to the versions that are currently installed.
 ** Audit changes to packages
-By default, changes to packages are presented to the user as diffs before the
-code is loaded. This helps mitigate supply chain attacks such as the recent one
-against the kubernetes.el but can be time consuming. Add
+By default, changes to packages are installed without review. To present diffs
+to the user before the code is loaded, add
 
 #+begin_src emacs-lisp
 (setq stp-audit-changes nil)
 #+end_src emacs-lisp
 
-to your configuration if you wish to disable this feature. By default,
-=git reset= is used to restore the previous state when an audit fails.
+to your configuration. This helps mitigate supply chain attacks such as the
+recent one against the kubernetes.el but can be time consuming. By default, =git
+reset= is used to restore the previous state when an audit fails.
 =stp-audit-auto-reset= controls this behavior.
 ** Modify the default behavior with custom hooks
 The variables =stp-pre-install-functions=, =stp-post-install-functions=,
