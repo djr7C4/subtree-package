@@ -848,14 +848,14 @@ of that specific branch."
   ;;      (s-join "-"))
   (secure-hash 'sha512 remote))
 
-(defun stp-git-cached-repo-path (remote)
-  "Create or update the locally cached copy of REMOTE.
+(defun stp-git-cached-repo-path (remotes)
+  "Create or update the locally cached copy of REMOTES.
 
 When there is a list of remotes, use a combination of all the
 remote repositories for caching."
-  (let ((id (if (listp remote)
-                (s-join "|" remote)
-              remote)))
+  (let ((id (if (listp remotes)
+                (s-join "|" remotes)
+              remotes)))
    (f-join stp-git-cache-directory (stp-git-cache-hash-directory id))))
 
 (defvar stp-git-cached-repo-timestamp-suffix "-timestamp")

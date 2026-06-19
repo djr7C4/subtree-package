@@ -153,6 +153,11 @@ the current package and display this information in a latest field. Packages
 that can be upgraded are highlighted in blue. This is done asynchronously if
 =stp-latest-version-async= is non-nil.
 
+You can use =c= to show new commits that have been made upstream since commit
+for the installed version. By default, if the update for the package is stabel,
+only commits up until the latest stable version are shown. To override this, set
+=stp-latest-show-all-new-commits= to =t=.
+
 Use =V= to fetch the latest stable and unstable versions for all packages with
 latest versions that have not been updated for at least
 =stp-latest-versions-stale-interval=. This is parallelized using

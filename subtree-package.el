@@ -1313,11 +1313,73 @@ version information updated."
         (unless quiet-toplevel
           (stp-msg "No packages need their latest versions updated%s" ignored-string))))))
 
+(declare-function magit-log-setup-buffer "magit-log")
+
+(defvar stp-latest-update-cached-repo nil)
+(defvar stp-latest-show-all-new-commits nil)
+(defvar stp-latest-magit-log-default-args (get 'magit-log-mode 'magit-log-default-arguments))
+
+;; This is necessary to make magit commands such as `magit-show-commit' work
+;; from magit log buffers opened with `stp-latest-new-commits'. We can't just
+;; bind `magit-git-global-arguments' around the call to `magit-log-setup-buffer'
+;; and set it buffer-locally because magit doesn't honor buffer-local values for
+;; `magit-log-setup-buffer'.
+(define-advice magit-process-git-arguments (:filter-return (args) stp-magit-use-stp-git-flags)
+  (if (f-descendant-of-p default-directory stp-git-cache-directory)
+      (append (stp-git-flags) args)
+    args))
+
+;; The idea for showing the git log with magit integration comes from
+;; https://github.com/alberti42/straight-overview by Andrea Alberti (a package
+;; that is itself inspired by the latest version features of subtree-package).
+(cl-defun stp-latest-new-commits (pkg-name &key update-cached-repo)
+  "Show upstream commits since the current version of PKG-NAME.
+
+The commits shown depends on the update policy of the package. If
+it is stable, only commits until the latest stable version are
+shown. Otherwise, all new commits are shown. If
+`stp-latest-show-all-new-commits' then all new commits are shown
+regardless of the update policy.
+
+When UPDATE-CACHED-REPO is non-nil, fetch from remotes to update
+the cached repository. Interactively, this defaults to
+`stp-latest-update-cached-repo' and can be toggled with a prefix
+argument."
+  (interactive (list (or (stp-list-package-on-line)
+                         (user-error "No package was found on the current line"))
+                     :update-cached-repo (xor stp-latest-update-cached-repo current-prefix-arg)))
+  (unless (fboundp 'magit-log-setup-buffer)
+    (user-error "Magit is required to show new commits"))
+  (stp-refresh-info)
+  (let-alist (map-merge 'alist
+                        (map-elt stp-latest-versions-cache pkg-name)
+                        (stp-get-alist pkg-name))
+    (unless (eq .method 'git)
+      (user-error "New commits can only be shown for git packages"))
+    (let* ((stp-allow-bare-repository-override t)
+           (remotes (cons .remote .other-remotes))
+           (path (if update-cached-repo
+                     (stp-git-ensure-cached-repo remotes)
+                   (stp-git-cached-repo-path remotes))))
+      (if (f-dir-p path)
+          (let* ((default-directory (f-slash path))
+                 (latest (if (or stp-latest-show-all-new-commits (eq .update 'unstable))
+                             (or .latest-unstable
+                                 (error "The latest unstable version is missing for %s" pkg-name))
+                           (or .latest-stable
+                               (error "The latest stable version is missing for %s" pkg-name))))
+                 (range (format "%s..%s" .version latest)))
+            (magit-log-setup-buffer (list range) stp-latest-magit-log-default-args nil))
+        (message "No cached repository was found for %s. Update the latest version first from `stp-list-mode' with %s."
+                 pkg-name
+                 (key-description (where-is-internal 'stp-list-update-latest-version stp-list-mode-map t)))))))
+
 (rem-set-keys stp-list-mode-map
               "a" #'stp-post-actions-command
               "b" #'stp-build-command
               "B" #'stp-build-all-command
-              "c" #'stp-check-requirements
+              "c" #'stp-latest-new-commits
+              "C" #'stp-check-requirements
               "m" #'stp-build-info
               "M" #'stp-build-all-info
               "d" #'stp-uninstall-command
