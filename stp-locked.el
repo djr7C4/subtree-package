@@ -43,7 +43,7 @@
                    (output (cadr data))
                    (rev (string-trim output)))
               (unless (= exit-code 0)
-                (display-warning '(stp locked) (format "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code) output)
+                (display-warning '(stp locked) (format "The locked version of %s could not be restored: \"%s\" failed with exit code %d: %s" stp-source-directory cmd exit-code output))
                 (throw 'ret nil))
               (let* ((rev-string (if (string= rev hash)
                                      rev
