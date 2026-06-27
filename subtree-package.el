@@ -1325,9 +1325,10 @@ version information updated."
 ;; and set it buffer-locally because magit doesn't honor buffer-local values for
 ;; `magit-log-setup-buffer'.
 (define-advice magit-process-git-arguments (:filter-return (args) stp-magit-use-stp-git-flags)
-  (if (f-descendant-of-p default-directory stp-git-cache-directory)
-      (append (stp-git-flags) args)
-    args))
+  (let ((stp-allow-bare-repository-override t))
+    (if (f-descendant-of-p default-directory stp-git-cache-directory)
+        (append (stp-git-flags) args)
+      args)))
 
 ;; The idea for showing the git log with magit integration comes from
 ;; https://github.com/alberti42/straight-overview by Andrea Alberti (a package
