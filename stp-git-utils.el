@@ -854,7 +854,9 @@ of that specific branch."
 When there is a list of remotes, use a combination of all the
 remote repositories for caching."
   (let ((id (if (listp remotes)
-                (s-join "|" remotes)
+                ;; Reverse the order so that branches and tags in earlier
+                ;; remotes take precedence.
+                (s-join "|" (reverse remotes))
               remotes)))
    (f-join stp-git-cache-directory (stp-git-cache-hash-directory id))))
 
@@ -864,11 +866,7 @@ remote repositories for caching."
   (f-join stp-git-cache-directory (format "%s%s" path stp-git-cached-repo-timestamp-suffix)))
 
 (stp-defmemoized stp-git-ensure-cached-repo (remotes &optional branch)
-  (if (listp remotes)
-      ;; Fetch in reverse order so that branches and tags in earlier remotes
-      ;; take precedence.
-      (setq remotes (reverse remotes))
-    (setq remotes (list remotes)))
+  (setq remotes (ensure-list remotes))
   (unless (f-dir-p stp-git-cache-directory)
     (f-mkdir-full-path stp-git-cache-directory))
   (let* ((path (stp-git-cached-repo-path remotes))

@@ -39,7 +39,7 @@
                                      (stp-git-remote-heads .remote)
                                      :test #'string=)
                             "HEAD"))
-                ;; Only use the remote attribute to determining the latest versions.
+                ;; Only use the remote attribute to determine the latest versions.
                 (latest-stable (stp-git-latest-stable-version .remote))
                 (latest-unstable (->> branch
                                       (stp-git-latest-unstable-version .remote)
