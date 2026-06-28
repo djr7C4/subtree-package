@@ -542,6 +542,7 @@ reorder the remotes based on which was chosen.")
     (when (or other-remotes (not (string= chosen-remote remote)))
       (->> (cons remote other-remotes)
            (remove chosen-remote)
+           -uniq
            (stp-set-attribute pkg-name 'other-remotes)))))
 
 (defun stp-github-io-transformer (remote)

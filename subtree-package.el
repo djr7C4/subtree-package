@@ -148,7 +148,7 @@ occurred."
                         (stp-msg "A manual installation was detected for %s" pkg-name)
                         (setq .method 'git)
                         (stp-set-attribute pkg-name 'method 'git)))
-                    (let* ((valid-other-remotes (-filter (-rpartial #'stp-valid-remote-p .method) .other-remotes)))
+                    (let* ((valid-other-remotes (-uniq (-filter (-rpartial #'stp-valid-remote-p .method) .other-remotes))))
                       (when valid-other-remotes
                         (stp-set-attribute pkg-name 'other-remotes valid-other-remotes)))
                     (unless .requirements
@@ -714,7 +714,7 @@ refresh package list afterwards."
                                         :multiple t
                                         :keymap stp-add-remotes-keymap))
                  (new-remote (car new-remotes))
-                 (new-other-remotes (cdr new-remotes))
+                 (new-other-remotes (-uniq (cdr new-remotes)))
                  (invalid-remotes (-filter (lambda (remote)
                                              (not (stp-valid-remote-p remote .method)))
                                            new-remotes)))
