@@ -1333,7 +1333,7 @@ version information updated."
 ;; The idea for showing the git log with magit integration comes from
 ;; https://github.com/alberti42/straight-overview by Andrea Alberti (a package
 ;; that is itself inspired by the latest version features of subtree-package).
-(cl-defun stp-latest-new-commits (pkg-name &key update-cached-repo)
+(cl-defun stp-latest-magit-log (pkg-name &key update-cached-repo)
   "Show upstream commits since the current version of PKG-NAME.
 
 The commits shown depends on the update policy of the package. If
@@ -1379,7 +1379,6 @@ argument."
               "a" #'stp-post-actions-command
               "b" #'stp-build-command
               "B" #'stp-build-all-command
-              "c" #'stp-latest-new-commits
               "C" #'stp-check-requirements
               "m" #'stp-build-info
               "M" #'stp-build-all-info
@@ -1393,7 +1392,7 @@ argument."
               "G" #'stp-reload
               "i" #'stp-install-command
               "I" #'stp-update-all-info-directories
-              "l" #'stp-list-update-load-path
+              "l" #'stp-latest-magit-log
               "L" #'stp-update-lock-file
               "o" #'stp-unnecessary-dependencies-command
               "O" #'stp-list-open-current-remote
@@ -1411,6 +1410,7 @@ argument."
               "<end>" #'stp-list-last-package
               "M-<" #'stp-list-first-package
               "M->" #'stp-list-last-package
+              "P" #'stp-list-update-load-path
               "r" #'stp-repair-command
               "R" #'stp-reinstall-command
               "x" #'stp-delete-package-group-command
