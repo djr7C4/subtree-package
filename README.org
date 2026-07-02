@@ -58,6 +58,7 @@ and has convenience bindings for
 - uninstalling a package group (=D=),
 - deleting a package group (=x=),
 - building source (=b=),
+- viewing upstream commits in magit (=l=),
 - building info (=m=),
 - editing remotes (=e=),
 - uninstalling (=x=),
@@ -68,7 +69,7 @@ and has convenience bindings for
 - repairing (=r=) and
 - editing available remotes (=e=),
 - reloading (=G=),
-- adding to the load path (=l=),
+- adding to the load path (=P=),
 - running post actions (=a=) and
 - viewing the source code (=RET=)
 
