@@ -857,8 +857,12 @@ remote repositories for caching."
                 ;; Reverse the order so that branches and tags in earlier
                 ;; remotes take precedence.
                 (s-join "|" (reverse remotes))
-              remotes)))
-   (f-join stp-git-cache-directory (stp-git-cache-hash-directory id))))
+              remotes))
+        (name (f-no-ext (f-filename (car remotes)))))
+    ;; The name of the repository is included so that when
+    ;; `stp-latest-magit-log' runs the `magit-log' buffer will show the correct
+    ;; name.
+    (f-join stp-git-cache-directory (stp-git-cache-hash-directory id) name)))
 
 (defvar stp-git-cached-repo-timestamp-suffix "-timestamp")
 
