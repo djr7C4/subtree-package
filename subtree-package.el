@@ -1689,41 +1689,69 @@ confirmation."
              deleted-dirs
              stp-source-directory)))
 
-(cl-defun stp-find-package-args (&optional (find-file-fun #'find-file))
+(defun stp-magit-status-same-window ()
+  (let ((magit-display-buffer-function (lambda (buf)
+                                         (display-buffer buf '(display-buffer-same-window)))))
+    (magit-status-setup-buffer default-directory)))
+
+(defvar stp-find-package-default-action #'stp-magit-status-same-window
+  "Default action `stp-find-package' when no file is specified.
+
+If it is nil or \\='main-file, then find the main source file for
+the package. Otherwise, it should be a function with no arguments
+to call to perform the default action. It will be called with
+`default-directory' bound to the source directory of the package.")
+
+(cl-defun stp-find-package-args (&key (find-file-fun #'find-file))
   (if (derived-mode-p 'stp-list-mode)
-      (list (stp-list-package-on-line) nil find-file-fun (equal current-prefix-arg '(16)))
+      (list (stp-list-package-on-line)
+            :file nil
+            :find-file-fun find-file-fun
+            :always-choose (equal current-prefix-arg '(16))
+            :default-action stp-find-package-default-action)
     (append (with-current-buffer (or (buffer-base-buffer)
                                      (current-buffer))
-              (or (and (or (equal current-prefix-arg '(16))
-                           (not current-prefix-arg))
-                       (stp-current-package))
-                  (list (stp-read-existing-name "Package name: ") nil)))
-            (list find-file-fun (equal current-prefix-arg '(16))))))
+              (or (aand (or (equal current-prefix-arg '(16))
+                            (not current-prefix-arg))
+                        (stp-current-package)
+                        (dsb (pkg-name file)
+                            it
+                          (list pkg-name :file file)))
+                  (list (stp-read-existing-name "Package name: ") :file nil)))
+            (list :find-file-fun find-file-fun
+                  :always-choose (equal current-prefix-arg '(16))
+                  :default-action stp-find-package-default-action))))
 
-(defun stp-find-package (pkg-name &optional file find-file-fun always-choose)
+(cl-defun stp-find-package (pkg-name &key file find-file-fun always-choose default-action)
   "Try to find FILE for PKG-NAME on the local filesystem.
 
 Interactively, if no package exists for the current buffer or
 with a universal prefix argument, read the name of a package and
-use that.
+use that. In `stp-list-mode', use the package on the current
+line.
 
-When `stp-preferred-directories' is non-nil and
-contains a copy of the package that the current source file
-belongs to, use that copy. Earlier entries in
-`stp-preferred-directories' take precedence.
+When `stp-preferred-directories' is non-nil and contains a copy
+of the package that the current source file belongs to, use that
+copy. Earlier entries in `stp-preferred-directories' take
+precedence. Otherwise, look for the source code in
+`stp-development-directories', `stp-fork-directory' and
+`stp-source-directory'.
 
-When in `stp-list-mode', open the main file for the package on
-the current line. Otherwise, look for candidates for the source
-code in `stp-development-directories', `stp-fork-directory' and
-`stp-source-directory'. If there is only one candidate or if
-there are exactly two candidates and one contains the current
-file, open the other candidate. Otherwise or if ALWAYS-CHOOSE is
+If there is only one candidate or if there are exactly two
+candidates and one contains the current file, open the other
+candidate. Otherwise or if ALWAYS-CHOOSE is
 non-nil (interactively with two prefix arguments) prompt the user
 to choose between them.
 
+When the current buffer has no associated file or with a
+universal prefix argument, run
+DEFAULT-ACTION (`stp-find-package-default-action' interactively)
+for the copy of the package found.
+
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
-development or for opening packages from `stp-list-mode'."
+development or for opening packages from `stp-list-mode' or other
+buffers."
   (interactive (stp-find-package-args))
   (stp-refresh-info)
   (let ((path (f-canonical (or (buffer-file-name (or (buffer-base-buffer)
@@ -1743,8 +1771,9 @@ development or for opening packages from `stp-list-mode'."
                                     (stp-development-directories))
                             (list (stp-full-path pkg-name)))
                     (-filter (lambda (dir)
-                               ;; Ignore directories that do not exist and the
-                               ;; copy of the package that we are currently in.
+                               ;; Ignore directories that do not exist or are
+                               ;; the same copy of the package that we are
+                               ;; currently in.
                                (and (f-dir-p dir)
                                     (not (f-same-p dir path))
                                     (not (rem-ancestor-of-p dir path))))
@@ -1766,33 +1795,40 @@ development or for opening packages from `stp-list-mode'."
                                                     dirs)))
                                 (t
                                  (rem-comp-read "Directory: " dirs :require-match t))))))
-              (let ((file-used (or file (stp-main-package-file pkg-name :relative t)))
-                    (default-directory dir)
-                    (line (line-number-at-pos))
-                    (column (current-column))
-                    (window-line (rem-window-line-number-at-pos))
-                    (old-buf (current-buffer)))
-                (funcall find-file-fun file-used)
-                (if (and (not (with-current-buffer old-buf
-                                (derived-mode-p 'stp-list-mode)))
-                         (equal file file-used)
-                         (not (rem-buffer-same-p old-buf)))
-                    (stp-msg "Found %s. Files differ. Line and column may not be preserved" (f-abbrev (f-join dir file-used)))
-                  (stp-msg "Found %s" (f-abbrev (f-join dir file-used))))
-                ;; Go to the corresponding line in the file if possible.
-                (when file
-                  (rem-goto-line-column line column t)
-                  (rem-move-current-window-line-to-pos window-line))))
+              (if (or file (null default-action) (eq default-action 'main-file))
+                  (let ((file-used (or file (stp-main-package-file pkg-name :relative t)))
+                        (default-directory dir)
+                        (line (line-number-at-pos))
+                        (column (current-column))
+                        (window-line (rem-window-line-number-at-pos))
+                        (old-buf (current-buffer)))
+                    (funcall find-file-fun file-used)
+                    (if (and (not (with-current-buffer old-buf
+                                    (derived-mode-p 'stp-list-mode)))
+                             (equal file file-used)
+                             (not (rem-buffer-same-p old-buf)))
+                        (stp-msg "Found %s. Files differ. Line and column may not be preserved" (f-abbrev (f-join dir file-used)))
+                      (stp-msg "Found %s" (f-abbrev (f-join dir file-used))))
+                    ;; Go to the corresponding line in the file if possible.
+                    (when file
+                      (rem-goto-line-column line column t)
+                      (rem-move-current-window-line-to-pos window-line)))
+                (let ((default-directory dir))
+                  (funcall default-action))))
           (if (stp-current-package)
               (stp-msg "Another copy of %s was not found in the local filesystem" pkg-name)
             (stp-msg "%s was not found in the local filesystem" pkg-name)))))))
 
-(defun stp-find-package-other-window (pkg-name &optional file find-file-fun always-choose)
+(cl-defun stp-find-package-other-window (pkg-name &key file find-file-fun always-choose default-action)
   "Find FILE for PKG-NAME in the other window.
 
 See `stp-find-package' for details."
-  (interactive (stp-find-package-args #'find-file-other-window))
-  (stp-find-package pkg-name file find-file-fun always-choose))
+  (interactive (stp-find-package-args :find-file-fun #'find-file-other-window))
+  (stp-find-package pkg-name
+                    :file file
+                    :file-file-fun find-file-fun
+                    :always-choose always-choose
+                    :default-action default-action))
 
 (defun stp-unnecessary-dependencies-command (&optional delete)
   "Inform the user about dependencies that are no longer required.
