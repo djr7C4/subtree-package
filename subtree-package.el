@@ -499,8 +499,11 @@ If REFRESH is non-nil, refresh the package list afterwards."
          table
          :class 'stp-uninstall-operation-options)))))
 
-(defvar stp-fork-action #'find-file-other-window
+(defvar stp-fork-action (if (fboundp 'magit-status-setup-buffer)
+                            #'magit-status-setup-buffer
+                          #'find-file-other-window)
   "The action to execute after a fork is created.
+
 The function is called with the local path to the fork.")
 
 (defun stp-fork-command ()
