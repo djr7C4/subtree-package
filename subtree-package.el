@@ -1316,8 +1316,6 @@ version information updated."
         (unless quiet-toplevel
           (stp-msg "No packages need their latest versions updated%s" ignored-string))))))
 
-(declare-function magit-log-setup-buffer "magit-log")
-
 (defvar stp-latest-update-cached-repo nil)
 (defvar stp-latest-show-all-new-commits nil)
 (defvar stp-latest-magit-log-default-args (get 'magit-log-mode 'magit-log-default-arguments))
@@ -1354,6 +1352,7 @@ argument."
                      :update-cached-repo (xor stp-latest-update-cached-repo current-prefix-arg)))
   (unless (fboundp 'magit-log-setup-buffer)
     (user-error "Magit is required to show new commits"))
+  (declare-function magit-log-setup-buffer "magit-log")
   (stp-refresh-info)
   (let-alist (map-merge 'alist
                         (map-elt stp-latest-versions-cache pkg-name)
