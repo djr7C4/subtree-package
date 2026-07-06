@@ -1693,11 +1693,16 @@ confirmation."
              stp-source-directory)))
 
 (defun stp-magit-status-same-window ()
+  (unless (fboundp 'magit-status-setup-buffer)
+    (user-error "Magit is required to show new commits"))
+  (defvar magit-display-buffer-function)
+  (declare-function magit-status-setup-buffer "magit-status")
   (let ((magit-display-buffer-function (lambda (buf)
                                          (display-buffer buf '(display-buffer-same-window)))))
     (magit-status-setup-buffer default-directory)))
 
-(defvar stp-find-package-default-action #'stp-magit-status-same-window
+(defvar stp-find-package-default-action (when (fboundp 'magit-status-setup-buffer)
+                                          #'stp-magit-status-same-window)
   "Default action `stp-find-package' when no file is specified.
 
 If it is nil or \\='main-file, then find the main source file for
