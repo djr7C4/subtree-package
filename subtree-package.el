@@ -1733,13 +1733,12 @@ to call to perform the default action. It will be called with
   "Try to find FILE for PKG-NAME on the local filesystem.
 
 Interactively, if no package exists for the current buffer or
-with a universal prefix argument, read the name of a package and
-use that. In `stp-list-mode', use the package on the current
-line.
+with a universal prefix argument, read the name of a package. In
+`stp-list-mode', use the package on the current line.
 
 When `stp-preferred-directories' is non-nil and contains a copy
-of the package that the current source file belongs to, use that
-copy. Earlier entries in `stp-preferred-directories' take
+of the package that the current source file belongs to, prefer
+that copy. Earlier entries in `stp-preferred-directories' take
 precedence. Otherwise, look for the source code in
 `stp-development-directories', `stp-fork-directory' and
 `stp-source-directory'.
@@ -1751,9 +1750,9 @@ non-nil (interactively with two prefix arguments) prompt the user
 to choose between them.
 
 When the current buffer has no associated file or with a
-universal prefix argument, run
-DEFAULT-ACTION (`stp-find-package-default-action' interactively)
-for the copy of the package found.
+universal prefix argument, run DEFAULT-ACTION (interactively
+`stp-find-package-default-action') for the copy of the package
+found.
 
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
