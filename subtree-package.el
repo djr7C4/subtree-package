@@ -1693,10 +1693,10 @@ confirmation."
 
 (defun stp-magit-status-same-window (dir)
   (if-let* (((fboundp 'magit-status-setup-buffer))
-            (root (stp-git-root :path dir))
             ;; Opening the git root of the package source directory isn't very
             ;; helpful since it contains many packages.
-            ((not (rem-descendant-of-inclusive-p root stp-source-directory))))
+            ((not (rem-descendant-of-inclusive-p dir stp-source-directory)))
+            (root (stp-git-root :path dir)))
       (progn
         (defvar magit-display-buffer-function)
         (declare-function magit-status-setup-buffer "magit-status")
