@@ -1692,13 +1692,15 @@ confirmation."
              stp-source-directory)))
 
 (defun stp-magit-status-same-window ()
-  (unless (fboundp 'magit-status-setup-buffer)
-    (user-error "Magit is required to show new commits"))
-  (defvar magit-display-buffer-function)
-  (declare-function magit-status-setup-buffer "magit-status")
-  (let ((magit-display-buffer-function (lambda (buf)
-                                         (display-buffer buf '(display-buffer-same-window)))))
-    (magit-status-setup-buffer default-directory)))
+  (if-let* (((fboundp 'magit-status-setup-buffer))
+            (root (stp-git-root default-directory)))
+      (progn
+        (defvar magit-display-buffer-function)
+        (declare-function magit-status-setup-buffer "magit-status")
+        (let ((magit-display-buffer-function (lambda (buf)
+                                               (display-buffer buf '(display-buffer-same-window)))))
+          (magit-status-setup-buffer root)))
+    (dired default-directory)))
 
 (defvar stp-find-package-default-action (when (fboundp 'magit-status-setup-buffer)
                                           #'stp-magit-status-same-window)
@@ -1710,6 +1712,7 @@ to call to perform the default action. It will be called with
 `default-directory' bound to the source directory of the package.")
 
 (cl-defun stp-find-package-args (&key (find-file-fun #'find-file))
+  (stp-refresh-info)
   (if (derived-mode-p 'stp-list-mode)
       (list (stp-list-package-on-line)
             :file nil
