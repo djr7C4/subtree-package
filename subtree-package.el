@@ -1691,25 +1691,28 @@ confirmation."
              deleted-dirs
              stp-source-directory)))
 
-(defun stp-magit-status-same-window ()
+(defun stp-magit-status-same-window (dir)
   (if-let* (((fboundp 'magit-status-setup-buffer))
-            (root (stp-git-root)))
+            (root (stp-git-root :path dir))
+            ;; Opening the git root of the package source directory isn't very
+            ;; helpful since it contains many packages.
+            ((not (rem-descendant-of-inclusive-p root stp-source-directory))))
       (progn
         (defvar magit-display-buffer-function)
         (declare-function magit-status-setup-buffer "magit-status")
         (let ((magit-display-buffer-function (lambda (buf)
                                                (display-buffer buf '(display-buffer-same-window)))))
           (magit-status-setup-buffer root)))
-    (dired default-directory)))
+    (dired dir)))
 
 (defvar stp-find-package-default-action (when (fboundp 'magit-status-setup-buffer)
-                                          #'stp-magit-status-same-window)
+                                          (lambda (_pkg-name dir)
+                                            (stp-magit-status-same-window dir)))
   "Default action `stp-find-package' when no file is specified.
 
 If it is nil or \\='main-file, then find the main source file for
-the package. Otherwise, it should be a function with no arguments
-to call to perform the default action. It will be called with
-`default-directory' bound to the source directory of the package.")
+the package. Otherwise, it should be a function to call with the
+name of the package and the source directory as arguments.")
 
 (cl-defun stp-find-package-args (&key (find-file-fun #'find-file))
   (stp-refresh-info)
@@ -1823,7 +1826,7 @@ buffers."
                       (rem-goto-line-column line column t)
                       (rem-move-current-window-line-to-pos window-line)))
                 (let ((default-directory dir))
-                  (funcall default-action))))
+                  (funcall default-action pkg-name dir))))
           (if (stp-current-package)
               (stp-msg "Another copy of %s was not found in the local filesystem" pkg-name)
             (stp-msg "%s was not found in the local filesystem" pkg-name)))))))
