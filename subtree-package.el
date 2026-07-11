@@ -1693,7 +1693,7 @@ confirmation."
 
 (defun stp-magit-status-same-window ()
   (if-let* (((fboundp 'magit-status-setup-buffer))
-            (root (stp-git-root default-directory)))
+            (root (stp-git-root)))
       (progn
         (defvar magit-display-buffer-function)
         (declare-function magit-status-setup-buffer "magit-status")
