@@ -54,9 +54,9 @@ instead."
 ;; order to enhance security.
 (defvar stp-allow-bare-repository-override nil)
 
-;; The user should set this depending of if they want to allow commands that
-;; require it to override safe.bareRepository. This is only done in top-level
-;; git repositories so the security issues described at
+;; The user should set this depending of if the user wishes to allow commands
+;; that require it to override safe.bareRepository. This is only done in
+;; top-level git repositories so the security issues described at
 ;; https://github.com/justinsteven/advisories/blob/main/2022_git_buried_bare_repos_and_fsmonitor_various_abuses.md
 ;; shouldn't be possible even when it is non-nil. Some functionality will not
 ;; work when
