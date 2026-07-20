@@ -11,7 +11,8 @@
 (cl-defun stp-git-root (&key path (transform #'f-canonical))
   "Return the absolute path to the git repository containing PATH.
 
-TRANSFORM is a function that is applied to PATH when it is non-nil."
+TRANSFORM is a function that is applied to PATH when it is
+non-nil and the return value."
   (setq path (or (and path (funcall transform path)) default-directory))
   (let* ((default-directory path)
          (root (or (rem-run-command (append (stp-git-command) '("rev-parse" "--show-toplevel")))
@@ -20,7 +21,7 @@ TRANSFORM is a function that is applied to PATH when it is non-nil."
                    (rem-run-command (append (stp-git-command) '("rev-parse" "--resolve-git-dir" "."))))))
     (and (> (length root) 0)
          (f-dir-p root)
-         (f-slash (f-canonical root)))))
+         (f-slash (funcall transform root)))))
 
 (defun stp-git-relative-path (path)
   "Return PATH relative to the git root."
@@ -92,6 +93,18 @@ security.")
       (dsb (pkg-name k)
           it
       (list pkg-name (apply #'f-join (cddr (f-split (substring path k)))))))))
+
+(defun stp-git-tracked-files (path)
+  "Return a list of the tracked files at PATH."
+  (let* ((root (or (stp-git-root :path path :transform #'identity)
+                   (error "Not in a git repository")))
+         (default-directory root))
+    (->> (rem-run-command (rem-at-end (stp-git-command) "ls-files") :error t)
+         s-trim
+         (s-split "\n")
+         (mapcar (-partial #'f-join root))
+         ;; `rem-ancestor-of-inclusive-p' would be better but it is much slower.
+         (-filter (-partial #'s-prefix-p (f-slash (f-full path)))))))
 
 (defun stp-git-tracked-p (path)
   "Determine if the file at PATH in a git repository is tracked."
