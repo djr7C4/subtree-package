@@ -439,12 +439,15 @@ If REFRESH is non-nil, refresh the package list afterwards."
                                        "")
                                      (rem-join-and (stp-required-by pkg-name))))))
                        unsatisfied-requirements)))
-    (pop-to-buffer "*STP requirements*")
-    (with-current-buffer "*STP requirements*"
-      (let ((inhibit-read-only t))
-        (erase-buffer)
-        (insert (format "Unsatisfied requirements:\n%s" (s-join "\n" msgs))))
-      (read-only-mode 1))))
+    (if msgs
+        (progn
+          (pop-to-buffer "*STP requirements*")
+          (with-current-buffer "*STP requirements*"
+            (let ((inhibit-read-only t))
+              (erase-buffer)
+              (insert (format "Unsatisfied requirements:\n%s" (s-join "\n" msgs))))
+            (read-only-mode 1)))
+      (message "All requirements are satisfied"))))
 
 (cl-defun stp-package-group-command (fun table &key (class nil class-provided-p) (refresh t))
   (stp-refresh-info)
