@@ -853,10 +853,6 @@ inverted with a prefix argument."
       (stp-build (stp-list-read-name "Package name: ")
                  (xor stp-allow-naive-byte-compile current-prefix-arg)))))
 
-(defvar stp-build-blacklist nil
-  "The list of packages that should not be built by `stp-build-all'.
-This applies when it is called interactively.")
-
 (defun stp-build-all-command ()
   "Build all packages.
 
@@ -889,9 +885,6 @@ is allowed."
     (if failed
         (stp-msg "Failed to build: %s" (s-join " " failed))
       (stp-msg "Successfully built all packages"))))
-
-(defvar stp-build-info-blacklist nil
-  "Blacklist of packages for interactive calls to `stp-build-all-info'.")
 
 (defun stp-build-all-info (&optional pkg-names)
   "Build the info manuals for all packages.

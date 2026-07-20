@@ -440,6 +440,9 @@ remote or archive. Archives are represented as symbols."
 
 (defvar stp-build-output-buffer-name "*STP Build Output*")
 
+(defvar stp-build-blacklist nil
+  "The list of packages that should not be built by `stp-build'.")
+
 (defun stp-build (pkg-name &optional allow-naive-byte-compile)
   "Build the package PKG-NAME.
 
@@ -448,78 +451,85 @@ performing naive byte compilation. ALLOW-NAIVE-BYTE-COMPILE
 controls whether naive byte compilation is allowed. Return
 non-nil if there were no errors."
   (when pkg-name
-    (let* ((output-buffer stp-build-output-buffer-name)
-           (pkg-path (stp-canonical-path pkg-name))
-           (build-dir pkg-path))
-      ;; Setup output buffer
-      (get-buffer-create output-buffer)
-      ;; Handle CMake separately. Since it generates makefiles, make may need
-      ;; to be run afterwards.
-      (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
-        (stp-msg "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
-        ;; Try to use the directory build by default. It is fine if
-        ;; this directory already exists as long as it is not tracked
-        ;; by git.
-        (setq build-dir (f-expand "build" pkg-path))
-        (when (and (f-exists-p build-dir)
-                   (stp-git-tracked-p build-dir))
-          (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
-        (unless (f-exists-p build-dir)
-          (make-directory build-dir))
-        (let ((default-directory build-dir))
-          (let ((cmd '("cmake" "..")))
-            (stp-before-build-command cmd output-buffer)
-            ;; This will use `build-dir' as the build directory and
-            ;; `pkg-path' as the source directory so there is no
-            ;; ambiguity as to which CMakeLists.txt file should be
-            ;; used.
-            (unless (eql (rem-run-command cmd :buffer output-buffer) 0)
-              (stp-msg "Failed to run cmake on %s" build-dir)))))
-      (let ((success
-             ;; Try different methods of building the package until one
-             ;; succeeds.
-             (or nil
-                 ;; Handle GNU make. We use a separate binding for
-                 ;; `default-directory' here because the cmake code above
-                 ;; can change build-dir.
-                 (let ((default-directory build-dir))
-                   (when (-any (lambda (file)
-                                 (f-exists-p file))
-                               stp-gnu-makefile-names)
-                     (stp-msg "A makefile was found in %s. Attempting to run make..." build-dir)
-                     (let ((cmd '("make")))
-                       (stp-before-build-command cmd output-buffer)
-                       ;; Make expects a makefile to be in the current directory
-                       ;; so there is no ambiguity over which makefile will be
-                       ;; used.
-                       (or (eql (rem-run-command cmd :buffer output-buffer) 0)
-                           (and (stp-msg "Failed to run make on %s" pkg-path)
-                                nil)))))
-                 (and allow-naive-byte-compile
-                      (let ((default-directory pkg-path))
-                        (stp-msg "Attempting to byte compile files in %s..." pkg-path)
-                        (condition-case nil
-                            (progn
-                              ;; Put the messages from `byte-recompile-directory' in
-                              ;; output-buffer.
-                              (dflet ((stp-msg (&rest args)
-                                               (with-current-buffer output-buffer
-                                                 (insert (apply #'format args)))))
-                                (stp-before-build-command "Byte compiling files" output-buffer)
-                                ;; Packages have to be compiled and loaded twice
-                                ;; to ensure that macros will work.
-                                (byte-recompile-directory pkg-path 0)
-                                (stp-reload-once pkg-name)
-                                (byte-recompile-directory pkg-path 0)
-                                (stp-reload-once pkg-name))
-                              t)
-                          (error (stp-msg "Byte-compiling %s failed" pkg-path)
-                                 nil)))))))
-        ;; Return success or failure
-        (if success
-            (stp-msg "Successfully built %s" pkg-name)
-          (stp-msg "Build failed for %s" pkg-name))
-        success))))
+    (if (member pkg-name stp-build-blacklist)
+        (progn
+          (stp-msg "Skipping build: %s is blacklisted")
+          ;; Builds of blacklisted packages are considered successful so that
+          ;; build operations are not considered failures by the controller.
+          t)
+      (let* ((output-buffer stp-build-output-buffer-name)
+             (pkg-path (stp-canonical-path pkg-name))
+             (build-dir pkg-path))
+        ;; Setup output buffer
+        (get-buffer-create output-buffer)
+        ;; Handle CMake separately. Since it generates makefiles, make may
+        ;; need to be run afterwards.
+        (when (f-exists-p (f-expand "CMakeLists.txt" pkg-path))
+          (stp-msg "CMakeLists.txt was found in %s. Attempting to run cmake..." build-dir)
+          ;; Try to use the directory build by default. It is fine if
+          ;; this directory already exists as long as it is not tracked
+          ;; by git.
+          (setq build-dir (f-expand "build" pkg-path))
+          (when (and (f-exists-p build-dir)
+                     (stp-git-tracked-p build-dir))
+            (setq build-dir (f-expand (make-temp-file "build-") pkg-path)))
+          (unless (f-exists-p build-dir)
+            (make-directory build-dir))
+          (let ((default-directory build-dir))
+            (let ((cmd '("cmake" "..")))
+              (stp-before-build-command cmd output-buffer)
+              ;; This will use `build-dir' as the build directory and
+              ;; `pkg-path' as the source directory so there is no
+              ;; ambiguity as to which CMakeLists.txt file should be
+              ;; used.
+              (unless (eql (rem-run-command cmd :buffer output-buffer) 0)
+                (stp-msg "Failed to run cmake on %s" build-dir)))))
+        (let ((success
+               ;; Try different methods of building the package until one
+               ;; succeeds.
+               (or nil
+                   ;; Handle GNU make. We use a separate binding for
+                   ;; `default-directory' here because the cmake code above
+                   ;; can change build-dir.
+                   (let ((default-directory build-dir))
+                     (when (-any (lambda (file)
+                                   (f-exists-p file))
+                                 stp-gnu-makefile-names)
+                       (stp-msg "A makefile was found in %s. Attempting to run make..." build-dir)
+                       (let ((cmd '("make")))
+                         (stp-before-build-command cmd output-buffer)
+                         ;; Make expects a makefile to be in the current
+                         ;; directory so there is no ambiguity over which
+                         ;; makefile will be used.
+                         (or (eql (rem-run-command cmd :buffer output-buffer) 0)
+                             (and (stp-msg "Failed to run make on %s" pkg-path)
+                                  nil)))))
+                   (and allow-naive-byte-compile
+                        (let ((default-directory pkg-path))
+                          (stp-msg "Attempting to byte compile files in %s..." pkg-path)
+                          (condition-case nil
+                              (progn
+                                ;; Put the messages from
+                                ;; `byte-recompile-directory' in
+                                ;; output-buffer.
+                                (dflet ((stp-msg (&rest args)
+                                                 (with-current-buffer output-buffer
+                                                   (insert (apply #'format args)))))
+                                  (stp-before-build-command "Byte compiling files" output-buffer)
+                                  ;; Packages have to be compiled and loaded
+                                  ;; twice to ensure that macros will work.
+                                  (byte-recompile-directory pkg-path 0)
+                                  (stp-reload-once pkg-name)
+                                  (byte-recompile-directory pkg-path 0)
+                                  (stp-reload-once pkg-name))
+                                t)
+                            (error (stp-msg "Byte-compiling %s failed" pkg-path)
+                                   nil)))))))
+          ;; Return success or failure
+          (if success
+              (stp-msg "Successfully built %s" pkg-name)
+            (stp-msg "Build failed for %s" pkg-name))
+          success)))))
 
 (cl-defun stp-reload (pkg-name &key quiet)
   "Reload the package PKG-NAME.
@@ -532,60 +542,70 @@ When QUIET is non-nil, suppress messages."
   (unless quiet
     (stp-msg "Reloaded %s" pkg-name)))
 
+(defvar stp-build-info-blacklist nil
+  "Blacklist of packages for `stp-build-info'.")
+
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."
   (interactive (list (stp-list-read-name "Package name: ")))
   (when pkg-name
-    (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
-                                 (lambda (path)
-                                   (member (f-filename path) stp-gnu-makefile-names))
-                                 t))
-           (output-buffer stp-build-output-buffer-name)
-           (texi-target (concat pkg-name ".texi"))
-           (target (concat pkg-name ".info"))
-           attempted
-           (success
-            ;; Try to build the info manual in different ways until one succeeds.
-            (or nil
-                ;; Try to find a makefile that has an appropriate target.
-                (cl-dolist (makefile makefiles)
-                  (when (member target (stp-make-targets makefile))
-                    (let ((default-directory (f-dirname makefile)))
-                      (setq attempted t)
-                      (stp-msg "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
-                      (let ((cmd (list "make" target)))
-                        (stp-before-build-command cmd output-buffer)
-                        (if (eql (rem-run-command cmd :buffer output-buffer) 0)
-                            (progn
-                              (stp-msg "Built the info manual for %s using make" pkg-name)
-                              (cl-return t))
-                          (stp-msg "'%s' failed in %s" cmd (f-dirname makefile)))))))
-
-                ;; Try to compile a texi file directly.
-                (cl-dolist (source (f-entries (stp-canonical-path pkg-name)
-                                              (lambda (path)
-                                                (string= (f-filename path) texi-target))
-                                              t))
-                  (let ((default-directory (f-dirname source)))
-                    (setq attempted t)
-                    (stp-msg "texi source file found at %s. Attempting to compile it with makeinfo..." source)
-                    (let ((cmd (list "makeinfo" "--no-split" texi-target)))
-                      (cond
-                       (;; Don't build texi files unless they have changed since the info
-                        ;; manual was last built.
-                        (f-newer-p (f-swap-ext source "info") source)
-                        (stp-msg "The info manual for %s is up to date" pkg-name)
-                        (cl-return t))
-                       ((progn
+    (if (member pkg-name stp-build-info-blacklist)
+        (progn
+          (stp-msg "Skipping info build: %s is blacklisted")
+          ;; Info builds of blacklisted packages are considered successful so
+          ;; that build operations are not considered failures by the
+          ;; controller.
+          t)
+      (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
+                                   (lambda (path)
+                                     (member (f-filename path) stp-gnu-makefile-names))
+                                   t))
+             (output-buffer stp-build-output-buffer-name)
+             (texi-target (concat pkg-name ".texi"))
+             (target (concat pkg-name ".info"))
+             attempted
+             (success
+              ;; Try to build the info manual in different ways until one succeeds.
+              (or nil
+                  ;; Try to find a makefile that has an appropriate target.
+                  (cl-dolist (makefile makefiles)
+                    (when (member target (stp-make-targets makefile))
+                      (let ((default-directory (f-dirname makefile)))
+                        (setq attempted t)
+                        (stp-msg "Makefile with target %s found in %s. Attempting to run make..." target (f-dirname makefile))
+                        (let ((cmd (list "make" target)))
                           (stp-before-build-command cmd output-buffer)
-                          (eql (rem-run-command cmd :buffer output-buffer) 0))
-                        (stp-msg "Built the info manual for %s using makeinfo" pkg-name)
-                        (cl-return t))
-                       (t
-                        (stp-msg "'%s' failed" cmd)))))))))
-      (unless attempted
-        (stp-msg "No makefiles or texi source files found for the %s info manual" pkg-name))
-      success)))
+                          (if (eql (rem-run-command cmd :buffer output-buffer) 0)
+                              (progn
+                                (stp-msg "Built the info manual for %s using make" pkg-name)
+                                (cl-return t))
+                            (stp-msg "'%s' failed in %s" cmd (f-dirname makefile)))))))
+
+                  ;; Try to compile a texi file directly.
+                  (cl-dolist (source (f-entries (stp-canonical-path pkg-name)
+                                                (lambda (path)
+                                                  (string= (f-filename path) texi-target))
+                                                t))
+                    (let ((default-directory (f-dirname source)))
+                      (setq attempted t)
+                      (stp-msg "texi source file found at %s. Attempting to compile it with makeinfo..." source)
+                      (let ((cmd (list "makeinfo" "--no-split" texi-target)))
+                        (cond
+                         (;; Don't build texi files unless they have changed since the info
+                          ;; manual was last built.
+                          (f-newer-p (f-swap-ext source "info") source)
+                          (stp-msg "The info manual for %s is up to date" pkg-name)
+                          (cl-return t))
+                         ((progn
+                            (stp-before-build-command cmd output-buffer)
+                            (eql (rem-run-command cmd :buffer output-buffer) 0))
+                          (stp-msg "Built the info manual for %s using makeinfo" pkg-name)
+                          (cl-return t))
+                         (t
+                          (stp-msg "'%s' failed" cmd)))))))))
+        (unless attempted
+          (stp-msg "No makefiles or texi source files found for the %s info manual" pkg-name))
+        success))))
 
 (defun stp-update-info-directories (pkg-name &optional quiet)
   "Make the info files for PKG-NAME available to info commands.
