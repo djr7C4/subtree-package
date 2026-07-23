@@ -1199,7 +1199,7 @@ package and were installed as dependencies."))
               (stp-maybe-audit-changes pkg-name 'install last-hash options)
               (stp-update-remotes pkg-name .remote .remote .other-remotes)
               (stp-update-requirements pkg-name)
-              (when dependency
+              (when (or dependency .dependency)
                 (stp-set-attribute pkg-name 'dependency t))
               (stp-write-info)
               ;; For archives, the version is determined automatically instead of
