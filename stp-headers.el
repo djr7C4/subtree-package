@@ -527,7 +527,8 @@ insert them."
                                   (stp-installed-version pkg-name)
                                   (stp-version< it version)))))
           (aand (stp-installed-version pkg-name)
-                (stp-version<= version it))))))
+                (or (not version)
+                    (stp-version<= version it)))))))
 
 (defun stp-requirement-satisfied-p (pkg-name &optional version search-load-path)
   (or (stp-emacs-requirement-satisfied-p pkg-name version)
