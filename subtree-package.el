@@ -1687,7 +1687,7 @@ confirmation."
              deleted-dirs
              stp-source-directory)))
 
-(defun stp-magit-status-same-window (dir)
+(defun stp-magit-status (dir action)
   (if-let* (((fboundp 'magit-status-setup-buffer))
             ;; Opening the git root of the package source directory isn't very
             ;; helpful since it contains many packages.
@@ -1697,27 +1697,28 @@ confirmation."
         (defvar magit-display-buffer-function)
         (declare-function magit-status-setup-buffer "magit-status")
         (let ((magit-display-buffer-function (lambda (buf)
-                                               (display-buffer buf '(display-buffer-same-window)))))
+                                               (display-buffer buf action))))
           (magit-status-setup-buffer root)))
     (dired dir)))
 
 (defvar stp-find-package-default-action (when (fboundp 'magit-status-setup-buffer)
-                                          (lambda (_pkg-name dir)
-                                            (stp-magit-status-same-window dir)))
+                                          (lambda (_pkg-name dir action)
+                                            (stp-magit-status dir action)))
   "Default action `stp-find-package' when no file is specified.
 
 If it is nil or \\='main-file, then find the main source file for
 the package. Otherwise, it should be a function to call with the
-name of the package and the source directory as arguments.")
+name of the package, the source directory and a display action as
+arguments.")
 
-(cl-defun stp-find-package-args (&key (find-file-fun #'find-file))
+(cl-defun stp-find-package-args (&key (display-action '(display-buffer-same-window (inhibit-same-window . nil))))
   (stp-refresh-info)
   (if (derived-mode-p 'stp-list-mode)
       (list (stp-list-package-on-line)
             :file nil
-            :find-file-fun find-file-fun
             :always-choose (equal current-prefix-arg '(16))
-            :default-action stp-find-package-default-action)
+            :default-action stp-find-package-default-action
+            :display-action display-action)
     (append (with-current-buffer (or (buffer-base-buffer)
                                      (current-buffer))
               (or (aand (or (equal current-prefix-arg '(16))
@@ -1729,9 +1730,10 @@ name of the package and the source directory as arguments.")
                   (list (stp-read-existing-name "Package name: ") :file nil)))
             (list :find-file-fun find-file-fun
                   :always-choose (equal current-prefix-arg '(16))
-                  :default-action stp-find-package-default-action))))
+                  :default-action stp-find-package-default-action
+                  :display-action display-action))))
 
-(cl-defun stp-find-package (pkg-name &key file find-file-fun always-choose default-action)
+(cl-defun stp-find-package (pkg-name &key file find-file-fun always-choose default-action display-action)
   "Try to find FILE for PKG-NAME on the local filesystem.
 
 Interactively, if no package exists for the current buffer or
@@ -1755,6 +1757,9 @@ When the current buffer has no associated file or with a
 universal prefix argument, run DEFAULT-ACTION (interactively
 `stp-find-package-default-action') for the copy of the package
 found.
+
+DISPLAY-ACTION is passed to `display-buffer' to influence how
+buffers are displayed.
 
 This command is helpful for switching between the installed
 version of package and a local copy of git repository used for
@@ -1810,7 +1815,7 @@ buffers."
                         (column (current-column))
                         (window-line (rem-window-line-number-at-pos))
                         (old-buf (current-buffer)))
-                    (funcall find-file-fun file-used)
+                    (display-buffer (find-file-noselect file-used) display-action)
                     (if (and (not (with-current-buffer old-buf
                                     (derived-mode-p 'stp-list-mode)))
                              (equal file file-used)
@@ -1822,21 +1827,21 @@ buffers."
                       (rem-goto-line-column line column t)
                       (rem-move-current-window-line-to-pos window-line)))
                 (let ((default-directory dir))
-                  (funcall default-action pkg-name dir))))
+                  (funcall default-action pkg-name dir display-action))))
           (if (stp-current-package)
               (stp-msg "Another copy of %s was not found in the local filesystem" pkg-name)
             (stp-msg "%s was not found in the local filesystem" pkg-name)))))))
 
-(cl-defun stp-find-package-other-window (pkg-name &key file find-file-fun always-choose default-action)
+(cl-defun stp-find-package-other-window (pkg-name &key file always-choose default-action display-action)
   "Find FILE for PKG-NAME in the other window.
 
 See `stp-find-package' for details."
-  (interactive (stp-find-package-args :find-file-fun #'find-file-other-window))
+  (interactive (stp-find-package-args :display-action nil))
   (stp-find-package pkg-name
                     :file file
-                    :find-file-fun find-file-fun
                     :always-choose always-choose
-                    :default-action default-action))
+                    :default-action default-action
+                    :display-action display-action))
 
 (defun stp-unnecessary-dependencies-command (&optional delete)
   "Inform the user about dependencies that are no longer required.
