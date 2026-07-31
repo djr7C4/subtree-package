@@ -1834,7 +1834,7 @@ See `stp-find-package' for details."
   (interactive (stp-find-package-args :find-file-fun #'find-file-other-window))
   (stp-find-package pkg-name
                     :file file
-                    :file-file-fun find-file-fun
+                    :find-file-fun find-file-fun
                     :always-choose always-choose
                     :default-action default-action))
 
