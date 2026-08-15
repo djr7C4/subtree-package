@@ -1728,12 +1728,11 @@ arguments.")
                             it
                           (list pkg-name :file file)))
                   (list (stp-read-existing-name "Package name: ") :file nil)))
-            (list :find-file-fun find-file-fun
-                  :always-choose (equal current-prefix-arg '(16))
+            (list :always-choose (equal current-prefix-arg '(16))
                   :default-action stp-find-package-default-action
                   :display-action display-action))))
 
-(cl-defun stp-find-package (pkg-name &key file find-file-fun always-choose default-action display-action)
+(cl-defun stp-find-package (pkg-name &key file always-choose default-action display-action)
   "Try to find FILE for PKG-NAME on the local filesystem.
 
 Interactively, if no package exists for the current buffer or
