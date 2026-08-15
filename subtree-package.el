@@ -1808,13 +1808,13 @@ buffers."
                                 (t
                                  (rem-comp-read "Directory: " dirs :require-match t))))))
               (if (or file (null default-action) (eq default-action 'main-file))
-                  (let ((file-used (or file (stp-main-package-file pkg-name :relative t)))
-                        (default-directory dir)
-                        (line (line-number-at-pos))
-                        (column (current-column))
-                        (window-line (rem-window-line-number-at-pos))
-                        (old-buf (current-buffer)))
-                    (display-buffer (find-file-noselect file-used) display-action)
+                  (let* ((file-used (or file (stp-main-package-file pkg-name :relative t)))
+                         (default-directory dir)
+                         (line (line-number-at-pos))
+                         (column (current-column))
+                         (window-line (rem-window-line-number-at-pos))
+                         (old-buf (current-buffer))
+                         (win (display-buffer (find-file-noselect file-used) display-action)))
                     (if (and (not (with-current-buffer old-buf
                                     (derived-mode-p 'stp-list-mode)))
                              (equal file file-used)
@@ -1822,9 +1822,10 @@ buffers."
                         (stp-msg "Found %s. Files differ. Line and column may not be preserved" (f-abbrev (f-join dir file-used)))
                       (stp-msg "Found %s" (f-abbrev (f-join dir file-used))))
                     ;; Go to the corresponding line in the file if possible.
-                    (when file
-                      (rem-goto-line-column line column t)
-                      (rem-move-current-window-line-to-pos window-line)))
+                    (when (and file win)
+                      (with-selected-window win
+                        (rem-goto-line-column line column t)
+                        (rem-move-current-window-line-to-pos window-line))))
                 (let ((default-directory dir))
                   (funcall default-action pkg-name dir display-action))))
           (if (stp-current-package)
