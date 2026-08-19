@@ -995,16 +995,12 @@ extension added if necessary."
          ;; The point of only loading what would be put in the load path is to
          ;; avoid loading extra files such as tests. This is an issue when a
          ;; full recursive load is performed.
-         (pkg-load-paths (stp-compute-load-path pkg-path))
-         (files (->> pkg-load-paths
+         (files (->> pkg-path
+                     stp-compute-load-path
                      (mapcan (lambda (path)
                                (rem-elisp-files-to-load path
                                                         :blacklist (append rem-load-blacklist stp-load-path-blacklist)
                                                         :compressed t)))
-                     (-filter (lambda (file)
-                                (-some (lambda (path)
-                                         (rem-ancestor-of-p path file))
-                                       pkg-load-paths)))
                      (mapcar #'f-no-ext))))
     (cl-dolist (f files)
       (load f))))
