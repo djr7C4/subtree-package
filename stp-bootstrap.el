@@ -12,11 +12,11 @@
   ;; Include package directories and some sub-directories.
   (push pkg-path paths)
   (dolist (subdir stp-package-source-directories)
-    (let ((path (expand-file-name subdir pkg-path)))
+    (let ((path (file-name-as-directory (expand-file-name subdir pkg-path))))
       (when (file-directory-p path)
         (push path paths)
         (setq paths (stp-compute-load-path path paths)))))
-  paths)
+  (delete-dups paths))
 
 (defun stp-update-load-path (pkg-path &optional interactive-p)
   "Add all appropriate directories in PKG-PATH to the `load-path'.
