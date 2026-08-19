@@ -986,6 +986,9 @@ extension added if necessary."
       (insert (format "Current directory: %s\n" dir))
       (insert (rem-as-shell-command cmd)))))
 
+(defvar stp-load-path-blacklist nil
+  "A list of regular expressions that match paths to avoid loading.")
+
 (cl-defun stp-reload-once (pkg-name)
   "Reload all files for PKG-NAME that would be put in the load path."
   (let* ((pkg-path (stp-canonical-path pkg-name))
@@ -993,7 +996,11 @@ extension added if necessary."
          ;; avoid loading extra files such as tests. This is an issue when a
          ;; full recursive load is performed.
          (pkg-load-paths (stp-compute-load-path pkg-path))
-         (files (->> (rem-elisp-files-to-load pkg-path)
+         (files (->> pkg-load-paths
+                     (mapcan (lambda (path)
+                               (rem-elisp-files-to-load path
+                                                        :blacklist (append rem-load-blacklist stp-load-path-blacklist)
+                                                        :compressed t)))
                      (-filter (lambda (file)
                                 (-some (lambda (path)
                                          (rem-ancestor-of-p path file))
