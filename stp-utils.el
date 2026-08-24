@@ -35,8 +35,8 @@
   `(progn
      ;; `cl-defun' is used instead of `rem-defmemoize' because memoization
      ;; should only by active with an `stp-with-memoization' form. Not all
-     ;; commands wrap functions in `stp-with-memoization' and using memoization by
-     ;; default will lead to incorrect return values for functions that might
+     ;; commands wrap functions in `stp-with-memoization' and using memoization
+     ;; by default will lead to incorrect return values for functions that might
      ;; compute a different value in calls that are not part of the same
      ;; top-level.
      (cl-defun ,name ,args
