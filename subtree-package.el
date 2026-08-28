@@ -1418,8 +1418,8 @@ argument."
               "U" #'stp-install-or-upgrade-package-group-command
               "v" #'stp-list-update-latest-version
               "V" #'stp-list-update-latest-versions
-              "RET" #'stp-find-package
-              "C-x 4 RET" #'stp-find-package-other-window)
+              "SPC" #'stp-find-package
+              "RET" #'stp-find-package-other-window)
 
 (defun stp-list-annotated-latest-version (method version count version-timestamp latest-timestamp)
   (and version
