@@ -1484,7 +1484,7 @@ By default, redundant errors are ignored when the command run is
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")
 ;;   ("once-only" . "cl-once-only")
-;;   ("dflet" . "noflet")
+;;   ("dflet" . "rem-dflet")
 ;;   ("plet" . "pcase-let")
 ;;   ("plet*" . "pcase-let*")
 ;;   ("psetq*" . "pcase-setq")

@@ -980,7 +980,7 @@ This is similar to `stp-git-timestamp' but for remote repositories."
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")
 ;;   ("once-only" . "cl-once-only")
-;;   ("dflet" . "noflet")
+;;   ("dflet" . "rem-dflet")
 ;;   ("plet" . "pcase-let")
 ;;   ("plet*" . "pcase-let*")
 ;;   ("psetq*" . "pcase-setq")

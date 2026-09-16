@@ -1024,7 +1024,7 @@ NAME can be a symbol, a string or a list of the form (NAME VERSION)."
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")
 ;;   ("once-only" . "cl-once-only")
-;;   ("dflet" . "noflet")
+;;   ("dflet" . "rem-dflet")
 ;;   ("plet" . "pcase-let")
 ;;   ("plet*" . "pcase-let*")
 ;;   ("psetq*" . "pcase-setq")

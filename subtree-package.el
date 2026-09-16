@@ -12,7 +12,7 @@
 ;;   (emacs "29.1")
 ;;   (f "0.21.0")
 ;;   (queue "0.2")
-;;   (rem "0.10.0")
+;;   (rem "0.11.0")
 ;;   (s "1.13.0")
 ;;   (transient "0.12.0"))
 
@@ -1953,7 +1953,7 @@ current file."
 ;;   ("mvs" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")
 ;;   ("once-only" . "cl-once-only")
-;;   ("dflet" . "noflet")
+;;   ("dflet" . "rem-dflet")
 ;;   ("plet" . "pcase-let")
 ;;   ("plet*" . "pcase-let*")
 ;;   ("psetq*" . "pcase-setq")
