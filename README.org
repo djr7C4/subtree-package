@@ -344,7 +344,7 @@ In your =~/.emacs.d/init.el=, add the following code.
   (savehist-mode 1)
   (stp-setup)
 
-(keymap-global-set "C-c o" #'stp-find-package)
+  (keymap-global-set "C-c o" #'stp-find-package)
   (keymap-global-set "C-c P" #'stp-list)
 #+end_src
 
