@@ -620,7 +620,10 @@ QUIET suppresses messages."
                                    t))))
       (info-initialize)
       (setq Info-directory-list
-            (cl-remove-duplicates (append Info-directory-list new)
+            ;; Prepend so that manuals for packages will override older versions
+            ;; that ship with Emacs. This is important for packages such as
+            ;; transient.
+            (cl-remove-duplicates (append new Info-directory-list)
                                   :test #'equal))
       (unless quiet
         (if new
