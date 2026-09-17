@@ -545,6 +545,9 @@ When QUIET is non-nil, suppress messages."
 (defvar stp-build-info-blacklist nil
   "Blacklist of packages for `stp-build-info'.")
 
+(defvar stp-info-directory-blacklist '("/\\.cask/" "/\\.eask/")
+  "Directories that match regexps in this list will be ignored.")
+
 (defun stp-build-info (pkg-name)
   "Build the info manuals for PKG-NAME."
   (interactive (list (stp-list-read-name "Package name: ")))
@@ -558,7 +561,9 @@ When QUIET is non-nil, suppress messages."
           t)
       (let* ((makefiles (f-entries (stp-canonical-path pkg-name)
                                    (lambda (path)
-                                     (member (f-filename path) stp-gnu-makefile-names))
+                                     (and (member (f-filename path) stp-gnu-makefile-names)
+                                          (not (-any (-rpartial #'string-match-p path)
+                                                     stp-info-directory-blacklist))))
                                    t))
              (output-buffer stp-build-output-buffer-name)
              (texi-target (concat pkg-name ".texi"))
@@ -584,7 +589,9 @@ When QUIET is non-nil, suppress messages."
                   ;; Try to compile a texi file directly.
                   (cl-dolist (source (f-entries (stp-canonical-path pkg-name)
                                                 (lambda (path)
-                                                  (string= (f-filename path) texi-target))
+                                                  (and (string= (f-filename path) texi-target)
+                                                       (not (-any (-rpartial #'string-match-p path)
+                                                                  stp-info-directory-blacklist))))
                                                 t))
                     (let ((default-directory (f-dirname source)))
                       (setq attempted t)
@@ -616,7 +623,9 @@ QUIET suppresses messages."
     (let* ((directory (stp-canonical-path pkg-name))
            (new (mapcar 'f-dirname
                         (f-entries directory
-                                   (-partial #'string-match-p "\\.info$")
+                                   (fn (and (string-match-p "\\.info$" %)
+                                            (not (-any (-rpartial #'string-match-p %)
+                                                       stp-info-directory-blacklist))))
                                    t))))
       (info-initialize)
       (setq Info-directory-list
