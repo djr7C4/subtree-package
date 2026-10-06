@@ -21,16 +21,19 @@
 
 (defvar stp-emacsmirror-alist nil)
 
-(cl-defun stp-emacsmirror-async-refresh (&key force quiet)
+(cl-defun stp-emacsmirror-async-refresh (&key force quiet error)
   "Refresh the lists of URLs of Github repositories in `stp-emacsmirrors'.
 
 When FORCE is non-nil, refresh even if the last refresh occurred
 more recently than specified by
 `stp-emacsmirror-refresh-interval'. Suppress messages when QUIET
-is non-nil."
+is non-nil. When ERROR is non-nil, an error occurs when
+`stp-emacsmirror-async-refresh' is already running."
   (interactive (list :force current-prefix-arg))
   (when stp-emacsmirror-async-refresh-running
-    (user-error "`stp-emacsmirror-async-refresh' is already running"))
+    (if error
+        (user-error "`stp-emacsmirror-async-refresh' is already running")
+      (return-from stp-emacsmirror-async-refresh)))
   ;; Only refresh when it has been at least `stp-emacsmirror-refresh-interval'
   ;; seconds since the last refresh.
   (if (or force
