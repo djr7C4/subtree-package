@@ -986,7 +986,7 @@ extension added if necessary."
       (insert (format "Current directory: %s\n" dir))
       (insert (rem-as-shell-command cmd)))))
 
-(defvar stp-load-path-blacklist nil
+(defvar stp-load-path-blacklist '(".*/tests?\\(/.*\\)?")
   "A list of regular expressions that match paths to avoid loading.")
 
 (cl-defun stp-reload-once (pkg-name)
