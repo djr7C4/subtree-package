@@ -1313,7 +1313,7 @@ version information updated."
           (stp-msg "No packages need their latest versions updated%s" ignored-string))))))
 
 (defvar stp-latest-update-cached-repo nil)
-(defvar stp-latest-show-all-new-commits nil)
+(defvar stp-latest-show-all-new-commits t)
 (defvar stp-latest-magit-log-default-args (get 'magit-log-mode 'magit-log-default-arguments))
 
 ;; This is necessary to make magit commands such as `magit-show-commit' work
