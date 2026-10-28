@@ -447,7 +447,7 @@ If REFRESH is non-nil, refresh the package list afterwards."
               (erase-buffer)
               (insert (format "Unsatisfied requirements:\n%s" (s-join "\n" msgs))))
             (read-only-mode 1)))
-      (message "All requirements are satisfied"))))
+      (stp-msg "All requirements are satisfied"))))
 
 (cl-defun stp-package-group-command (fun table &key (class nil class-provided-p) (refresh t))
   (stp-refresh-info)
@@ -1369,7 +1369,7 @@ argument."
                                (error "The latest stable version is missing for %s" pkg-name))))
                  (range (format "%s..%s" .version latest)))
             (magit-log-setup-buffer (list range) stp-latest-magit-log-default-args nil))
-        (message "No cached repository was found for %s. Update the latest version first from `stp-list-mode' with %s."
+        (stp-msg "No cached repository was found for %s. Update the latest version first from `stp-list-mode' with %s"
                  pkg-name
                  (key-description (where-is-internal 'stp-list-update-latest-version stp-list-mode-map t)))))))
 
@@ -1475,7 +1475,7 @@ always stored as a tag.")
                (not (consp .count-to-unstable))
                (equal .count-from-version .version)
                (> .count-to-stable .count-to-unstable))
-      (stp-msg "Warning: The detected latest stable version for %s is newer than the latest unstable version. This can happen when package authors change the primary branch (e.g. from master to main). To fix it, delete %s or run \"git symbolic-ref HEAD <branch>\" to set HEAD to the new branch."
+      (stp-msg "Warning: The detected latest stable version for %s is newer than the latest unstable version. This can happen when package authors change the primary branch (e.g. from master to main). To fix it, delete %s or run \"git symbolic-ref HEAD <branch>\" to set HEAD to the new branch"
                pkg-name
                (stp-git-cached-repo-path .remote)))
     (when (and stp-list-prefer-latest-stable

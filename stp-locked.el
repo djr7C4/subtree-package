@@ -59,7 +59,7 @@
                   (throw 'ret nil))
                 (unless quiet
                   ;; `stp-msg' might not be available.
-                  (message "Checked out the locked revision %s of %s" rev-string stp-source-directory))))
+                  (stp-msg "Checked out the locked revision %s of %s" rev-string stp-source-directory))))
           (display-warning '(stp locked) (format "%s is missing: unable to restore the locked version of %s" stp-lock-file stp-source-directory)))))))
 
 (provide 'stp-locked)
