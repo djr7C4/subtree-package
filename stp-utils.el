@@ -335,6 +335,7 @@ When METHOD is non-nil, only return packages with that method."
 (defun stp-insert-all-completion-candidates ()
   "Insert all completion candidates in a `completing-read-multiple' session."
   (interactive)
+  (delete-minibuffer-contents)
   (insert (s-join stp-crm-separator-string (all-completions "" minibuffer-completion-table))))
 
 (defvar stp-read-name-history nil)
