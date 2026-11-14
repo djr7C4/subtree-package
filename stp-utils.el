@@ -1022,7 +1022,7 @@ NAME can be a symbol, a string or a list of the form (NAME VERSION)."
 ;; read-symbol-shorthands: (
 ;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
-;;   ("mvs" . "cl-multiple-value-setq")
+;;   ("mvsq" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")
 ;;   ("once-only" . "cl-once-only")
 ;;   ("dflet" . "rem-dflet")

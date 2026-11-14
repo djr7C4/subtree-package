@@ -64,7 +64,7 @@ non-nil when called interactively."
 ;; read-symbol-shorthands: (
 ;;   ("dsb" . "cl-destructuring-bind")
 ;;   ("mvb" . "cl-multiple-value-bind")
-;;   ("mvs" . "cl-multiple-value-setq")
+;;   ("mvsq" . "cl-multiple-value-setq")
 ;;   ("with-gensyms" . "cl-with-gensyms")
 ;;   ("once-only" . "cl-once-only")
 ;;   ("dflet" . "rem-dflet")
